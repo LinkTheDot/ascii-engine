@@ -21,18 +21,11 @@ pub struct Object {
 }
 
 impl Object {
-  pub fn create(
-    name: &str,
-    width: usize,
-    height: usize,
-    object_shape: &str,
-    instructions: fn(String) -> (),
-    position: Option<Coordinates>,
-  ) -> Self {
+  pub fn create(name: &str, object_shape: &str, position: Option<Coordinates>) -> Self {
     Object {
       name: name.to_string(),
-      width,
-      height,
+      width: get_object_width(object_shape),
+      height: get_object_height(object_shape),
       object_shape: object_shape.to_string(),
       position: if let Some(coords) = position {
         coords
@@ -42,6 +35,8 @@ impl Object {
     }
   }
 
+  // try and implement get_coordinates_in_between and just iterate through
+  // all the coordinates
   pub fn place_object(&self, screen_data: &mut ScreenData) {
     let mut pixel_position = self.position;
 
@@ -67,6 +62,7 @@ impl Object {
     }
   }
 
+  // latest thing being worked on, need the squared shape
   pub fn move_object(&mut self, screen_data: &mut ScreenData, move_to: ObjectMovements) {
     match move_to {
       ObjectMovements::Up => self.position.1 - 1,
@@ -74,6 +70,10 @@ impl Object {
       ObjectMovements::Left => self.position.0 - 1,
       ObjectMovements::Right => self.position.0 + 1,
     };
+  }
+
+  pub fn get_bottom_right_of_objecrt(&self) -> Coordinates {
+    todo!()
   }
 }
 
