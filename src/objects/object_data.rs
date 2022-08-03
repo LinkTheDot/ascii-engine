@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use crate::general_data::coordinates::Coordinates;
+use crate::general_data::coordinates::*;
 use crate::screen::screen_data::*;
 
 #[derive(PartialEq)]
@@ -35,16 +35,15 @@ impl Object {
     }
   }
 
-  // try and implement get_coordinates_in_between and just iterate through
-  // all the coordinates
   pub fn place_object(&self, screen_data: &mut ScreenData) {
     let mut pixel_position = self.position;
 
     for new_pixel_display in self.object_shape.chars() {
       match new_pixel_display {
         ' ' => {
-          screen_data.change_pixel_display_at(&pixel_position, EMPTY_PIXEL);
-          screen_data.insert_object_at(&pixel_position, &self.name);
+          let pixel_object_group = (self.name.clone(), EMPTY_PIXEL.to_string());
+
+          screen_data.insert_object_at(&pixel_position, &pixel_object_group);
 
           pixel_position.0 += 1
         }
@@ -53,8 +52,9 @@ impl Object {
           pixel_position.1 += 1;
         }
         _ => {
-          screen_data.change_pixel_display_at(&pixel_position, &new_pixel_display.to_string());
-          screen_data.insert_object_at(&pixel_position, &self.name);
+          let pixel_object_group = (self.name.clone(), new_pixel_display.to_string());
+
+          screen_data.insert_object_at(&pixel_position, &pixel_object_group);
 
           pixel_position.0 += 1
         }
@@ -62,18 +62,11 @@ impl Object {
     }
   }
 
-  // latest thing being worked on, need the squared shape
-  pub fn move_object(&mut self, screen_data: &mut ScreenData, move_to: ObjectMovements) {
-    match move_to {
-      ObjectMovements::Up => self.position.1 - 1,
-      ObjectMovements::Down => self.position.1 + 1,
-      ObjectMovements::Left => self.position.0 - 1,
-      ObjectMovements::Right => self.position.0 + 1,
-    };
-  }
-
-  pub fn get_bottom_right_of_objecrt(&self) -> Coordinates {
-    todo!()
+  pub fn get_bottom_right_of_object(&self) -> Coordinates {
+    (
+      self.position.0 + self.width - 1,
+      self.position.1 + self.height - 1,
+    )
   }
 }
 

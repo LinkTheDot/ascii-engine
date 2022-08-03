@@ -11,6 +11,8 @@ pub const GRID_WIDTH: usize = 175; // further testing may be required but it see
 pub const GRID_HEIGHT: usize = 40;
 pub const EMPTY_PIXEL: &str = "O";
 
+type ObjectAndDisplay = (String, String);
+
 pub struct ScreenData {
   screen_update_receiver: Receiver<String>,
   screen_update_sender: Sender<String>,
@@ -20,28 +22,30 @@ pub struct ScreenData {
 
 #[derive(Clone, Debug)]
 pub struct Pixel {
-  display_as: String,
-  objects_within: Vec<String>,
+  objects_within: Vec<ObjectAndDisplay>,
 }
 
 impl Pixel {
   pub fn new() -> Self {
     Pixel {
-      display_as: EMPTY_PIXEL.to_string(),
       objects_within: vec![],
     }
   }
 
   pub fn display(&self) -> String {
-    self.display_as.clone()
+    if self.objects_within.is_empty() {
+      EMPTY_PIXEL.to_string()
+    } else {
+      self.objects_within[0].1.clone()
+    }
   }
 
   pub fn change_display_to(&mut self, change_to: &str) {
-    self.display_as = change_to.to_string()
+    self.objects_within[0].1 = change_to.to_string()
   }
 
-  pub fn insert_object(&mut self, add_object: &str) {
-    self.objects_within.push(add_object.to_string())
+  pub fn insert_object(&mut self, add_object: &ObjectAndDisplay) {
+    self.objects_within.push(add_object.clone())
   }
 }
 
@@ -76,8 +80,20 @@ impl ScreenData {
     self.screen[coords.coordinates_to_index()].change_display_to(change_to)
   }
 
-  pub fn insert_object_at(&mut self, coords: &Coordinates, change_to: &str) {
+  pub fn insert_object_at(&mut self, coords: &Coordinates, change_to: &ObjectAndDisplay) {
     self.screen[coords.coordinates_to_index()].insert_object(change_to)
+  }
+
+  pub fn move_pixel_display_data(&mut self, pixel_1: Coordinates, pixel_2: Coordinates) -> String {
+    todo!()
+  }
+
+  pub fn move_pixel_object_data(
+    &mut self,
+    pixel_1: Coordinates,
+    pixel_2: Coordinates,
+  ) -> Vec<String> {
+    todo!()
   }
 }
 

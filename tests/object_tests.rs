@@ -55,3 +55,18 @@ mod get_object_sizes_logic {
     assert_eq!(object_height_2d, expected_2d_height);
   }
 }
+
+#[test]
+fn get_bottom_right_of_object_logic() {
+  let x_coordinate = 5;
+  let y_coordinate = 5;
+
+  let hollow_square = Object::create_hollow_square(Some((x_coordinate, y_coordinate)));
+  let bottom_right = hollow_square.get_bottom_right_of_object();
+  let expected_coords = (
+    x_coordinate + hollow_square.width - 1,
+    y_coordinate + hollow_square.height - 1,
+  );
+
+  assert_eq!(bottom_right, expected_coords)
+}
