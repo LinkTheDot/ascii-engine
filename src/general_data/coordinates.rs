@@ -1,4 +1,5 @@
-use crate::screen::screen_data::GRID_WIDTH;
+use crate::objects::object_data::ObjectMovements;
+use crate::screen::screen_data::{GRID_HEIGHT, GRID_WIDTH};
 
 pub type Coordinates = (usize, usize);
 
@@ -6,7 +7,10 @@ pub trait CoordinateMethods {
   fn index_to_coordinates(index: usize) -> Self;
   fn coordinates_to_index(&self) -> usize;
 
-  fn add(&self, add: Coordinates) -> Coordinates;
+  fn add(&self, add: Coordinates) -> Option<Coordinates>;
+  fn subtract(&self, subtract: Coordinates) -> Option<Coordinates>;
+
+  fn move_coords(&self, move_to: &ObjectMovements) -> Option<Coordinates>;
 
   fn get_coordinates_in_between(&self, bottom_right: &Self) -> Vec<Coordinates>;
 }
@@ -20,8 +24,29 @@ impl CoordinateMethods for Coordinates {
     self.0 + GRID_WIDTH * self.1
   }
 
-  fn add(&self, add: Coordinates) -> Coordinates {
-    (self.0 + add.0, self.1 + add.1)
+  fn add(&self, add: Coordinates) -> Option<Coordinates> {
+    if self.0 != GRID_WIDTH && self.1 != GRID_HEIGHT {
+      Some((self.0 - add.0, self.1 - add.1))
+    } else {
+      None
+    }
+  }
+
+  fn subtract(&self, subtract: Coordinates) -> Option<Coordinates> {
+    if self.0 != 0 && self.1 != 0 {
+      Some((self.0 - subtract.0, self.1 - subtract.1))
+    } else {
+      None
+    }
+  }
+
+  fn move_coords(&self, move_to: &ObjectMovements) -> Option<Coordinates> {
+    match move_to {
+      ObjectMovements::Up => self.subtract((0, 1)),
+      ObjectMovements::Down => self.add((0, 1)),
+      ObjectMovements::Left => self.subtract((1, 0)),
+      ObjectMovements::Right => self.add((1, 0)),
+    }
   }
 
   fn get_coordinates_in_between(&self, bottom_right: &Self) -> Vec<Coordinates> {
