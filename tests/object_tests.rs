@@ -49,8 +49,6 @@ fn move_a_placed_object() {
   println!("\n\n\n\n\n\n");
 
   println!("{}", screen_data.display());
-
-  panic!()
 }
 
 #[cfg(test)]

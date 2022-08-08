@@ -57,7 +57,7 @@ fn move_cube(
     // directions and then just suddenly stopping the movement
     if let Some(swap_with) = swap_with {
       screen_data.transfer_latest_object_in_pixel_to(&pixel_coords, &swap_with);
-      screen_data.move_latest_object_to_bottom_at(&swap_with);
+      screen_data.change_pixel_display_at(&swap_with, "square".to_string());
     } else {
       return;
     }

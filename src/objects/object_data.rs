@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use crate::general_data::coordinates::*;
 use crate::screen::screen_data::*;
 

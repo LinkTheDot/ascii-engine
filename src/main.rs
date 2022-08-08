@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use interactable_screen::screen::{run_screen_1::run_screen, screen_data::ScreenData};
 
 // - goals -
