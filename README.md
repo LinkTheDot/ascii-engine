@@ -9,13 +9,13 @@ The screen will be able to render custom text based objects and do things such a
 - Check for interactions between objects
 - Have the ability to write custom code for the objects
 
-##### The Screen
+### The Screen
 Running a screen will involve creating your own separate function for it.
 
 What your screen does depends entirely on what you want it to do and can do
 with the tools available.
 
-##### Objects
+### Objects
 An object contains basic information such as it's.
 - Name
 - Size
