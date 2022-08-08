@@ -1,5 +1,4 @@
 use crate::general_data::coordinates::*;
-use crate::objects::object_data::*;
 use std::collections::{btree_map::Entry::Vacant, BTreeMap};
 use std::error::Error;
 use std::iter;
@@ -13,6 +12,7 @@ pub type Key = String;
 pub type ObjectDisplay = String;
 pub type KeyAndObjectDisplay = (Key, ObjectDisplay);
 
+#[allow(unused)]
 pub struct ScreenData {
   screen_update_receiver: Receiver<String>,
   screen_update_sender: Sender<String>,
