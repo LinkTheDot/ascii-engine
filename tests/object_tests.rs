@@ -24,22 +24,12 @@ fn place_an_object() {
 }
 
 #[test]
+// make more tests for possible errors
 fn move_a_placed_object() {
   let mut screen_data = ScreenData::default();
   let mut hollow_square = Object::create_hollow_square(Some((2, 2)));
-  let move_to = ObjectMovements::Down;
-
-  // moving left and up work
-  //
-  // moving right leaves behind data in what should be empty pixels
-  // and for some reason to the left of those pixels
-  //
-  // moving it down inverts the object
-
-  // let bottom_right_of_square = hollow_square.get_bottom_right_of_object();
-  // let debug_square = hollow_square
-  // .position
-  // .get_coordinates_in_between(&bottom_right_of_square);
+  // implement all directions
+  let move_to = ObjectMovements::Up;
 
   hollow_square.place_object(&mut screen_data);
 

@@ -66,6 +66,17 @@ impl Object {
       self.position.1 + self.height - 1,
     )
   }
+
+  pub fn movement_goes_out_of_bounds(&self, move_to: ObjectMovements) -> bool {
+    let new_position = match self.position.move_coords(&move_to) {
+      Some(coords) => coords,
+      None => return false,
+    };
+
+    new_position
+      .get_object_bounds(&move_to, self.width, self.height)
+      .is_some()
+  }
 }
 
 pub fn get_object_width(object_shape: &str) -> usize {

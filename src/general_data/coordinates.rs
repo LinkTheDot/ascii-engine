@@ -13,6 +13,12 @@ pub trait CoordinateMethods {
   fn move_coords(&self, move_to: &ObjectMovements) -> Option<Coordinates>;
 
   fn get_coordinates_in_between(&self, bottom_right: &Self) -> Vec<Coordinates>;
+  fn get_object_bounds(
+    &self,
+    move_to: &ObjectMovements,
+    width: usize,
+    height: usize,
+  ) -> Option<Coordinates>;
 }
 
 impl CoordinateMethods for Coordinates {
@@ -26,7 +32,7 @@ impl CoordinateMethods for Coordinates {
 
   fn add(&self, add: Coordinates) -> Option<Coordinates> {
     if self.0 != GRID_WIDTH && self.1 != GRID_HEIGHT {
-      Some((self.0 - add.0, self.1 - add.1))
+      Some((self.0 + add.0, self.1 + add.1))
     } else {
       None
     }
@@ -66,5 +72,19 @@ impl CoordinateMethods for Coordinates {
     }
 
     coordinates_in_between
+  }
+
+  fn get_object_bounds(
+    &self,
+    move_to: &ObjectMovements,
+    width: usize,
+    height: usize,
+  ) -> Option<Coordinates> {
+    match move_to {
+      ObjectMovements::Up => self.subtract((1, 0)),
+      ObjectMovements::Down => self.subtract((0, 1)),
+      ObjectMovements::Left => self.add((width, 0)),
+      ObjectMovements::Right => self.add((0, height)),
+    }
   }
 }

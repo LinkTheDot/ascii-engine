@@ -1,12 +1,12 @@
-use crate::general_data::coordinates::*;
+use crate::{clock::clock_struct::ScreenClock, general_data::coordinates::*};
 use std::collections::{btree_map::Entry::Vacant, BTreeMap};
 use std::error::Error;
 use std::iter;
-use std::sync::mpsc::*;
 
 pub const GRID_WIDTH: usize = 175; // further testing may be required but it seems fine
 pub const GRID_HEIGHT: usize = 40;
 pub const EMPTY_PIXEL: &str = "O";
+pub const GRID_SPACER: &str = "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 
 pub type Key = String;
 pub type ObjectDisplay = String;
@@ -14,8 +14,7 @@ pub type KeyAndObjectDisplay = (Key, ObjectDisplay);
 
 #[allow(unused)]
 pub struct ScreenData {
-  screen_update_receiver: Receiver<String>,
-  screen_update_sender: Sender<String>,
+  pub screen_clock: ScreenClock,
   screen: Vec<Pixel>,
 }
 
@@ -124,12 +123,15 @@ impl Pixel {
 
 impl ScreenData {
   pub fn new() -> Result<ScreenData, Box<dyn Error>> {
-    let (screen_update_sender, screen_update_receiver) = channel();
+    let screen_clock = ScreenClock::default();
     let screen = generate_pixel_grid();
 
+    screen_clock.spawn_clock_thread().unwrap_or_else(|error| {
+      panic!("An error has occurred while spawning a clock thread: '{error}'")
+    });
+
     Ok(ScreenData {
-      screen_update_receiver,
-      screen_update_sender,
+      screen_clock,
       screen,
     })
   }
@@ -256,3 +258,11 @@ pub fn generate_pixel_grid() -> Vec<Pixel> {
     .take(GRID_WIDTH * GRID_HEIGHT)
     .collect()
 }
+
+// fn start_clock(tick_update_sender: SyncSender<Result<(), Box<dyn Error>>>) {
+// thread::spawn(move || loop {
+// tick_update_sender.try_send(Ok(()));
+
+// thread::sleep(Duration::from_millis(TICK_DURATION));
+// });
+// }
