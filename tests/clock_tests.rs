@@ -9,7 +9,7 @@ fn wait_for_x_ticks_logic() {
   let clock = ScreenClock::default();
   let x_ticks = 10;
 
-  let run_test_x_times = 50;
+  let run_test_x_times = 25;
   let mut failed_runs = 0;
 
   let expected_duration = TICK_DURATION * x_ticks as u64;

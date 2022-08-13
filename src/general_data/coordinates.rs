@@ -1,4 +1,4 @@
-use crate::objects::object_data::ObjectMovements;
+use crate::objects::object_movements::ObjectMovements;
 use crate::screen::screen_data::{GRID_HEIGHT, GRID_WIDTH};
 
 pub type Coordinates = (usize, usize);
@@ -31,19 +31,35 @@ impl CoordinateMethods for Coordinates {
   }
 
   fn add(&self, add: Coordinates) -> Option<Coordinates> {
-    if self.0 != GRID_WIDTH && self.1 != GRID_HEIGHT {
-      Some((self.0 + add.0, self.1 + add.1))
+    let x = if self.0 != GRID_WIDTH {
+      self.0 + add.0
     } else {
-      None
-    }
+      return None;
+    };
+
+    let y = if self.1 != GRID_HEIGHT {
+      self.1 + add.1
+    } else {
+      return None;
+    };
+
+    Some((x, y))
   }
 
   fn subtract(&self, subtract: Coordinates) -> Option<Coordinates> {
-    if self.0 != 0 && self.1 != 0 {
-      Some((self.0 - subtract.0, self.1 - subtract.1))
+    let x = if self.0 != 0 {
+      self.0 - subtract.0
     } else {
-      None
-    }
+      return None;
+    };
+
+    let y = if self.1 != 0 {
+      self.1 - subtract.1
+    } else {
+      return None;
+    };
+
+    Some((x, y))
   }
 
   fn move_coords(&self, move_to: &ObjectMovements) -> Option<Coordinates> {

@@ -16,7 +16,7 @@ pub fn run_screen(mut screen_data: ScreenData) -> Result<(), Box<dyn Error>> {
 }
 
 pub fn run_test_screen(mut screen_data: ScreenData) -> Result<(), Box<dyn Error>> {
-  let mut new_square = Object::create_hollow_square(Some((100, 20)));
+  let mut new_square = Object::create_hollow_square(Some((100, 5)));
   let mut user_input = String::new();
 
   new_square.place_object(&mut screen_data);

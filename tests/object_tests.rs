@@ -1,4 +1,7 @@
-use interactable_screen::objects::{hollow_square::*, object_data::*};
+// make a way to iterate through all of the cube and compare
+// the data with what should be there
+
+use interactable_screen::objects::{hollow_square::*, object_data::*, object_movements::*};
 use interactable_screen::screen::screen_data::*;
 
 #[test]
@@ -23,22 +26,84 @@ fn place_an_object() {
   println!("{}", screen.display());
 }
 
-#[test]
 // make more tests for possible errors
-fn move_a_placed_object() {
-  let mut screen_data = ScreenData::default();
-  let mut hollow_square = Object::create_hollow_square(Some((2, 2)));
-  // implement all directions
-  let move_to = ObjectMovements::Up;
+#[cfg(test)]
+mod movements {
+  use super::*;
 
-  hollow_square.place_object(&mut screen_data);
+  #[test]
+  fn move_a_placed_object() {
+    let mut screen_data = ScreenData::default();
+    let mut hollow_square = Object::create_hollow_square(Some((2, 2)));
 
-  println!("{}", screen_data.display());
+    hollow_square.place_object(&mut screen_data);
 
-  hollow_square.move_object(&mut screen_data, move_to);
-  println!("\n\n\n\n\n\n");
+    hollow_square.move_object(&mut screen_data, &ObjectMovements::Up);
+    hollow_square.move_object(&mut screen_data, &ObjectMovements::Down);
+    hollow_square.move_object(&mut screen_data, &ObjectMovements::Left);
+    hollow_square.move_object(&mut screen_data, &ObjectMovements::Right);
+  }
 
-  println!("{}", screen_data.display());
+  #[cfg(test)]
+  mod move_object_out_of_bounds {
+    use super::*;
+
+    #[test]
+    fn move_up() {
+      let mut screen = ScreenData::default();
+      let mut hollow_square = Object::create_hollow_square(Some((0, 0)));
+      let expected_position = (0, 0);
+
+      hollow_square.move_object(&mut screen, &ObjectMovements::Up);
+
+      assert_eq!(hollow_square.position, expected_position);
+    }
+
+    #[test]
+    fn move_down() {
+      let mut screen = ScreenData::default();
+      // for now just manually put the number in
+      // later once the function is made place it in
+      // the expected position then move it
+      let mut hollow_square = Object::create_hollow_square(Some((165, 35)));
+      let expected_position = (
+        GRID_WIDTH - hollow_square.width,
+        GRID_HEIGHT - hollow_square.height,
+      );
+
+      hollow_square.move_object(&mut screen, &ObjectMovements::Down);
+
+      assert_eq!(hollow_square.position, expected_position);
+    }
+
+    #[test]
+    fn move_left() {
+      let mut screen = ScreenData::default();
+      let mut hollow_square = Object::create_hollow_square(Some((0, 0)));
+      let expected_position = (0, 0);
+
+      hollow_square.move_object(&mut screen, &ObjectMovements::Left);
+
+      assert_eq!(hollow_square.position, expected_position);
+    }
+
+    #[test]
+    fn move_right() {
+      let mut screen = ScreenData::default();
+      // for now just manually put the number in
+      // later once the function is made place it in
+      // the expected position then move it
+      let mut hollow_square = Object::create_hollow_square(Some((165, 35)));
+      let expected_position = (
+        GRID_WIDTH - hollow_square.width,
+        GRID_HEIGHT - hollow_square.height,
+      );
+
+      hollow_square.move_object(&mut screen, &ObjectMovements::Down);
+
+      assert_eq!(hollow_square.position, expected_position);
+    }
+  }
 }
 
 #[cfg(test)]

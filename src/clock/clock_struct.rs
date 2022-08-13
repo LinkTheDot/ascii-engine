@@ -2,7 +2,7 @@ use crossbeam_channel::*;
 use std::{error::Error, thread, time::Duration};
 
 ///in milliseconds
-pub const TICK_DURATION: u64 = 16;
+pub const TICK_DURATION: u64 = 24;
 
 pub struct ScreenClock {
   tick_update_receiver: Receiver<()>,
@@ -11,7 +11,7 @@ pub struct ScreenClock {
 
 impl ScreenClock {
   pub fn new() -> Result<Self, Box<dyn Error>> {
-    let (sender, receiver) = unbounded();
+    let (sender, receiver) = bounded(1);
 
     Ok(ScreenClock {
       tick_update_receiver: receiver,
@@ -36,11 +36,12 @@ impl ScreenClock {
     Ok(())
   }
 
-  pub fn wait_for_x_ticks(&self, x: usize) {
+  pub fn wait_for_x_ticks(&self, x: u16) {
     for _ in 0..x {
       self.tick_update_receiver.wait_for_tick();
 
-      // goes fast enough to skip over ticks
+      // goes fast enough to skip over ticks so it needs to stop
+      // for a millisecond
       thread::sleep(Duration::from_millis(1));
     }
   }

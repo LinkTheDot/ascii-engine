@@ -1,13 +1,6 @@
 use crate::general_data::coordinates::*;
+use crate::objects::object_movements::*;
 use crate::screen::screen_data::*;
-
-#[derive(PartialEq)]
-pub enum ObjectMovements {
-  Up,
-  Down,
-  Left,
-  Right,
-}
 
 #[derive(Debug)]
 pub struct Object {
