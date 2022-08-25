@@ -17,3 +17,12 @@ fn main() {
     eprintln!("An error has occured while running the screen: '{error}'");
   }
 }
+
+// known bugs
+//  - pixels aren't reassigning display data when overwritten then undone
+//  - can't go out of bounds in either positive direction
+//    - down crashes
+//    - right causes some weird bugs
+//  - x can never = 0
+//  - when an object reaches the far left side of the screen it can't move
+//    in any direction but right

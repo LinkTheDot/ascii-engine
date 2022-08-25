@@ -23,7 +23,7 @@ impl Pixel {
   }
 
   /// Returns the pixel display depending on what was assigned
-  /// if nothing was assigned then it'll return what  an EMPTY_PIXEL is defined as
+  /// if nothing was assigned then it'll return what an EMPTY_PIXEL is defined as
   pub fn display(&self) -> String {
     if let (Some(display_key), Some(assigned_display)) =
       (&self.assigned_display, &self.assigned_display_number)
@@ -103,8 +103,6 @@ impl Pixel {
       } else {
         let mut removed_object_display = self
           .objects_within
-          // crashes here probably because objects aren't properly
-          // defining their assigned numbers
           .remove_entry(self.assigned_display.as_ref().unwrap())
           .unwrap();
 
