@@ -4,6 +4,18 @@ use std::{error::Error, thread, time::Duration};
 ///in milliseconds
 pub const TICK_DURATION: u64 = 24;
 
+/// The clock for the screen
+///
+/// The clock will synchronize all actions that happen on the screen
+/// by using the 'wait_for_x_ticks()' function:
+///
+/// ```
+/// let mut screen = ScreenData::default();
+///
+/// println!("waiting for 5 clock ticks");
+/// screen.wait_for_x_ticks(5);
+/// println!("5 clock ticks have passed");
+/// ```
 pub struct ScreenClock {
   tick_update_receiver: Receiver<()>,
   tick_update_sender: Sender<()>,

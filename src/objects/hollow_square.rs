@@ -3,10 +3,7 @@
 //
 // i can already see this having many problems with how
 // object data is stored in pixels
-//
-// it's possible something like a hashmap of hashmaps might be needed
-// where i'll assign a key to a given object just incase of overlapping
-// objects of the same key value that're placed differently
+// see screen_data for more of an explanation
 
 use crate::general_data::coordinates::*;
 use crate::objects::{object_data::*, object_movements::*};
@@ -25,7 +22,7 @@ xxX    Xxx
 CCxX  XxVV";
 
 pub trait HollowSquare {
-  fn create_hollow_square(position: Option<Coordinates>) -> Object;
+  fn create_hollow_square(screen_data: &mut ScreenData, position: Option<Coordinates>) -> Object;
 
   fn move_object(&mut self, screen_data: &mut ScreenData, move_to: &ObjectMovements);
   fn move_x_times(&mut self, screen_data: &mut ScreenData, move_to: ObjectMovements, x: u16);
@@ -35,8 +32,10 @@ pub trait HollowSquare {
 }
 
 impl HollowSquare for Object {
-  fn create_hollow_square(position: Option<Coordinates>) -> Object {
-    Object::create("square", SQUARE_SHAPE, position)
+  fn create_hollow_square(screen_data: &mut ScreenData, position: Option<Coordinates>) -> Object {
+    let object_information = ObjectInformation::from("square", SQUARE_SHAPE, position, None);
+
+    Object::create(object_information, screen_data)
   }
 
   fn move_object(&mut self, screen_data: &mut ScreenData, move_to: &ObjectMovements) {
@@ -75,12 +74,10 @@ impl HollowSquare for Object {
       println!("{GRID_SPACER}");
       println!("{}", screen_data.display());
 
-      screen_data.screen_clock.wait_for_x_ticks(2);
+      screen_data.wait_for_x_ticks(2);
     }
 
-    screen_data
-      .screen_clock
-      .wait_for_x_ticks(BASIC_MOVEMENT_TIMER);
+    screen_data.wait_for_x_ticks(BASIC_MOVEMENT_TIMER);
   }
 
   fn spin_cube(&mut self, screen_data: &mut ScreenData, spin_count: usize) {
@@ -140,8 +137,8 @@ fn move_cube(
   for pixel_coords in coordinate_cube {
     let swap_with = pixel_coords.move_coords(move_to);
     if let Some(swap_with) = swap_with {
-      screen_data.transfer_latest_object_in_pixel_to(&pixel_coords, &swap_with);
-      screen_data.change_pixel_display_at(&swap_with, "square".to_string());
+      screen_data.transfer_assigned_object_in_pixel_to(&pixel_coords, &swap_with);
+      screen_data.change_pixel_display_at(&swap_with, "square".to_string(), None);
     } else {
       return;
     }

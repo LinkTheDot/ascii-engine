@@ -1,5 +1,5 @@
 use crate::clock::clock_struct::ScreenClock;
-use crate::screen::screen_data::{Pixel, ScreenData};
+use crate::screen::{pixel::*, screen_data::ScreenData};
 
 impl Default for Pixel {
   fn default() -> Self {

@@ -1,4 +1,6 @@
-use interactable_screen::screen::{run_screen_1::*, screen_data::ScreenData};
+use interactable_screen::screen::{
+  screen_data::ScreenData, screen_runs::test_screen::run_test_screen,
+};
 
 // - goals -
 //

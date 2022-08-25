@@ -3,23 +3,13 @@ use crate::screen::screen_data::*;
 use std::error::Error;
 use std::io;
 
-pub fn run_screen(mut screen_data: ScreenData) -> Result<(), Box<dyn Error>> {
-  // possibly just use a channel to store all the updates
-  // that would happen in a given 'pass' and go through them all
-  let new_square = Object::create_hollow_square(Some((30, 15)));
-
-  new_square.place_object(&mut screen_data);
-
-  println!("{}", screen_data.display());
-
-  Ok(())
-}
-
 pub fn run_test_screen(mut screen_data: ScreenData) -> Result<(), Box<dyn Error>> {
-  let mut new_square = Object::create_hollow_square(Some((100, 5)));
+  let mut new_square = Object::create_hollow_square(&mut screen_data, Some((100, 5)));
+  let second_square = Object::create_hollow_square(&mut screen_data, Some((50, 5)));
   let mut user_input = String::new();
 
   new_square.place_object(&mut screen_data);
+  second_square.place_object(&mut screen_data);
 
   println!("{GRID_SPACER}");
   println!("{}", screen_data.display());
