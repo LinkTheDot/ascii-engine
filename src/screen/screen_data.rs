@@ -91,6 +91,7 @@ impl ScreenData {
     self.screen[pixel_at.coordinates_to_index()].is_empty()
   }
 
+  // pixel pixel
   pub fn get_mut_pixel_at(&mut self, pixel_at: &Coordinates) -> &mut Pixel {
     &mut self.screen[pixel_at.coordinates_to_index()]
   }

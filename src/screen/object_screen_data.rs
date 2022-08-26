@@ -20,9 +20,9 @@ pub struct ObjectScreenData {
 }
 
 impl ObjectScreenData {
-  pub fn new(name: &String) -> Self {
+  pub fn new(name: &str) -> Self {
     ObjectScreenData {
-      name: name.clone(),
+      name: name.to_owned(),
       keep_data: false,
       currently_existing: 0,
       total_count: 0,

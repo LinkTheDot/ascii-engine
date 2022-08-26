@@ -42,7 +42,7 @@ impl<'a> ObjectInformation<'a> {
   }
 
   pub fn get_name(&self) -> &'a str {
-    &self.name
+    self.name
   }
 }
 
@@ -71,17 +71,10 @@ impl Object {
     }
   }
 
-  // update the screen with the new object placed
-  // the object will be assigned it's number here
   pub fn place_object(&self, screen_data: &mut ScreenData) {
     let mut pixel_position = self.position;
 
     screen_data.update_placed_objects(&self.name, Actions::Add);
-
-    println!(
-      "placed_object_data - {:#?}",
-      screen_data.get_existing_object(&self.name)
-    );
 
     for new_pixel_display in self.object_shape.chars() {
       match new_pixel_display {
@@ -110,6 +103,7 @@ impl Object {
     }
   }
 
+  /// Gets the coordinates at the bottom right of the object
   pub fn get_bottom_right_of_object(&self) -> Coordinates {
     (
       self.position.0 + self.width - 1,

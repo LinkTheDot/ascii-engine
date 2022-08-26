@@ -115,6 +115,7 @@ impl HollowSquare for Object {
         "right" | "r" => self.move_object(screen_data, &ObjectMovements::Right),
         "up" | "u" => self.move_object(screen_data, &ObjectMovements::Up),
         "down" | "d" => self.move_object(screen_data, &ObjectMovements::Down),
+        "tell me" => (),
         "exit" | "e" => break,
         _ => continue,
       }

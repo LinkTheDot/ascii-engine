@@ -8,12 +8,16 @@ pub const TICK_DURATION: u64 = 24;
 ///
 /// The clock will synchronize all actions that happen on the screen
 /// by using the 'wait_for_x_ticks()' function:
-///
+/// #Example of using a clock on it's own
 /// ```
-/// let mut screen = ScreenData::default();
+/// use interactable_screen::clock::clock_struct::ScreenClock;
+///
+/// let clock = ScreenClock::default();
+///
+/// clock.spawn_clock_thread().unwrap();
 ///
 /// println!("waiting for 5 clock ticks");
-/// screen.wait_for_x_ticks(5);
+/// clock.wait_for_x_ticks(5);
 /// println!("5 clock ticks have passed");
 /// ```
 pub struct ScreenClock {
