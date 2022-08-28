@@ -81,7 +81,7 @@ impl Object {
         ' ' => {
           let pixel_object_group = (self.name.clone(), (self.number, EMPTY_PIXEL.to_string()));
 
-          screen_data.insert_object_at(&pixel_position, pixel_object_group);
+          screen_data.insert_object_at(&pixel_position, pixel_object_group, true);
 
           pixel_position.0 += 1
         }
@@ -95,7 +95,7 @@ impl Object {
             (self.number, new_pixel_display.to_string()),
           );
 
-          screen_data.insert_object_at(&pixel_position, pixel_object_group);
+          screen_data.insert_object_at(&pixel_position, pixel_object_group, true);
 
           pixel_position.0 += 1
         }
@@ -120,6 +120,17 @@ impl Object {
     new_position
       .get_object_bounds(&move_to, self.width, self.height)
       .is_some()
+  }
+
+  pub fn print_square_data(&self, screen: &ScreenData) {
+    let bottom_right_of_square = self.get_bottom_right_of_object();
+    let mut coordinate_cube = self
+      .position
+      .get_coordinates_in_between(&bottom_right_of_square);
+
+    for coordinate in coordinate_cube {
+      println!("{:?}", screen.get_pixel_at(&coordinate));
+    }
   }
 }
 

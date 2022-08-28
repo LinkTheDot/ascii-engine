@@ -32,11 +32,9 @@ mod remove_displayed_object_logic {
     let [object_data, _, _] = generate_all_objects();
     let expected_object_data = Some(object_data.clone());
 
-    screen.insert_object_at(&pixel_at, object_data.clone());
+    screen.insert_object_at(&pixel_at, object_data.clone(), true);
 
-    screen
-      .get_mut_pixel_at(&pixel_at)
-      .change_display_to(object_data.0, None);
+    screen.change_pixel_display_at(&pixel_at, Some(object_data.0), None);
 
     let removed_displayed_object = screen.get_mut_pixel_at(&pixel_at).remove_displayed_object();
 
@@ -54,12 +52,12 @@ mod remove_displayed_object_logic {
 
     expected_display_data.insert(0, OBJECT_DISPLAY_2.to_string());
 
-    screen.insert_object_at(&pixel_at, object_data_one.clone());
-    screen.insert_object_at(&pixel_at, object_data_two);
+    screen.insert_object_at(&pixel_at, object_data_one.clone(), true);
+    screen.insert_object_at(&pixel_at, object_data_two, true);
 
     screen
       .get_mut_pixel_at(&pixel_at)
-      .change_display_to(object_data_one.0, None);
+      .change_display_to(Some(object_data_one.0), None);
 
     let removed_displayed_object = screen.get_mut_pixel_at(&pixel_at).remove_displayed_object();
 

@@ -50,30 +50,46 @@ impl Pixel {
     EMPTY_PIXEL.to_string()
   }
 
-  // make it change the number as well
-  // if one isn't specified then search for the latest
-  // number key and use that one
-  pub fn change_display_to(&mut self, change_to: Key, assigned_number: Option<AssignedNumber>) {
-    if assigned_number.is_some() {
-      self.assigned_display_number = assigned_number;
-      self.assigned_display = Some(change_to);
-    } else if self.objects_within.contains_key(&change_to) {
-      let new_number = *self
-        .objects_within
-        .get(&change_to)
-        .unwrap()
-        .keys()
-        .next()
-        .unwrap();
+  pub fn change_display_to(
+    &mut self,
+    change_to: Option<Key>,
+    assigned_number: Option<AssignedNumber>,
+  ) {
+    // if assigned_number.is_some() {
+    // self.assigned_display_number = assigned_number;
+    // self.assigned_display = Some(change_to);
+    // } else if self.objects_within.contains_key(&change_to) {
+    // let new_number = *self
+    // .objects_within
+    // .get(&change_to)
+    // .unwrap()
 
-      self.assigned_display_number = Some(new_number);
-      self.assigned_display = Some(change_to);
+    // self.assigned_display_number = Some(new_number);
+    // self.assigned_display = Some(change_to);
+    // }
+
+    println!("  -- change display to --  ");
+    println!("change to - {:?} | {:?}", &change_to, &assigned_number);
+
+    if self.contains_object(change_to.as_ref().unwrap()) {
+      if change_to.is_some() && assigned_number.is_some() {
+        self.assigned_display = change_to;
+        self.assigned_display_number = assigned_number;
+      } else if change_to.is_some() && assigned_number.is_none() {
+        let key = change_to.unwrap();
+
+        let lowest_display_number = *self.get(&key).unwrap().get_lowest_key().unwrap();
+
+        self.assigned_display = Some(key);
+        self.assigned_display_number = Some(lowest_display_number);
+      }
     }
   }
 
   /// Inserts the object and if there's no assignment
   /// it'll assign the inserted object to the pixel
-  pub fn insert_object(&mut self, key: Key, item: AssignedObject) {
+  /// if reassign is true
+  pub fn insert_object(&mut self, key: Key, item: AssignedObject, reassign: bool) {
     if self.objects_within.contains_key(&key) {
       self
         .objects_within
@@ -82,7 +98,9 @@ impl Pixel {
         .insert(item.0, item.1)
         .unwrap_or_else(|| "".to_string());
     } else {
-      self.change_display_to(key.clone(), Some(item.0));
+      if reassign {
+        self.change_display_to(Some(key.clone()), Some(item.0));
+      }
 
       let mut new_map = HashMap::new();
       new_map.insert(item.0, item.1);
@@ -95,6 +113,7 @@ impl Pixel {
   pub fn remove_displayed_object(&mut self) -> Option<KeyAndObjectDisplay> {
     let pixel_data = if !self.is_empty() {
       if self.assigned_key_has_multiple_objects() {
+        println!("remove displayed object\n{:?}", self);
         let removed_object_display = self.remove_object_assigned_number().unwrap();
         let copy_of_assinged_key = self.assigned_display.as_ref().unwrap().clone();
 
@@ -105,7 +124,7 @@ impl Pixel {
           .remove_entry(self.assigned_display.as_ref().unwrap())
           .unwrap();
 
-        self.assigned_display = self.check_if_available_object().cloned();
+        self.reassign_display_data();
 
         Some((
           removed_object_display.0,
@@ -120,27 +139,26 @@ impl Pixel {
     };
 
     if let Some((key, assigned_number)) = self.get_new_object_assignment() {
-      self.change_display_to(key, Some(assigned_number));
+      self.change_display_to(Some(key), Some(assigned_number));
     }
 
     pixel_data
   }
 
-  /// Only removes the object, doesn't clear it from memory
-  /// if there're 0 objects left inside
   pub fn remove_object_assigned_number(&mut self) -> Option<AssignedObject> {
     if let (Some(object_key), Some(assigned_number)) = (
       self.assigned_display.as_ref(),
       self.assigned_display_number.as_ref(),
     ) {
-      let assigned_object = self
-        .objects_within
-        .get_mut(object_key)
-        .unwrap()
-        .remove_entry(assigned_number);
-
       if self.objects_within.get(object_key).unwrap().len() > 1 {
+        let assigned_object = self
+          .objects_within
+          .get_mut(object_key)
+          .unwrap()
+          .remove_entry(assigned_number);
         return assigned_object;
+      } else {
+        let _assigned_object = self.objects_within.remove(object_key);
       }
     }
 
@@ -157,12 +175,6 @@ impl Pixel {
 
   pub fn is_empty(&self) -> bool {
     self.objects_within.len() == 0
-  }
-
-  /// checks if there's a key still in the map and if so returns
-  /// a reference to said key
-  pub fn check_if_available_object(&self) -> Option<&Key> {
-    self.objects_within.keys().next()
   }
 
   /// checks if the input key is within the map
@@ -210,6 +222,8 @@ impl Pixel {
     self.objects_within.get_first_key()
   }
 
+  /// Checks for the latest object that's been inserted into the pixel
+  /// then gets the lowest number of that object
   pub fn get_new_object_assignment(&self) -> Option<(Key, AssignedNumber)> {
     if self.has_no_assignment() {
       if let Some(key) = self.get_latest_object_key() {
@@ -221,6 +235,16 @@ impl Pixel {
       }
     } else {
       None
+    }
+  }
+
+  /// Checks if there's an available object in the pixel
+  /// if so it'll assign the pixel to that
+  /// if not it'll do nothing
+  pub fn reassign_display_data(&mut self) {
+    if let Some((key, assigned_number)) = self.get_new_object_assignment() {
+      self.change_display_to(Some(key), Some(assigned_number));
+    } else {
     }
   }
 }

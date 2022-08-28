@@ -67,23 +67,34 @@ impl ScreenData {
   pub fn change_pixel_display_at(
     &mut self,
     pixel_at: &Coordinates,
-    change_to: Key,
+    change_to: Option<Key>,
     assigned_number: Option<AssignedNumber>,
   ) {
     self.screen[pixel_at.coordinates_to_index()].change_display_to(change_to, assigned_number)
   }
 
-  pub fn insert_object_at(&mut self, at_pixel: &Coordinates, insert: KeyAndObjectDisplay) {
-    self.screen[at_pixel.coordinates_to_index()].insert_object(insert.0, insert.1)
+  /// Inserts the object at the given coordinates
+  /// and if there's no assignment it'll assign
+  /// the inserted object to the pixel if reassign is true
+  pub fn insert_object_at(
+    &mut self,
+    at_pixel: &Coordinates,
+    insert: KeyAndObjectDisplay,
+    reassign: bool,
+  ) {
+    self.screen[at_pixel.coordinates_to_index()].insert_object(insert.0, insert.1, reassign)
   }
 
+  /// Inserts all objects passed in to the
+  /// given coordinates, does not reassign
+  /// the pixel for any of them
   pub fn insert_all_objects_at(
     &mut self,
     pixel_at: &Coordinates,
     objects: Vec<KeyAndObjectDisplay>,
   ) {
     for object_data in objects {
-      self.insert_object_at(pixel_at, object_data)
+      self.insert_object_at(pixel_at, object_data, false)
     }
   }
 
@@ -91,11 +102,12 @@ impl ScreenData {
     self.screen[pixel_at.coordinates_to_index()].is_empty()
   }
 
-  // pixel pixel
+  // change with new pixel implementations
   pub fn get_mut_pixel_at(&mut self, pixel_at: &Coordinates) -> &mut Pixel {
     &mut self.screen[pixel_at.coordinates_to_index()]
   }
 
+  // change with new pixel implementations
   pub fn get_pixel_at(&self, pixel_at: &Coordinates) -> &Pixel {
     &self.screen[pixel_at.coordinates_to_index()]
   }
@@ -107,7 +119,7 @@ impl ScreenData {
     self.get_mut_pixel_at(pixel_at).remove_displayed_object()
   }
 
-  /// this will take the assigned object display data within the first
+  /// This will take the assigned object display data within the first
   /// enserted pixel's coordinates and move it to the second
   /// data of the overwritten pixel is returned as an optional
   pub fn replace_latest_object_in_pixel(
@@ -123,7 +135,7 @@ impl ScreenData {
         None
       };
 
-      self.insert_object_at(pixel_2, pixel_1_data);
+      self.insert_object_at(pixel_2, pixel_1_data, true);
 
       pixel_2_data
     } else {
@@ -139,7 +151,7 @@ impl ScreenData {
     let object = self.remove_displayed_object_data_at(pixel_1);
 
     if let Some(object) = object {
-      self.insert_object_at(pixel_2, object);
+      self.insert_object_at(pixel_2, object, true);
     }
   }
 

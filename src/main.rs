@@ -19,7 +19,7 @@ fn main() {
 }
 
 // known bugs
-//  - pixels aren't reassigning display data when overwritten then undone
+//  - pixels eat eachother whenever they overlap...
 //  - can't go out of bounds in either positive direction
 //    - down crashes
 //    - right causes some weird bugs
