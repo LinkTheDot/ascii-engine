@@ -37,7 +37,9 @@ mod pixel_data_transfer_logic {
     // pixel one check
     assert_eq!(
       expected_first_pixel_data.as_ref(),
-      screen.get_pixel_at(&first_pixel).get_current_display_data()
+      screen
+        .get_pixel_at(&first_pixel)
+        .get_all_current_display_data()
     );
 
     // pixel two check
@@ -45,7 +47,7 @@ mod pixel_data_transfer_logic {
       Some(&expected_second_pixel_data),
       screen
         .get_pixel_at(&second_pixel)
-        .get_current_display_data(),
+        .get_all_current_display_data(),
     );
 
     // removed pixel 2 data check
@@ -61,79 +63,82 @@ fn generate_pixel_grid_logic() {
   assert_eq!(pixel_grid.len(), expected_grid_length);
 }
 
-#[test]
-fn adding_multiple_items_then_moving_one() {
-  let mut screen = ScreenData::default();
-  let pixel_one = (0, 0);
-  let pixel_two = (1, 0);
-  let [data_one, data_two, _] = generate_all_objects();
-  let expected_origin_pixel_data = data_one.1 .1.clone();
-  let expected_new_pixel_data = data_two.1 .1.clone();
+#[cfg(test)]
+mod remove_displayed_object_logic {
+  use super::*;
 
-  screen.insert_object_at(&pixel_one, data_one, true);
-  screen.insert_object_at(&pixel_one, data_two, true);
+  #[test]
+  fn remove_with_one_object() {
+    let mut screen = ScreenData::default();
+    let pixel_at = (0, 0);
+    let [object_data, _, _] = generate_all_objects();
+    let expected_object_data = Some(object_data.clone());
 
-  println!("{:?} - {:?}", pixel_one, screen.get_pixel_at(&pixel_one));
+    screen.insert_object_at(&pixel_at, object_data.clone(), true);
 
-  screen.transfer_assigned_object_in_pixel_to(&pixel_one, &pixel_two);
+    screen.change_pixel_display_at(&pixel_at, Some(object_data.0), None);
 
-  println!("{:?} - {:?}", pixel_one, screen.get_pixel_at(&pixel_one));
-  println!("{:?} - {:?}", pixel_two, screen.get_pixel_at(&pixel_two));
+    let removed_displayed_object = screen.get_mut_pixel_at(&pixel_at).remove_displayed_object();
 
-  let pixel_one_data = screen
-    .get_pixel_at(&pixel_one)
-    .get_current_display_data()
-    .unwrap()
-    .get(&0)
-    .unwrap();
+    assert_eq!(removed_displayed_object, expected_object_data);
+  }
 
-  let pixel_two_data = screen
-    .get_pixel_at(&pixel_two)
-    .get_current_display_data()
-    .unwrap()
-    .get(&0)
-    .unwrap();
+  #[test]
+  fn remove_with_two_objects() {
+    let mut screen = ScreenData::default();
+    let pixel_at = (0, 0);
+    let [object_data_one, object_data_two, _] = generate_all_objects();
 
-  assert_eq!(pixel_one_data, &expected_origin_pixel_data);
-  assert_eq!(pixel_two_data, &expected_new_pixel_data);
-}
+    // expected data
+    let expected_removed_object_data = Some(object_data_one.clone());
+    let expected_display_object = OBJECT_2.to_string();
+    let mut expected_display_data = HashMap::new();
+    expected_display_data.insert(0, OBJECT_DISPLAY_2.to_string());
 
-#[test]
-fn transferring_same_object_names() {
-  let mut screen = ScreenData::default();
-  let pixel_one = (0, 0);
-  let pixel_two = (1, 0);
-  let data_one = (OBJECT_1.to_string(), (0, OBJECT_DISPLAY_1.to_string()));
-  let data_two = (OBJECT_1.to_string(), (1, OBJECT_DISPLAY_2.to_string()));
-  let expected_origin_pixel_data = data_one.1 .1.clone();
-  let expected_new_pixel_data = data_two.1 .1.clone();
+    screen.insert_object_at(&pixel_at, object_data_one.clone(), true);
+    screen.insert_object_at(&pixel_at, object_data_two, true);
 
-  screen.insert_object_at(&pixel_one, data_one, true);
-  screen.insert_object_at(&pixel_one, data_two, true);
+    screen.change_pixel_display_at(
+      &pixel_at,
+      Some(object_data_one.0),
+      Some(object_data_one.1 .0),
+    );
 
-  println!("{:?} - {:?}", pixel_one, screen.get_pixel_at(&pixel_one));
+    let removed_displayed_object = screen.remove_displayed_object_data_at(&pixel_at);
 
-  screen.transfer_assigned_object_in_pixel_to(&pixel_one, &pixel_two);
+    // object should be circle in pixel
+    // removed should be square
+    // assignment should be circle
 
-  println!("{:?} - {:?}", pixel_one, screen.get_pixel_at(&pixel_one));
-  println!("{:?} - {:?}", pixel_two, screen.get_pixel_at(&pixel_two));
+    // checking if the removed data is correct
+    assert_eq!(removed_displayed_object, expected_removed_object_data);
 
-  let pixel_one_data = screen
-    .get_pixel_at(&pixel_one)
-    .get_current_display_data()
-    .unwrap()
-    .get(&0)
-    .unwrap();
+    // checking if the pixel was correctly updated with the already existing data
+    // key check
+    assert!(screen
+      .get_pixel_at(&pixel_at)
+      .contains_object(&expected_display_object));
 
-  let pixel_two_data = screen
-    .get_pixel_at(&pixel_two)
-    .get_current_display_data()
-    .unwrap()
-    .get(&1)
-    .unwrap();
+    let pixel = screen.get_pixel_at(&pixel_at);
 
-  assert_eq!(pixel_one_data, &expected_origin_pixel_data);
-  assert_eq!(pixel_two_data, &expected_new_pixel_data);
+    println!("{:?}", pixel);
+    // object data and key assignment check
+    assert_eq!(
+      pixel.get_all_current_display_data().unwrap(),
+      &expected_display_data
+    );
+  }
+
+  #[test]
+  fn remove_with_no_objects() {
+    let mut screen = ScreenData::default();
+    let pixel_at = (0, 0);
+    let expected_display_object = None;
+
+    let removed_displayed_object = screen.get_mut_pixel_at(&pixel_at).remove_displayed_object();
+
+    assert_eq!(removed_displayed_object, expected_display_object);
+  }
 }
 
 fn generate_all_objects() -> [KeyAndObjectDisplay; 3] {

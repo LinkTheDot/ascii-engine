@@ -26,3 +26,9 @@ fn main() {
 //  - x can never = 0
 //  - when an object reaches the far left side of the screen it can't move
 //    in any direction but right
+//
+//
+//
+// comb through everything in the pixel file
+// comb through the screen and pixel tests
+// make tests for 'remove_displayed_object'
