@@ -18,7 +18,7 @@ fn wait_for_x_ticks_logic() {
   for _ in 0..run_test_x_times {
     clock.spawn_clock_thread();
 
-    // gives it a split second to let the clock do it's thing
+    // gives the clock a split second to do it's thing
     thread::sleep(Duration::from_millis(1));
 
     let mut now = Instant::now();
@@ -31,7 +31,7 @@ fn wait_for_x_ticks_logic() {
       || !elapsed_time == expected_duration as u128 - 1
       || !elapsed_time == expected_duration as u128
     {
-      println!("elapsed_time is - {elapsed_time}\nexpected - {expected_duration} +- 1..2");
+      println!("elapsed_time is: {elapsed_time}\nexpected: {expected_duration} +- 1..2");
 
       failed_runs += 1;
     }

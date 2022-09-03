@@ -15,6 +15,9 @@ pub struct ObjectInformation<'a> {
 }
 
 impl<'a> ObjectInformation<'a> {
+  /// Creates an instance of ObjectInformation with the given info
+  /// Position is defaulted to (0, 0) if None is inserted
+  /// keep_data is defaulted to false if None is inserted
   pub fn from(
     name: &'a str,
     object_shape: &'a str,
@@ -47,6 +50,8 @@ impl<'a> ObjectInformation<'a> {
 }
 
 #[derive(Debug)]
+/// An Object is the data that the screen uses to determine how to print and
+/// handle whatever your object is
 /// An object's assigned number should have no relevance to itself
 /// and is merely there to help the screen identify different objects
 /// with the same name
@@ -60,6 +65,7 @@ pub struct Object {
 }
 
 impl Object {
+  /// Creates an object with the given ObjectInformation
   pub fn create(object_information: ObjectInformation, screen: &mut ScreenData) -> Self {
     Object {
       name: object_information.name.to_string(),
@@ -71,6 +77,7 @@ impl Object {
     }
   }
 
+  /// Places the object on the screen converting " " into empty pixels
   pub fn place_object(&self, screen_data: &mut ScreenData) {
     let mut pixel_position = self.position;
 
@@ -111,6 +118,7 @@ impl Object {
     )
   }
 
+  /// Returns true if movement in any given direction goes out of bounds
   pub fn movement_goes_out_of_bounds(&self, move_to: ObjectMovements) -> bool {
     let new_position = match self.position.move_coords(&move_to) {
       Some(coords) => coords,
@@ -122,6 +130,8 @@ impl Object {
       .is_some()
   }
 
+  /// Prints the data in every pixel that the object inhabits
+  /// This should only be used for debugging purposes
   pub fn print_square_data(&self, screen: &ScreenData) {
     let bottom_right_of_square = self.get_bottom_right_of_object();
     let mut coordinate_cube = self

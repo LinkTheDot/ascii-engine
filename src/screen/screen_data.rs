@@ -33,6 +33,8 @@ pub struct ScreenData {
 }
 
 impl ScreenData {
+  /// Creates a new screen which in the process starts a new clock
+  /// thread
   pub fn new() -> Result<ScreenData, Box<dyn Error>> {
     let screen_clock = ScreenClock::default();
     let screen = generate_pixel_grid();
@@ -64,6 +66,8 @@ impl ScreenData {
       .collect()
   }
 
+  /// Changes the assigned_display of the pixel
+  /// If the input is invalid it'll set the display to None
   pub fn change_pixel_display_at(
     &mut self,
     pixel_at: &Coordinates,
@@ -98,20 +102,21 @@ impl ScreenData {
     }
   }
 
+  /// Returns true if the pixel contains no object data
   pub fn pixel_is_empty(&self, pixel_at: &Coordinates) -> bool {
     self.screen[pixel_at.coordinates_to_index()].is_empty()
   }
 
-  // change with new pixel implementations
   pub fn get_mut_pixel_at(&mut self, pixel_at: &Coordinates) -> &mut Pixel {
     &mut self.screen[pixel_at.coordinates_to_index()]
   }
 
-  // change with new pixel implementations
   pub fn get_pixel_at(&self, pixel_at: &Coordinates) -> &Pixel {
     &self.screen[pixel_at.coordinates_to_index()]
   }
 
+  /// Removes the data that's currently assigned to display and returns it
+  /// Deletes the entry if there's only 1 object in there
   pub fn remove_displayed_object_data_at(
     &mut self,
     pixel_at: &Coordinates,
@@ -143,6 +148,8 @@ impl ScreenData {
     }
   }
 
+  /// Moves the data from pixel_1 to pixel_2 and reassigns
+  /// the pixel to display the new data
   pub fn transfer_assigned_object_in_pixel_to(
     &mut self,
     pixel_1: &Coordinates,
@@ -155,7 +162,7 @@ impl ScreenData {
     }
   }
 
-  /// returns the currently existing and total number of objects
+  /// Returns the currently existing and total number of objects
   /// that have existed with the same name
   pub fn object_already_exists(&self, name: &String) -> Option<CurrentAndTotalObjects> {
     self.existing_objects.get(name).map(|object_data| {
@@ -166,6 +173,8 @@ impl ScreenData {
     })
   }
 
+  /// If the object exists then it'll increment the total count
+  /// if it does not exist then it'll add the object to the list
   pub fn update_existing_objects(&mut self, object: &ObjectInformation) {
     if self
       .existing_objects
@@ -187,6 +196,8 @@ impl ScreenData {
     }
   }
 
+  /// Increments or Decrements the currently placed number of objects depending
+  /// on what is passed in
   pub fn update_placed_objects(&mut self, name: &Key, action: Actions) {
     if let Some(object_screen_data) = self.existing_objects.get_mut(name) {
       match action {
@@ -196,6 +207,7 @@ impl ScreenData {
     }
   }
 
+  /// If the object exists then it'll increment the total number of them
   fn update_total_objects(&mut self, name: &Key) {
     if self.existing_objects.contains_key(name) {
       self
@@ -206,6 +218,7 @@ impl ScreenData {
     }
   }
 
+  /// Returns a reference to the given object_screen_data
   pub fn get_existing_object(&self, object: &String) -> Option<&ObjectScreenData> {
     if self.existing_objects.contains_key(object) {
       self.existing_objects.get(object)
@@ -214,11 +227,13 @@ impl ScreenData {
     }
   }
 
+  /// Waits for x clock ticks to pass
   pub fn wait_for_x_ticks(&self, x: u16) {
     self.screen_clock.wait_for_x_ticks(x);
   }
 }
 
+/// Generates a 1-Dimensional grid of Pixels
 pub fn generate_pixel_grid() -> Vec<Pixel> {
   iter::repeat(Pixel::new())
     .take(GRID_WIDTH * GRID_HEIGHT)

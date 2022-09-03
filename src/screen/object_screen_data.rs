@@ -12,6 +12,15 @@ pub trait ObjectDataMethods {
 
 #[allow(unused)]
 #[derive(Debug)]
+/// This struct will be apart of the screen struct.
+/// When a new object is created a new one of these will be made
+/// which shall keep track of the amount of times said object
+/// appears on the screen, and has existed ever on the screen.
+/// There's an extra 'keep_data' part of the struct which will determine
+/// whether or not this object's information should be deleted if
+/// 'currently_existing' ever reaches 0 after it reaches > 1.
+/// False will be the default for this.
+/// ( currently isn't fully implemented )
 pub struct ObjectScreenData {
   name: String,
   keep_data: bool, // determines whether or not data should be kept once currently_existing reaches 0
@@ -52,6 +61,10 @@ impl ObjectScreenData {
 
   pub fn get_total_count(&self) -> TotalExistingObjects {
     self.total_count
+  }
+
+  pub fn set_keep_data(&mut self, keep_data: bool) {
+    self.keep_data = keep_data
   }
 
   pub fn object_still_exists(&self) -> bool {

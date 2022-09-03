@@ -26,12 +26,12 @@ fn place_an_object() {
   println!("{}", screen.display());
 }
 
-// make more tests for possible errors
 #[cfg(test)]
 mod movements {
   use super::*;
 
   #[test]
+  #[ignore]
   fn move_a_placed_object() {
     let mut screen = ScreenData::default();
     let mut hollow_square = Object::create_hollow_square(&mut screen, Some((2, 2)));

@@ -5,6 +5,7 @@ pub trait BTreeMapMethods<K, V> {
 }
 
 impl<K, V> BTreeMapMethods<K, V> for BTreeMap<K, V> {
+  /// Returns a reference to the first key within the map.
   fn get_first_key(&self) -> Option<&K> {
     self.keys().next()
   }
