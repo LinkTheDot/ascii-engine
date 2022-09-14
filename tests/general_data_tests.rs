@@ -1,5 +1,5 @@
 use interactable_screen::general_data::{coordinates::*, map_methods::*};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 #[test]
 fn get_coordinates_in_between_logic() {

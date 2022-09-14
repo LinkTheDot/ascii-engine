@@ -1,6 +1,5 @@
 use interactable_screen::screen::pixel::*;
 use interactable_screen::screen::screen_data::*;
-use std::collections::HashMap;
 
 const OBJECT_1: &str = "Square";
 const OBJECT_DISPLAY_1: &str = "x";
@@ -10,50 +9,6 @@ const OBJECT_DISPLAY_2: &str = "X";
 
 const OBJECT_3: &str = "Line";
 const OBJECT_DISPLAY_3: &str = "*";
-
-#[cfg(test)]
-mod pixel_data_transfer_logic {
-  use super::*;
-
-  #[test]
-  fn move_oldest_object_in_pixel_logic() {
-    let mut screen = ScreenData::default();
-    let [object_1_data, object_2_data, _] = generate_placeholder_objects();
-
-    let first_pixel = (0, 0);
-    let second_pixel = (1, 0);
-
-    let expected_first_pixel_data: Option<AssignedObjects> = None;
-    let mut expected_second_pixel_data = HashMap::new();
-    let expected_pixel_2_data = Some(object_2_data.clone());
-
-    expected_second_pixel_data.insert(object_1_data.1 .0, object_1_data.1 .1.clone());
-
-    screen.insert_object_at(&first_pixel, object_1_data, true);
-    screen.insert_object_at(&second_pixel, object_2_data, true);
-
-    let pixel_2_data = screen.replace_latest_object_in_pixel(&first_pixel, &second_pixel);
-
-    // pixel one check
-    assert_eq!(
-      expected_first_pixel_data.as_ref(),
-      screen
-        .get_pixel_at(&first_pixel)
-        .get_all_current_display_data()
-    );
-
-    // pixel two check
-    assert_eq!(
-      Some(&expected_second_pixel_data),
-      screen
-        .get_pixel_at(&second_pixel)
-        .get_all_current_display_data(),
-    );
-
-    // removed pixel 2 data check
-    assert_eq!(&expected_pixel_2_data, &pixel_2_data)
-  }
-}
 
 #[test]
 fn generate_pixel_grid_logic() {
@@ -69,16 +24,14 @@ mod remove_displayed_object_logic {
 
   #[test]
   fn remove_with_one_object() {
-    let mut screen = ScreenData::default();
-    let pixel_at = (0, 0);
+    let mut pixel_1 = Pixel::new();
+
     let [object_data, _, _] = generate_placeholder_objects();
     let expected_object_data = Some(object_data.clone());
 
-    screen.insert_object_at(&pixel_at, object_data.clone(), true);
+    pixel_1.insert_object(object_data.0, object_data.1, true);
 
-    screen.change_pixel_display_at(&pixel_at, Some(object_data.0), None);
-
-    let removed_displayed_object = screen.get_mut_pixel_at(&pixel_at).remove_displayed_object();
+    let removed_displayed_object = pixel_1.remove_displayed_object();
 
     assert_eq!(removed_displayed_object, expected_object_data);
   }
@@ -103,11 +56,10 @@ mod remove_displayed_object_logic {
 
   #[test]
   fn remove_with_no_objects() {
-    let mut screen = ScreenData::default();
-    let pixel_at = (0, 0);
+    let mut pixel_1 = Pixel::new();
     let expected_display_object = None;
 
-    let removed_displayed_object = screen.get_mut_pixel_at(&pixel_at).remove_displayed_object();
+    let removed_displayed_object = pixel_1.remove_displayed_object();
 
     assert_eq!(removed_displayed_object, expected_display_object);
   }

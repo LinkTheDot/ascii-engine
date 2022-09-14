@@ -155,8 +155,3 @@ fn get_bottom_right_of_object_logic() {
 
   assert_eq!(bottom_right, expected_coords)
 }
-
-#[test]
-fn overlap_objects() {
-  let mut screen = ScreenData::default();
-}
