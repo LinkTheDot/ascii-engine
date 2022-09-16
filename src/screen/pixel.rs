@@ -91,14 +91,14 @@ impl Pixel {
         .insert(item.0, item.1)
         .unwrap_or_else(|| "".to_string());
     } else {
-      if reassign {
-        self.change_display_to(Some(key.clone()), Some(item.0));
-      }
-
       let mut new_map = HashMap::new();
       new_map.insert(item.0, item.1);
 
       self.objects_within.insert(key.clone(), new_map);
+    }
+
+    if reassign {
+      self.change_display_to(Some(key.clone()), Some(item.0));
     }
   }
 
@@ -108,7 +108,7 @@ impl Pixel {
     let pixel_data = if !self.is_empty() && !self.has_no_assignment() {
       if self.assigned_key_has_multiple_objects() {
         let key = self.get_assigned_key().unwrap().clone();
-        let number_and_display = self.remove_object_assigned_number().unwrap();
+        let number_and_display = self.remove_object_assigned_number(true).unwrap();
 
         Some((key, number_and_display))
       } else {
@@ -119,6 +119,8 @@ impl Pixel {
 
         let key = object.0;
         let assigned_object = object.1.drain().next().unwrap();
+
+        self.change_display(None, None);
 
         Some((key, assigned_object))
       }
@@ -134,27 +136,35 @@ impl Pixel {
   /// Removes the object pertaining to the assigned number
   /// if there's more than one it'll just remove the one
   /// if there's only 1 it'll remove the map inside along with the item
-  pub fn remove_object_assigned_number(&mut self) -> Option<AssignedObject> {
-    if let (Some(object_key), Some(assigned_number)) = (
+  pub fn remove_object_assigned_number(&mut self, reassign: bool) -> Option<AssignedObject> {
+    let removed_data = if let (Some(object_key), Some(assigned_number)) = (
       self.assigned_display.as_ref(),
       self.assigned_display_number.as_ref(),
     ) {
       if self.objects_within.get(object_key).unwrap().len() > 1 {
-        return self
+        self
           .objects_within
           .get_mut(object_key)
           .unwrap()
-          .remove_entry(assigned_number);
+          .remove_entry(assigned_number)
       } else {
-        return self
+        self
           .objects_within
           .remove(object_key)
           .unwrap()
-          .remove_entry(assigned_number);
+          .remove_entry(assigned_number)
       }
+    } else {
+      None
+    };
+
+    if removed_data.is_some() && reassign {
+      self.change_display_to(None, None);
+
+      self.reassign_display_data();
     }
 
-    None
+    removed_data
   }
 
   /// Gets a reference to the display item currently inside the pixel
@@ -252,7 +262,6 @@ impl Pixel {
     if self.has_no_assignment() {
       if let Some(key) = self.get_latest_object_key() {
         let lowest_display_number = self.get(key).unwrap().get_lowest_key().unwrap();
-
         Some((key.clone(), *lowest_display_number))
       } else {
         None

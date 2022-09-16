@@ -73,10 +73,11 @@ fn transferring_same_object_names() {
   let pixel_two = (1, 0);
   let data_one = (OBJECT_1.to_string(), (0, OBJECT_DISPLAY_1.to_string()));
   let data_two = (OBJECT_1.to_string(), (1, OBJECT_DISPLAY_2.to_string()));
+
   let expected_origin_pixel_data = data_one.1 .1.clone();
   let expected_new_pixel_data = data_two.1 .1.clone();
 
-  screen.insert_object_at(&pixel_one, data_one, true);
+  screen.insert_object_at(&pixel_one, data_one, false);
   screen.insert_object_at(&pixel_one, data_two, true);
 
   println!("{:?} - {:?}", pixel_one, screen.get_pixel_at(&pixel_one));
