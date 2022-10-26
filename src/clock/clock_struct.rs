@@ -73,6 +73,8 @@ impl<T> ReceiverMethods for Receiver<T> {
     while self.try_recv().is_ok() {}
   }
 
+  // look into a different way to do this that isn't looping forever
+  // waiting for some sort of update and stopping the thread until it happens
   fn wait_for_tick(&self) {
     while self.is_empty() {}
   }

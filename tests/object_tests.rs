@@ -5,6 +5,7 @@ use interactable_screen::objects::{hollow_square::*, object_data::*, object_move
 use interactable_screen::screen::screen_data::*;
 
 #[test]
+#[ignore]
 fn create_an_object() {
   let mut screen = ScreenData::default();
   let square = Object::create_hollow_square(&mut screen, None);
@@ -13,6 +14,7 @@ fn create_an_object() {
 }
 
 #[test]
+#[ignore]
 fn place_an_object() {
   let mut screen = ScreenData::default();
   let hollow_square = Object::create_hollow_square(&mut screen, Some((30, 15)));
@@ -49,6 +51,7 @@ mod movements {
     use super::*;
 
     #[test]
+    #[ignore]
     fn move_up() {
       let mut screen = ScreenData::default();
       let mut hollow_square = Object::create_hollow_square(&mut screen, Some((0, 0)));
@@ -115,6 +118,7 @@ mod get_object_sizes_logic {
   use super::*;
 
   #[test]
+  #[ignore]
   fn get_object_width_logic() {
     let object_1d = "1234";
     let object_2d = "1234\n1234";
@@ -125,6 +129,7 @@ mod get_object_sizes_logic {
   }
 
   #[test]
+  #[ignore]
   fn get_object_height_logic() {
     let object_1d = "1234";
     let object_2d = "1234\n1234";
@@ -140,6 +145,7 @@ mod get_object_sizes_logic {
 }
 
 #[test]
+#[ignore]
 fn get_bottom_right_of_object_logic() {
   let mut screen = ScreenData::default();
 

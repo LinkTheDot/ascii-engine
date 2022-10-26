@@ -19,5 +19,4 @@ pub mod screen {
   pub mod object_screen_data;
   pub mod pixel;
   pub mod screen_data;
-  pub mod screen_runs;
 }

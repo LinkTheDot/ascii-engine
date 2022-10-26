@@ -111,10 +111,10 @@ impl HollowSquare for Object {
       io::stdin().read_line(&mut user_input).unwrap();
 
       match user_input.to_lowercase().trim() {
-        "left" | "l" => self.move_object(screen_data, &ObjectMovements::Left),
-        "right" | "r" => self.move_object(screen_data, &ObjectMovements::Right),
-        "up" | "u" => self.move_object(screen_data, &ObjectMovements::Up),
-        "down" | "d" => self.move_object(screen_data, &ObjectMovements::Down),
+        "h" => self.move_object(screen_data, &ObjectMovements::Left),
+        "l" => self.move_object(screen_data, &ObjectMovements::Right),
+        "k" => self.move_object(screen_data, &ObjectMovements::Up),
+        "j" => self.move_object(screen_data, &ObjectMovements::Down),
         "tell me" => self.print_square_data(screen_data),
         "exit" | "e" => break,
         _ => continue,
