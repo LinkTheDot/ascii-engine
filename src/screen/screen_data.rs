@@ -1,12 +1,14 @@
+use crate::general_data::coordinates::*;
 use crate::objects::object_data::ObjectInformation;
 use crate::screen::{object_screen_data::*, pixel::*};
-use crate::{clock::clock_struct::ScreenClock, general_data::coordinates::*};
 use std::collections::HashMap;
 use std::error::Error;
 use std::iter;
+use thread_clock::Clock;
 
 pub const GRID_WIDTH: usize = 175;
 pub const GRID_HEIGHT: usize = 40;
+pub const TICK_DURATION: u32 = 24;
 pub const EMPTY_PIXEL: &str = "O";
 pub const GRID_SPACER: &str = "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 
@@ -27,7 +29,7 @@ pub enum Actions {
 /// The counter for all objects that exist
 /// The set of pixels that make up the screen
 pub struct ScreenData {
-  screen_clock: ScreenClock,
+  screen_clock: Clock,
   existing_objects: HashMap<String, ObjectScreenData>,
   screen: Vec<Pixel>,
 }
@@ -36,12 +38,12 @@ impl ScreenData {
   /// Creates a new screen which in the process starts a new clock
   /// thread
   pub fn new() -> Result<ScreenData, Box<dyn Error>> {
-    let screen_clock = ScreenClock::default();
-    let screen = generate_pixel_grid();
-
-    screen_clock.spawn_clock_thread().unwrap_or_else(|error| {
+    let mut screen_clock = Clock::custom(TICK_DURATION).unwrap_or_else(|error| {
       panic!("An error has occurred while spawning a clock thread: '{error}'")
     });
+    let screen = generate_pixel_grid();
+
+    screen_clock.start();
 
     Ok(ScreenData {
       screen_clock,
@@ -234,9 +236,8 @@ impl ScreenData {
     }
   }
 
-  /// Waits for x clock ticks to pass
-  pub fn wait_for_x_ticks(&self, x: u16) {
-    self.screen_clock.wait_for_x_ticks(x);
+  pub fn wait_for_x_ticks(&mut self, x: u32) {
+    let _ = self.screen_clock.wait_for_x_ticks(x);
   }
 }
 

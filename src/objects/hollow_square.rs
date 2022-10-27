@@ -11,7 +11,7 @@ use crate::screen::screen_data::*;
 use std::io;
 
 /// in ticks aka 'self * 16ms'
-const BASIC_MOVEMENT_TIMER: u16 = 6;
+const BASIC_MOVEMENT_TIMER: u32 = 6;
 const HORIZONTAL_UNIT: u16 = 2;
 const VERTICAL_UNIT: u16 = 1;
 pub const SQUARE_SHAPE: &str = // /

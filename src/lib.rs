@@ -1,7 +1,3 @@
-pub mod clock {
-  pub mod clock_struct;
-}
-
 pub mod defaults;
 
 pub mod general_data {
