@@ -1,3 +1,6 @@
+// add a way to remove specific objects
+// add a way to remove all objects
+
 use crate::general_data::map_methods::*;
 use crate::screen::screen_data::*;
 use std::collections::{BTreeMap, HashMap};
@@ -280,6 +283,10 @@ impl Pixel {
     } else {
       self.change_display_to(None, None);
     }
+  }
+
+  pub fn get_all_data(&self) -> Vec<(&Key, &AssignedObjects)> {
+    self.objects_within.iter().collect()
   }
 
   /// Changes the assigned display data
