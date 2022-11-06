@@ -136,12 +136,6 @@ impl ScreenData {
     pixel_2: &Coordinates,
   ) -> Option<KeyAndObjectDisplay> {
     if !self.pixel_is_empty(pixel_1) {
-      println!("replace_latest_object_in_pixel"); // debugging
-      println!(
-        "pixel_1: {:?}\npixel_2: {:?}",
-        self.get_pixel_at(pixel_1),
-        self.get_pixel_at(pixel_2)
-      ); // debugging
       let pixel_1_data = self.remove_displayed_object_data_at(pixel_1).unwrap();
       let pixel_2_data = if !self.pixel_is_empty(pixel_2) {
         self.remove_displayed_object_data_at(pixel_2)

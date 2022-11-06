@@ -61,6 +61,8 @@ impl Pixel {
 
   /// Changes the assigned_display of the pixel
   /// If the input is invalid it'll set the display to None
+  // change this to use
+  // https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=8ca7e610cee6bbf39df8d19425ac19aa
   pub fn change_display_to(
     &mut self,
     change_to: Option<Key>,

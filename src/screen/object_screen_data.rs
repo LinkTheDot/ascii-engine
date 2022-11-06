@@ -1,9 +1,9 @@
+// use crate::screen::pixel::AssignedObjects;
 use crate::screen::screen_data::*;
-use std::collections::HashMap;
+// use std::collections::HashMap;
 
 pub type CurrentlyExistingObjects = u32;
 pub type TotalExistingObjects = u32;
-pub type AssignedObjects = HashMap<u32, ObjectDisplay>;
 
 pub trait ObjectDataMethods {
   fn get_currently_existing(&self) -> CurrentlyExistingObjects;
