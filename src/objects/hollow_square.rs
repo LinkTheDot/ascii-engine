@@ -11,7 +11,7 @@ use crate::screen::screen_data::*;
 use std::io;
 
 /// in ticks aka 'self * 16ms'
-const BASIC_MOVEMENT_TIMER: u16 = 6;
+const BASIC_MOVEMENT_TIMER: u32 = 6;
 const HORIZONTAL_UNIT: u16 = 2;
 const VERTICAL_UNIT: u16 = 1;
 pub const SQUARE_SHAPE: &str = // /
@@ -111,10 +111,11 @@ impl HollowSquare for Object {
       io::stdin().read_line(&mut user_input).unwrap();
 
       match user_input.to_lowercase().trim() {
-        "left" | "l" => self.move_object(screen_data, &ObjectMovements::Left),
-        "right" | "r" => self.move_object(screen_data, &ObjectMovements::Right),
-        "up" | "u" => self.move_object(screen_data, &ObjectMovements::Up),
-        "down" | "d" => self.move_object(screen_data, &ObjectMovements::Down),
+        "h" => self.move_object(screen_data, &ObjectMovements::Left),
+        "l" => self.move_object(screen_data, &ObjectMovements::Right),
+        "k" => self.move_object(screen_data, &ObjectMovements::Up),
+        "j" => self.move_object(screen_data, &ObjectMovements::Down),
+        "tell me" => self.print_square_data(screen_data),
         "exit" | "e" => break,
         _ => continue,
       }
@@ -129,6 +130,9 @@ impl HollowSquare for Object {
 // can move off the screen in the positive directions
 //   - causes some really weird bugs when going right
 //   - crashes when going down
+//
+//  make this an implementation for objects
+//  use self to define the assigned number
 fn move_cube(
   screen_data: &mut ScreenData,
   coordinate_cube: Vec<Coordinates>,
@@ -138,7 +142,7 @@ fn move_cube(
     let swap_with = pixel_coords.move_coords(move_to);
     if let Some(swap_with) = swap_with {
       screen_data.transfer_assigned_object_in_pixel_to(&pixel_coords, &swap_with);
-      screen_data.change_pixel_display_at(&swap_with, "square".to_string(), None);
+      screen_data.change_pixel_display_at(&swap_with, Some("square".to_string()), None);
     } else {
       return;
     }

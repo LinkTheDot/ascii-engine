@@ -1,7 +1,3 @@
-pub mod clock {
-  pub mod clock_struct;
-}
-
 pub mod defaults;
 
 pub mod general_data {
@@ -19,5 +15,4 @@ pub mod screen {
   pub mod object_screen_data;
   pub mod pixel;
   pub mod screen_data;
-  pub mod screen_runs;
 }
