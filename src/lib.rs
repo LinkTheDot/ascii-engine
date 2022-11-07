@@ -3,6 +3,7 @@ pub mod defaults;
 pub mod general_data {
   pub mod coordinates;
   pub mod map_methods;
+  pub mod user_input;
 }
 
 pub mod objects {
