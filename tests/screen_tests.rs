@@ -1,5 +1,5 @@
-use interactable_screen::screen::pixel::*;
-use interactable_screen::screen::screen_data::*;
+use ascii_engine::screen::pixel::*;
+use ascii_engine::screen::screen_data::*;
 use std::collections::HashMap;
 
 pub const OBJECT_1_NAME: &str = "O1";

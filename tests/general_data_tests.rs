@@ -1,4 +1,4 @@
-use interactable_screen::general_data::{coordinates::*, map_methods::*};
+use ascii_engine::general_data::{coordinates::*, map_methods::*};
 use std::collections::HashMap;
 
 #[test]

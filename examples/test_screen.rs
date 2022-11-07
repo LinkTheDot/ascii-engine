@@ -1,5 +1,5 @@
-use interactable_screen::objects::{hollow_square::*, object_data::*};
-use interactable_screen::screen::screen_data::*;
+use ascii_engine::objects::{hollow_square::*, object_data::*};
+use ascii_engine::screen::screen_data::*;
 use std::io;
 use std::thread;
 use std::time::Duration;

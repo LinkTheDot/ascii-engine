@@ -1,4 +1,4 @@
-# 2D Object Renderer
+# ASCII Engine
 
 This is a program that displays a screen of text as pixels.
 Pixels will contain object data and information as to what they should look like.

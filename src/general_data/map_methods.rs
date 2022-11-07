@@ -21,7 +21,7 @@ impl<K, V> HashMapMethods<K, V> for HashMap<K, V> {
   /// Gets the lowest valued key within a HashMap
   /// #Example
   /// ```
-  /// use interactable_screen::general_data::map_methods::HashMapMethods;
+  /// use ascii_engine::general_data::map_methods::HashMapMethods;
   /// use std::collections::HashMap;
   ///
   /// let mut map = HashMap::new();

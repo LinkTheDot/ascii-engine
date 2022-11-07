@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 
-use interactable_screen::screen::pixel::*;
-use interactable_screen::screen::screen_data::{Key, KeyAndObjectDisplay, ObjectDisplay};
+use ascii_engine::screen::pixel::*;
+use ascii_engine::screen::screen_data::{Key, KeyAndObjectDisplay, ObjectDisplay};
 use std::collections::{BTreeMap, HashMap};
 
 /*
