@@ -5,10 +5,9 @@
 // object data is stored in pixels
 // see screen_data for more of an explanation
 
-use crate::general_data::coordinates::*;
+use crate::general_data::{coordinates::*, user_input};
 use crate::objects::{object_data::*, object_movements::*};
 use crate::screen::screen_data::*;
-use std::io;
 
 /// in ticks aka 'self * 16ms'
 const BASIC_MOVEMENT_TIMER: u32 = 6;
@@ -105,24 +104,26 @@ impl HollowSquare for Object {
   }
 
   fn user_move_cube(&mut self, screen_data: &mut ScreenData) {
+    let (input_receiver, input_end_sender) = user_input::spawn_input_thread();
+
     loop {
-      let mut user_input = String::new();
+      if let Ok(user_input) = input_receiver.recv() {
+        match user_input.to_lowercase().trim() {
+          "h" | "a" => self.move_object(screen_data, &ObjectMovements::Left),
+          "l" | "d" => self.move_object(screen_data, &ObjectMovements::Right),
+          "k" | "w" => self.move_object(screen_data, &ObjectMovements::Up),
+          "j" | "s" => self.move_object(screen_data, &ObjectMovements::Down),
+          "t" => self.print_square_data(screen_data),
+          "e" => break,
+          _ => continue,
+        }
 
-      io::stdin().read_line(&mut user_input).unwrap();
-
-      match user_input.to_lowercase().trim() {
-        "h" => self.move_object(screen_data, &ObjectMovements::Left),
-        "l" => self.move_object(screen_data, &ObjectMovements::Right),
-        "k" => self.move_object(screen_data, &ObjectMovements::Up),
-        "j" => self.move_object(screen_data, &ObjectMovements::Down),
-        "tell me" => self.print_square_data(screen_data),
-        "exit" | "e" => break,
-        _ => continue,
+        println!("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+        println!("{}", screen_data.display());
       }
-
-      println!("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-      println!("{}", screen_data.display());
     }
+
+    let _ = input_end_sender.send(());
   }
 }
 
