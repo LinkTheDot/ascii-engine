@@ -1,11 +1,10 @@
 #![allow(unused_imports)]
 
-use ascii_engine::screen::pixel::*;
-use ascii_engine::screen::screen_data::{Key, KeyAndObjectDisplay, ObjectDisplay};
+use ascii_engine::screen::screen_data::*;
+use ascii_engine::screen::{pixel, pixel::*};
 use std::collections::{BTreeMap, HashMap};
 
 /*
-
 - Test Structure -
 
 fn test_name() {
@@ -59,13 +58,13 @@ mod insert_object_logic {
 
   #[test]
   fn no_existing_objects() {
-    let mut pixel = Pixel::new();
+    let mut pixel = Pixel::default();
     let [object, _, _] = get_object_list(0);
 
     let (key, assigned_objects) = convert_object_for_assertion(object.clone());
     let expected_data = (&key, &assigned_objects);
 
-    pixel.insert_object(object.0, object.1, false);
+    pixel.insert_object(object.0, object.1, pixel::Reassign::False);
 
     let data = pixel.get_all_data()[0];
 
@@ -74,7 +73,7 @@ mod insert_object_logic {
 
   #[test]
   fn existing_object_same_name() {
-    let mut pixel = Pixel::new();
+    let mut pixel = Pixel::default();
 
     let [object0, _, _] = get_object_list(0);
     let [object1, _, _] = get_object_list(1);
@@ -83,8 +82,8 @@ mod insert_object_logic {
     let (key, assigned_objects) = merged_objects[0].to_owned();
     let expected_data = (&key, &assigned_objects);
 
-    pixel.insert_object(object0.0, object0.1, false);
-    pixel.insert_object(object1.0, object1.1, false);
+    pixel.insert_object(object0.0, object0.1, pixel::Reassign::False);
+    pixel.insert_object(object1.0, object1.1, pixel::Reassign::False);
 
     let data = pixel.get_all_data()[0];
 
@@ -93,7 +92,7 @@ mod insert_object_logic {
 
   #[test]
   fn existing_object_different_name() {
-    let mut pixel = Pixel::new();
+    let mut pixel = Pixel::default();
 
     let [object0, object1, _] = get_object_list(0);
 
@@ -103,8 +102,8 @@ mod insert_object_logic {
     let object1_data = (&key1, &assigned_objects1);
     let expected_data = vec![object0_data, object1_data];
 
-    pixel.insert_object(object0.0, object0.1, false);
-    pixel.insert_object(object1.0, object1.1, false);
+    pixel.insert_object(object0.0, object0.1, pixel::Reassign::False);
+    pixel.insert_object(object1.0, object1.1, pixel::Reassign::False);
 
     let data = pixel.get_all_data();
 
@@ -112,17 +111,59 @@ mod insert_object_logic {
   }
 }
 
-// #[cfg(test)]
-// mod assign_display_data {
-// use super::*;
+#[cfg(test)]
+mod display_tests {
+  use super::*;
 
-// #[test]
-// fn no_existing_display_data() {
-// let mut pixel = Pixel::new();
+  #[test]
+  fn has_assigned_objects() {
+    let mut pixel = Pixel::default();
+    let [object, _, _] = get_object_list(0);
 
-// let [object0, _, _] = get_object_list(0);
-// }
-// }
+    let expected_display = object.1 .1.clone();
+
+    pixel.insert_object(object.0, object.1, pixel::Reassign::True);
+
+    let pixel_display = pixel.display();
+
+    assert_eq!(pixel_display, expected_display);
+  }
+
+  #[test]
+  fn has_assigned_objects_and_no_data() {
+    let pixel = Pixel::default();
+
+    let expected_display = EMPTY_PIXEL;
+
+    let pixel_display = pixel.display();
+
+    assert_eq!(pixel_display, expected_display);
+  }
+
+  #[test]
+  fn has_assigned_objects_but_contains_data() {
+    let mut pixel = Pixel::default();
+    let [object, _, _] = get_object_list(0);
+
+    let expected_display = object.1 .1.clone();
+
+    pixel.insert_object(object.0, object.1, pixel::Reassign::False);
+
+    let pixel_display = pixel.display();
+
+    assert_eq!(pixel_display, expected_display);
+
+    println!("{:#?}", pixel);
+  }
+}
+
+#[cfg(test)]
+mod change_display_to {
+  use super::*;
+
+  #[test]
+  fn valid_input() {}
+}
 
 pub fn get_object_list(number_assignment: u32) -> [KeyAndObjectDisplay; 3] {
   [
