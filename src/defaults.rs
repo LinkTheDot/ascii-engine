@@ -2,7 +2,7 @@ use crate::screen::{pixel::*, screen_data::ScreenData};
 
 impl Default for Pixel {
   fn default() -> Self {
-    Self::new()
+    Self::new(0)
   }
 }
 

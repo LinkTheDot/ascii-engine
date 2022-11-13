@@ -19,18 +19,14 @@ pub fn main() {
 }
 
 fn parse_user_input(mut screen_data: ScreenData, mut main_square: Object) {
-  let mut user_input = String::new();
-
   for error_count in (0..5).rev() {
+    let mut user_input = String::new();
+
     println!("choose a mode, 'manual' | 'spin'");
     io::stdin().read_line(&mut user_input).unwrap();
 
     match user_input.to_lowercase().trim() {
-      "manual" => {
-        main_square.user_move_cube(&mut screen_data);
-
-        break;
-      }
+      "manual" => main_square.user_move_cube(&mut screen_data),
       "spin" => main_square.spin_cube(&mut screen_data, 100),
       "e" | "exit" => break,
       // add a clock test that'll synchronize 2 objects

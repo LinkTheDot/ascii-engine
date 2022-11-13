@@ -1,9 +1,8 @@
 use crate::general_data::coordinates::*;
 use crate::objects::object_data::ObjectInformation;
-use crate::screen::{object_screen_data::*, pixel::*};
+use crate::screen::{object_screen_data::*, pixel, pixel::*};
 use std::collections::HashMap;
 use std::error::Error;
-use std::iter;
 use thread_clock::Clock;
 
 pub const GRID_WIDTH: usize = 175;
@@ -73,9 +72,9 @@ impl ScreenData {
   pub fn change_pixel_display_at(
     &mut self,
     pixel_at: &Coordinates,
-    change_to: Option<Key>,
-    assigned_number: Option<AssignedNumber>,
-  ) {
+    change_to: Key,
+    assigned_number: AssignedNumber,
+  ) -> anyhow::Result<()> {
     self.screen[pixel_at.coordinates_to_index()].change_display_to(change_to, assigned_number)
   }
 
@@ -86,7 +85,7 @@ impl ScreenData {
     &mut self,
     at_pixel: &Coordinates,
     insert: KeyAndObjectDisplay,
-    reassign: bool,
+    reassign: pixel::Reassign,
   ) {
     self.screen[at_pixel.coordinates_to_index()].insert_object(insert.0, insert.1, reassign)
   }
@@ -100,7 +99,7 @@ impl ScreenData {
     objects: Vec<KeyAndObjectDisplay>,
   ) {
     for object_data in objects {
-      self.insert_object_at(pixel_at, object_data, false)
+      self.insert_object_at(pixel_at, object_data, Reassign::False)
     }
   }
 
@@ -123,7 +122,9 @@ impl ScreenData {
     &mut self,
     pixel_at: &Coordinates,
   ) -> Option<KeyAndObjectDisplay> {
-    self.get_mut_pixel_at(pixel_at).remove_displayed_object()
+    self
+      .get_mut_pixel_at(pixel_at)
+      .remove_displayed_object(Reassign::False)
   }
 
   /// This will take the assigned object display data within the first
@@ -143,7 +144,7 @@ impl ScreenData {
         None
       };
 
-      self.insert_object_at(pixel_2, pixel_1_data, true);
+      self.insert_object_at(pixel_2, pixel_1_data, Reassign::True);
 
       pixel_2_data
     } else {
@@ -161,7 +162,7 @@ impl ScreenData {
     let object = self.remove_displayed_object_data_at(pixel_1);
 
     if let Some(object) = object {
-      self.insert_object_at(pixel_2, object, true);
+      self.insert_object_at(pixel_2, object, Reassign::True);
     }
   }
 
@@ -237,7 +238,10 @@ impl ScreenData {
 
 /// Generates a 1-Dimensional grid of Pixels
 pub fn generate_pixel_grid() -> Vec<Pixel> {
-  iter::repeat(Pixel::new())
-    .take(GRID_WIDTH * GRID_HEIGHT)
-    .collect()
+  (0..(GRID_WIDTH * GRID_HEIGHT)) //
+    .fold(Vec::new(), |mut pixel_vec, pixel_index| {
+      pixel_vec.push(Pixel::new(pixel_index));
+
+      pixel_vec
+    })
 }

@@ -2,8 +2,8 @@
 
 use crate::general_data::coordinates::*;
 use crate::objects::object_movements::*;
-use crate::screen::pixel::AssignedNumber;
 use crate::screen::screen_data::*;
+use crate::screen::{pixel, pixel::AssignedNumber};
 
 /// Contains the name, shape, position, and whether or not the data
 /// should be kept once the count reaches 0
@@ -88,7 +88,7 @@ impl Object {
         ' ' => {
           let pixel_object_group = (self.name.clone(), (self.number, EMPTY_PIXEL.to_string()));
 
-          screen_data.insert_object_at(&pixel_position, pixel_object_group, true);
+          screen_data.insert_object_at(&pixel_position, pixel_object_group, pixel::Reassign::True);
 
           pixel_position.0 += 1
         }
@@ -102,7 +102,7 @@ impl Object {
             (self.number, new_pixel_display.to_string()),
           );
 
-          screen_data.insert_object_at(&pixel_position, pixel_object_group, true);
+          screen_data.insert_object_at(&pixel_position, pixel_object_group, pixel::Reassign::True);
 
           pixel_position.0 += 1
         }
