@@ -162,7 +162,87 @@ mod change_display_to {
   use super::*;
 
   #[test]
-  fn valid_input() {}
+  fn object_exists() {
+    let mut pixel = Pixel::default();
+    let [object, _, _] = get_object_list(0);
+
+    let (key, number) = (object.0.clone(), object.1 .0.clone());
+    let expected_assignments = (Some(&key), Some(&number));
+
+    // change_display_to() is called when Reassign::True is passed in
+    pixel.insert_object(object.0, object.1, pixel::Reassign::True);
+
+    let current_assignments = pixel.get_both_assignments();
+
+    assert_eq!(current_assignments, expected_assignments);
+  }
+
+  #[test]
+  fn object_does_not_exist() {
+    let mut pixel = Pixel::default();
+    let [object, _, _] = get_object_list(0);
+
+    let expected_assignments = (None, None);
+
+    let result = pixel.change_display_to(object.0, object.1 .0);
+
+    let current_assignments = pixel.get_both_assignments();
+
+    assert_eq!(current_assignments, expected_assignments);
+    assert!(result.is_err());
+  }
+}
+
+#[test]
+fn clear_display_data() {
+  let mut pixel = Pixel::default();
+  let [object, _, _] = get_object_list(0);
+
+  pixel.insert_object(object.0, object.1, pixel::Reassign::True);
+  let (assigned_key, assigned_number) = pixel.get_both_assignments();
+
+  assert!(assigned_key.is_some() && assigned_number.is_some());
+
+  pixel.clear_display_data();
+  let (cleared_key, cleared_number) = pixel.get_both_assignments();
+
+  assert!(cleared_key.is_none() && cleared_number.is_none());
+}
+
+#[cfg(test)]
+mod remove_displayed_object {
+  use super::*;
+
+  #[test]
+  fn pixel_has_valid_display_data() {
+    let mut pixel = Pixel::default();
+    let [object, _, _] = get_object_list(0);
+
+    let expected_removed_data = Some(object.clone());
+    let expected_assigned_data = (None, None);
+
+    pixel.insert_object(object.0, object.1, pixel::Reassign::True);
+
+    let removed_data = pixel.remove_displayed_object(pixel::Reassign::False);
+    let assigned_data = pixel.clone_both_assignments();
+
+    assert_eq!(removed_data, expected_removed_data);
+    assert_eq!(assigned_data, expected_assigned_data);
+  }
+
+  #[test]
+  fn pixel_has_no_display_data() {
+    let mut pixel = Pixel::default();
+
+    let expected_removed_data = None;
+    let expected_assigned_data = (None, None);
+
+    let removed_data = pixel.remove_displayed_object(pixel::Reassign::False);
+    let assigned_data = pixel.clone_both_assignments();
+
+    assert_eq!(removed_data, expected_removed_data);
+    assert_eq!(assigned_data, expected_assigned_data);
+  }
 }
 
 pub fn get_object_list(number_assignment: u32) -> [KeyAndObjectDisplay; 3] {
@@ -172,7 +252,7 @@ pub fn get_object_list(number_assignment: u32) -> [KeyAndObjectDisplay; 3] {
       (number_assignment, OBJECT_1_DISPLAY.to_string()),
     ),
     (
-      OBJECT_2_NAME.to_string(),
+      OBJECT_3_NAME.to_string(),
       (number_assignment, OBJECT_2_DISPLAY.to_string()),
     ),
     (
