@@ -145,7 +145,7 @@ mod display_tests {
     let mut pixel = Pixel::default();
     let [object, _, _] = get_object_list(0);
 
-    let expected_display = object.1 .1.clone();
+    let expected_display = EMPTY_PIXEL;
 
     pixel.insert_object(object.0, object.1, pixel::Reassign::False);
 
@@ -166,7 +166,7 @@ mod change_display_to {
     let mut pixel = Pixel::default();
     let [object, _, _] = get_object_list(0);
 
-    let (key, number) = (object.0.clone(), object.1 .0.clone());
+    let (key, number) = (object.0.clone(), object.1 .0);
     let expected_assignments = (Some(&key), Some(&number));
 
     // change_display_to() is called when Reassign::True is passed in
@@ -245,6 +245,125 @@ mod remove_displayed_object {
   }
 }
 
+#[cfg(test)]
+mod remove_object {
+  use super::*;
+
+  #[test]
+  fn pixel_contains_one_of_object() {
+    let mut pixel = Pixel::default();
+    let [object, _, _] = get_object_list(0);
+
+    let expected_data = Some(object.clone());
+
+    pixel.insert_object(object.0.clone(), object.1.clone(), pixel::Reassign::False);
+
+    let removed_data = pixel.remove_object(&object.0, &object.1 .0, pixel::Reassign::False);
+
+    assert_eq!(expected_data, removed_data);
+  }
+
+  #[test]
+  fn pixel_contains_multiple_of_object() {
+    let mut pixel = Pixel::default();
+    let [object1, _, _] = get_object_list(0);
+    let [object2, _, _] = get_object_list(1);
+
+    let expected_data = Some(object1.clone());
+
+    pixel.insert_object(object1.0.clone(), object1.1.clone(), pixel::Reassign::False);
+    pixel.insert_object(object2.0, object2.1, pixel::Reassign::False);
+
+    let removed_data = pixel.remove_object(&object1.0, &object1.1 .0, pixel::Reassign::False);
+
+    assert_eq!(expected_data, removed_data);
+  }
+
+  #[test]
+  fn pixel_does_not_contain_object() {
+    let mut pixel = Pixel::default();
+    let [object, _, _] = get_object_list(0);
+
+    let expected_data = None;
+
+    let removed_data = pixel.remove_object(&object.0, &object.1 .0, pixel::Reassign::False);
+
+    assert_eq!(expected_data, removed_data);
+  }
+
+  #[cfg(test)]
+  mod reassign_logic {
+    use super::*;
+
+    #[test]
+    fn reassign_true_data_exists() {
+      let mut pixel = Pixel::default();
+      let [object1, object2, _] = get_object_list(0);
+
+      let (key, assigned_number) = (object2.0.clone(), object2.1 .0);
+      let expected_assignments = (Some(key), Some(assigned_number));
+
+      pixel.insert_object(object1.0.clone(), object1.1.clone(), pixel::Reassign::False);
+      pixel.insert_object(object2.0, object2.1, pixel::Reassign::False);
+
+      let _ = pixel.remove_object(&object1.0, &object1.1 .0, pixel::Reassign::True);
+
+      let current_assignments = pixel.take_both_assignments();
+
+      assert_eq!(expected_assignments, current_assignments);
+    }
+
+    #[test]
+    fn reassign_true_data_doesnt_exist() {
+      let mut pixel = Pixel::default();
+      let [object1, _, _] = get_object_list(0);
+
+      let expected_assignments = (None, None);
+
+      pixel.insert_object(object1.0.clone(), object1.1.clone(), pixel::Reassign::False);
+
+      let _ = pixel.remove_object(&object1.0, &object1.1 .0, pixel::Reassign::True);
+
+      let current_assignments = pixel.take_both_assignments();
+
+      assert_eq!(expected_assignments, current_assignments);
+    }
+
+    #[test]
+    fn reassign_false_data_exists() {
+      let mut pixel = Pixel::default();
+      let [object1, object2, _] = get_object_list(0);
+
+      let expected_assignments = (None, None);
+
+      pixel.insert_object(object1.0.clone(), object1.1.clone(), pixel::Reassign::False);
+      pixel.insert_object(object2.0, object2.1, pixel::Reassign::False);
+
+      let _ = pixel.remove_object(&object1.0, &object1.1 .0, pixel::Reassign::False);
+
+      let current_assignments = pixel.take_both_assignments();
+
+      assert_eq!(expected_assignments, current_assignments);
+    }
+
+    #[test]
+    fn reassign_false_data_doesnt_exist() {
+      let mut pixel = Pixel::default();
+      let [object1, _, _] = get_object_list(0);
+
+      let expected_assignments = (None, None);
+
+      pixel.insert_object(object1.0.clone(), object1.1.clone(), pixel::Reassign::False);
+
+      let _ = pixel.remove_object(&object1.0, &object1.1 .0, pixel::Reassign::False);
+
+      let current_assignments = pixel.take_both_assignments();
+
+      assert_eq!(expected_assignments, current_assignments);
+    }
+  }
+}
+
 pub fn get_object_list(number_assignment: u32) -> [KeyAndObjectDisplay; 3] {
   [
     (
@@ -280,12 +399,9 @@ pub fn merge_objects(objects: Vec<KeyAndObjectDisplay>) -> Vec<(Key, AssignedObj
     let object_assigned_number = object_data.0;
     let object_display = object_data.1;
 
-    let existing_key: Vec<&Key> = known_keys
-      .iter()
-      .filter(|key| *key == &object_key)
-      .collect();
+    let has_existing_key = known_keys.iter().any(|key| key == &object_key);
 
-    if !existing_key.is_empty() {
+    if has_existing_key {
       if let Some(matching_map) = get_map_from_set(&mut data_set, &object_key) {
         matching_map.insert(object_assigned_number, object_display);
       }
@@ -304,7 +420,7 @@ pub fn merge_objects(objects: Vec<KeyAndObjectDisplay>) -> Vec<(Key, AssignedObj
 
 /// Gets a mutable reference to the first hashmap from a vector of keys and hashmaps
 fn get_map_from_set<'a>(
-  data_set: &'a mut Vec<(Key, AssignedObjects)>,
+  data_set: &'a mut [(Key, AssignedObjects)],
   key: &Key,
 ) -> Option<&'a mut AssignedObjects> {
   data_set
