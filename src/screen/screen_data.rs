@@ -1,3 +1,4 @@
+use crate::data_types::*;
 use crate::general_data::coordinates::*;
 use crate::objects::object_data::ObjectInformation;
 use crate::screen::{object_screen_data::*, pixel, pixel::*};
@@ -11,10 +12,10 @@ pub const TICK_DURATION: u32 = 24;
 pub const EMPTY_PIXEL: &str = "O";
 pub const GRID_SPACER: &str = "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 
-pub type Key = String;
-pub type ObjectDisplay = String;
-pub type KeyAndObjectDisplay = (Key, AssignedObject);
-pub type CurrentAndTotalObjects = (CurrentlyExistingObjects, TotalExistingObjects);
+// pub type Key = String;
+// pub type ObjectDisplay = String;
+// pub type KeyAndObjectDisplay = (Key, AssignedObject);
+// pub type CurrentAndTotalObjects = (CurrentlyExistingObjects, TotalExistingObjects);
 
 /// This is in the context of the update_placed_objects function
 /// but could technically be used anywhere

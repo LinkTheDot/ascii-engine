@@ -1,5 +1,6 @@
 #![allow(unused)]
 
+use crate::data_types::*;
 use crate::general_data::coordinates::*;
 use crate::objects::object_movements::*;
 use crate::screen::screen_data::*;

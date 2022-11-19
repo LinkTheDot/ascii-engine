@@ -1,5 +1,7 @@
 pub mod defaults;
 
+pub mod data_types;
+
 pub mod general_data {
   pub mod coordinates;
   pub mod map_methods;

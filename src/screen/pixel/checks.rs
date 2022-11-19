@@ -3,6 +3,7 @@ use crate::screen::pixel::*;
 pub trait PixelCheckMethods {
   fn is_empty(&self) -> bool;
   fn contains_object(&self, key: &Key) -> bool;
+  fn contains_assignment(&self, key: &Key, assigned_number: &AssignedNumber) -> bool;
   fn contains_multiple_of(&self, key: &Key) -> bool;
   fn assigned_key_has_multiple_objects(&self) -> bool;
   fn has_no_assignment(&self) -> bool;
@@ -17,6 +18,15 @@ impl PixelCheckMethods for Pixel {
   /// Returns true if the input key/object is within the map
   fn contains_object(&self, key: &Key) -> bool {
     self.objects_within.contains_key(key)
+  }
+
+  /// Returns true if the input key/object is within the map
+  fn contains_assignment(&self, key: &Key, assigned_number: &AssignedNumber) -> bool {
+    if let Some(assignments) = self.objects_within.get(key) {
+      assignments.contains_key(assigned_number)
+    } else {
+      false
+    }
   }
 
   /// Returns true if the input key has more than 1 object.
