@@ -1,10 +1,10 @@
 #![allow(unused)]
 
-use crate::data_types::*;
 use crate::general_data::coordinates::*;
 use crate::objects::object_movements::*;
+use crate::screen::pixel;
+use crate::screen::pixel_data_types::*;
 use crate::screen::screen_data::*;
-use crate::screen::{pixel, pixel::AssignedNumber};
 
 /// Contains the name, shape, position, and whether or not the data
 /// should be kept once the count reaches 0

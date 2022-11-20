@@ -3,9 +3,9 @@
 // Have error handling for most methods
 // Create an error type for Pixels
 
-use crate::data_types::*;
 use crate::general_data::map_methods::*;
 pub use crate::screen::pixel::{checks::*, pixel_assignments::*};
+use crate::screen::pixel_data_types::*;
 use crate::screen::screen_data::*;
 use anyhow::anyhow;
 use std::collections::{btree_map::Entry, BTreeMap, HashMap};
@@ -13,25 +13,12 @@ use std::collections::{btree_map::Entry, BTreeMap, HashMap};
 mod checks;
 mod pixel_assignments;
 
-<<<<<<< Updated upstream
-pub type AssignedNumber = u32;
-pub type AssignedObject = (AssignedNumber, ObjectDisplay);
-pub type AssignedObjects = HashMap<AssignedNumber, ObjectDisplay>;
-
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum Reassign {
   True,
   False,
 }
 
-||||||| Stash base
-pub type AssignedNumber = u32;
-pub type AssignedObject = (AssignedNumber, ObjectDisplay);
-pub type AssignedObjects = HashMap<AssignedNumber, ObjectDisplay>;
-
-#[derive(Clone, Debug, PartialEq)]
-=======
->>>>>>> Stashed changes
 /// A pixel makes up an individual part of the entire screen.
 /// Pixels will hold a part of what the object within displays
 /// as.
@@ -40,7 +27,7 @@ pub type AssignedObjects = HashMap<AssignedNumber, ObjectDisplay>;
 /// If there're multiple objects of the same name then the
 /// assigned_display_number will determine which of those is
 /// displayed.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Pixel {
   index: usize,
   assigned_display: Option<Key>,
@@ -188,7 +175,7 @@ impl Pixel {
     if let (Some(assigned_key), Some(assigned_number)) = &self.get_both_assignments() {
       if self.contains_object(assigned_key) {
         let object_display = self
-          .get(*assigned_key)
+          .get(assigned_key)
           .unwrap()
           .get(assigned_number)
           .unwrap();

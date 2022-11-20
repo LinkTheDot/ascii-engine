@@ -1,7 +1,5 @@
 pub mod defaults;
 
-pub mod data_types;
-
 pub mod general_data {
   pub mod coordinates;
   pub mod map_methods;
@@ -17,5 +15,6 @@ pub mod objects {
 pub mod screen {
   pub mod object_screen_data;
   pub mod pixel;
+  pub mod pixel_data_types;
   pub mod screen_data;
 }
