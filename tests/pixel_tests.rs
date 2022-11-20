@@ -364,6 +364,38 @@ mod remove_object {
   }
 }
 
+#[cfg(test)]
+mod get_current_display_data {
+  use super::*;
+
+  #[test]
+  #[ignore]
+  fn data_exists_has_assignment() {
+    let mut pixel = Pixel::default();
+    let [object, _, _] = get_object_list(0);
+
+    let (key, object_display) = (object.0.clone(), object.1.clone());
+    let expected_display_data = Some((&key, &object_display));
+
+    pixel.insert_object(object.0, object.1, pixel::Reassign::True);
+
+    let current_display_data = pixel.get_current_display_data();
+
+    println!("{:?}\n\n{:?}", expected_display_data, current_display_data);
+
+    // assert_eq!(expected_display_data, current_display_data);
+  }
+
+  #[test]
+  fn data_doesnt_exist_has_assignment() {}
+
+  #[test]
+  fn data_exists_has_no_assignment() {}
+
+  #[test]
+  fn data_doesnt_exist_has_no_assignment() {}
+}
+
 pub fn get_object_list(number_assignment: u32) -> [KeyAndObjectDisplay; 3] {
   [
     (

@@ -174,10 +174,16 @@ impl Pixel {
   }
 
   /// Gets a reference to the display item currently inside the pixel
-  pub fn get_current_display_data(&self) -> Option<&ObjectDisplay> {
+  pub fn get_current_display_data(&self) -> Option<(&Key, &ObjectDisplay)> {
     if let (Some(assigned_key), Some(assigned_number)) = &self.get_both_assignments() {
       if self.contains_object(assigned_key) {
-        self.get(*assigned_key).unwrap().get(assigned_number)
+        let object_display = self
+          .get(*assigned_key)
+          .unwrap()
+          .get(assigned_number)
+          .unwrap();
+
+        Some((assigned_key, object_display))
       } else {
         None
       }
@@ -187,7 +193,7 @@ impl Pixel {
   }
 
   // redo this and make it more descriptive
-  pub fn get_all_current_display_data(&self) -> Option<&AssignedObjects> {
+  pub fn get_all_objects_of_assigned_key(&self) -> Option<&AssignedObjects> {
     if let Some(assigned_key) = &self.assigned_display {
       if self.contains_object(assigned_key) {
         Some(self.objects_within.get(assigned_key).unwrap())
