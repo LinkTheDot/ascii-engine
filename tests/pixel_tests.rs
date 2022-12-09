@@ -1,8 +1,7 @@
-#![allow(unused_imports)]
-
-use ascii_engine::screen::screen_data::*;
+use ascii_engine::screen::pixel_data_types::*;
+use ascii_engine::screen::screen_data::EMPTY_PIXEL;
 use ascii_engine::screen::{pixel, pixel::*};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 /*
 - Test Structure -

@@ -15,5 +15,6 @@ pub mod objects {
 pub mod screen {
   pub mod object_screen_data;
   pub mod pixel;
+  pub mod pixel_data_types;
   pub mod screen_data;
 }

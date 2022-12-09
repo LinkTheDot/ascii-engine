@@ -1,7 +1,4 @@
-// use crate::screen::pixel::AssignedObjects;
-use crate::screen::screen_data::*;
-// use std::collections::HashMap;
-
+pub type CurrentAndTotalObjects = (CurrentlyExistingObjects, TotalExistingObjects);
 pub type CurrentlyExistingObjects = u32;
 pub type TotalExistingObjects = u32;
 
@@ -11,7 +8,6 @@ pub trait ObjectDataMethods {
 }
 
 #[allow(unused)]
-#[derive(Debug)]
 /// This struct will be apart of the screen struct.
 /// When a new object is created a new one of these will be made
 /// which shall keep track of the amount of times said object
@@ -21,6 +17,7 @@ pub trait ObjectDataMethods {
 /// 'currently_existing' ever reaches 0 after it reaches > 1.
 /// False will be the default for this.
 /// ( currently isn't fully implemented )
+#[derive(Debug)]
 pub struct ObjectScreenData {
   name: String,
   keep_data: bool, // determines whether or not data should be kept once currently_existing reaches 0

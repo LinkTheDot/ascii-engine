@@ -5,6 +5,7 @@
 
 use crate::general_data::map_methods::*;
 pub use crate::screen::pixel::{checks::*, pixel_assignments::*};
+use crate::screen::pixel_data_types::*;
 use crate::screen::screen_data::*;
 use anyhow::anyhow;
 use std::collections::{btree_map::Entry, BTreeMap, HashMap};
@@ -12,11 +13,7 @@ use std::collections::{btree_map::Entry, BTreeMap, HashMap};
 mod checks;
 mod pixel_assignments;
 
-pub type AssignedNumber = u32;
-pub type AssignedObject = (AssignedNumber, ObjectDisplay);
-pub type AssignedObjects = HashMap<AssignedNumber, ObjectDisplay>;
-
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum Reassign {
   True,
   False,
@@ -30,7 +27,7 @@ pub enum Reassign {
 /// If there're multiple objects of the same name then the
 /// assigned_display_number will determine which of those is
 /// displayed.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Pixel {
   index: usize,
   assigned_display: Option<Key>,
@@ -177,6 +174,7 @@ impl Pixel {
   pub fn get_current_display_data(&self) -> Option<(&Key, &ObjectDisplay)> {
     if let (Some(assigned_key), Some(assigned_number)) = &self.get_both_assignments() {
       if self.contains_object(assigned_key) {
+<<<<<<< HEAD
         let object_display = self
           .get(*assigned_key)
           .unwrap()
@@ -184,6 +182,17 @@ impl Pixel {
           .unwrap();
 
         Some((assigned_key, object_display))
+||||||| b2594e7
+        self.get(*assigned_key).unwrap().get(assigned_number)
+=======
+        let object_display = self
+          .get(assigned_key)
+          .unwrap()
+          .get(assigned_number)
+          .unwrap();
+
+        Some((assigned_key, object_display))
+>>>>>>> covert-data-types
       } else {
         None
       }
