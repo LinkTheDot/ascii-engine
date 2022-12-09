@@ -143,7 +143,7 @@ fn move_cube(
     let swap_with = pixel_coords.move_coords(move_to);
     if let Some(swap_with) = swap_with {
       screen_data.transfer_assigned_object_in_pixel_to(&pixel_coords, &swap_with);
-      screen_data.change_pixel_display_at(&swap_with, Some("square".to_string()), None);
+      let _ = screen_data.change_pixel_display_at(&swap_with, "square".to_string(), 0);
     } else {
       return;
     }

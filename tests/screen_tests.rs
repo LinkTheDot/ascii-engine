@@ -1,4 +1,4 @@
-use ascii_engine::screen::pixel::*;
+use ascii_engine::screen::pixel_data_types::*;
 use ascii_engine::screen::screen_data::*;
 use std::collections::HashMap;
 

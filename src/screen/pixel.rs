@@ -1,15 +1,24 @@
-// add a way to remove specific objects
-// add a way to remove all objects
+// Add a way to remove specific objects
+// Add a way to remove all objects
+// Have error handling for most methods
+// Create an error type for Pixels
 
 use crate::general_data::map_methods::*;
+pub use crate::screen::pixel::{checks::*, pixel_assignments::*};
+use crate::screen::pixel_data_types::*;
 use crate::screen::screen_data::*;
-use std::collections::{BTreeMap, HashMap};
+use anyhow::anyhow;
+use std::collections::{btree_map::Entry, BTreeMap, HashMap};
 
-pub type AssignedNumber = u32;
-pub type AssignedObject = (AssignedNumber, ObjectDisplay);
-pub type AssignedObjects = HashMap<AssignedNumber, ObjectDisplay>;
+mod checks;
+mod pixel_assignments;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub enum Reassign {
+  True,
+  False,
+}
+
 /// A pixel makes up an individual part of the entire screen.
 /// Pixels will hold a part of what the object within displays
 /// as.
@@ -18,153 +27,142 @@ pub type AssignedObjects = HashMap<AssignedNumber, ObjectDisplay>;
 /// If there're multiple objects of the same name then the
 /// assigned_display_number will determine which of those is
 /// displayed.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Pixel {
+  index: usize,
   assigned_display: Option<Key>,
   assigned_display_number: Option<AssignedNumber>,
   objects_within: BTreeMap<Key, AssignedObjects>,
 }
 
 impl Pixel {
-  pub fn new() -> Self {
+  pub fn new(index: usize) -> Self {
     Pixel {
+      index,
       assigned_display: None,
       assigned_display_number: None,
       objects_within: BTreeMap::new(),
     }
   }
 
-  /// Returns the pixel display depending on what was assigned
-  /// if nothing was assigned then it'll return what an EMPTY_PIXEL is defined as
+  /// Returns the pixel display depending on what was assigned.
+  /// If nothing was assigned then it'll return an EMPTY_PIXEL.
   pub fn display(&self) -> String {
-    if let Some((display_key, assigned_display)) = &self.get_both_assignments() {
-      return self
+    if let (Some(display_key), Some(assigned_display)) = &self.get_both_assignments() {
+      self
         .objects_within
         .get(display_key.as_str())
         .unwrap()
         .get(assigned_display)
         .unwrap()
-        .to_string();
-    } else if !self.is_empty() {
-      let first_key = self.objects_within.get_first_key();
-
-      if let Some(expected_key) = first_key {
-        let pixel_data = self.objects_within.get(expected_key).unwrap();
-
-        if !pixel_data.is_empty() {
-          return pixel_data.get(&0).unwrap().to_string();
-        }
-      }
+        .to_string()
+    } else {
+      EMPTY_PIXEL.to_string()
     }
-
-    EMPTY_PIXEL.to_string()
   }
 
   /// Changes the assigned_display of the pixel
-  /// If the input is invalid it'll set the display to None
-  // change this to use
-  // https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=8ca7e610cee6bbf39df8d19425ac19aa
   pub fn change_display_to(
     &mut self,
-    change_to: Option<Key>,
-    assigned_number: Option<AssignedNumber>,
-  ) {
-    if change_to.is_some() && assigned_number.is_some() {
-      if self.contains_object(change_to.as_ref().unwrap()) {
-        self.change_display(change_to, assigned_number);
-      } else {
-        self.change_display(None, None);
-      }
-    } else if change_to.is_some() && assigned_number.is_none() {
-      let key = change_to.unwrap();
+    key: Key,
+    assigned_number: AssignedNumber,
+  ) -> anyhow::Result<()> {
+    if self.contains_object(&key) {
+      self.change_display(Some(key), Some(assigned_number));
 
-      let lowest_display_number = *self.get(&key).unwrap().get_lowest_key().unwrap();
-
-      self.change_display(Some(key), Some(lowest_display_number));
+      Ok(())
     } else {
-      self.change_display(None, None);
+      // add logging here
+      let error_message = format!("No object named {} found in pixel {}", key, self.index);
+
+      Err(anyhow!(error_message))
     }
   }
 
-  /// Inserts the object and if reassign is true will assign the new data
-  /// as the given pixel's new display assignment
-  pub fn insert_object(&mut self, key: Key, item: AssignedObject, reassign: bool) {
-    if self.objects_within.contains_key(&key) {
-      self
-        .objects_within
-        .get_mut(&key)
-        .unwrap()
-        .insert(item.0, item.1)
-        .unwrap_or_else(|| "".to_string());
+  /// Clears the current assignment on the pixel.
+  pub fn clear_display_data(&mut self) {
+    self.change_display(None, None);
+  }
+
+  /// Inserts the object assigned to the key whether it existed or not.
+  ///
+  /// If reassign is true, the assigned value to the pixel will change to the new object.
+  pub fn insert_object(&mut self, key: Key, object: AssignedObject, reassign: Reassign) {
+    if let Entry::Occupied(mut object_map) = self.objects_within.entry(key.clone()) {
+      object_map.get_mut().insert(object.0, object.1);
     } else {
-      let mut new_map = HashMap::new();
-      new_map.insert(item.0, item.1);
+      let new_map = HashMap::from([(object.0, object.1)]);
 
       self.objects_within.insert(key.clone(), new_map);
     }
 
-    if reassign {
-      self.change_display_to(Some(key.clone()), Some(item.0));
+    if reassign == Reassign::True {
+      // handle this once pixel errors are implemented
+      let _ = self.change_display_to(key, object.0);
     }
   }
 
   /// Removes the data that's currently assigned to display and returns it
-  /// Deletes the entry if there's only 1 object in there
-  pub fn remove_displayed_object(&mut self) -> Option<KeyAndObjectDisplay> {
-    let pixel_data = if !self.is_empty() && !self.has_no_assignment() {
-      if self.assigned_key_has_multiple_objects() {
-        let key = self.get_assigned_key().unwrap().clone();
-        let number_and_display = self.remove_object_assigned_number(true).unwrap();
-
-        Some((key, number_and_display))
-      } else {
-        let mut object = self
-          .objects_within
-          .remove_entry(self.assigned_display.as_ref().unwrap().as_str())
+  /// Deletes the entry if there's only one object in there
+  ///
+  /// Reassign will automatically assign to the latest object inside the pixel
+  // Change this to return a result once pixel errors are implemented
+  pub fn remove_displayed_object(&mut self, reassign: Reassign) -> Option<KeyAndObjectDisplay> {
+    if let (Some(key), Some(assigned_number)) = self.take_both_assignments() {
+      if self.contains_object(&key) {
+        let removed_data = self
+          .remove_object(&key, &assigned_number, reassign)
           .unwrap();
 
-        let key = object.0;
-        let assigned_object = object.1.drain().next().unwrap();
+        if reassign == Reassign::False {
+          self.clear_display_data();
+        }
 
-        self.change_display(None, None);
-
-        Some((key, assigned_object))
+        return Some(removed_data);
       }
-    } else {
-      None
-    };
+    }
 
-    self.reassign_display_data();
-
-    pixel_data
+    None
   }
 
-  /// Removes the object pertaining to the assigned number
-  /// if there's more than one it'll just remove the one
-  /// if there's only 1 it'll remove the map inside along with the item
-  pub fn remove_object_assigned_number(&mut self, reassign: bool) -> Option<AssignedObject> {
-    let removed_data = if let (Some(object_key), Some(assigned_number)) = (
-      self.assigned_display.as_ref(),
-      self.assigned_display_number.as_ref(),
-    ) {
-      if self.objects_within.get(object_key).unwrap().len() > 1 {
-        self
+  /// Removes the data corresponding to the passed in object, and returns it.
+  /// If the object doesn't exist then None is returned.
+  pub fn remove_object(
+    &mut self,
+    key: &Key,
+    assigned_number: &AssignedNumber,
+    reassign: Reassign,
+  ) -> Option<KeyAndObjectDisplay> {
+    let removed_data = if self.contains_assignment(key, assigned_number) {
+      //
+      // None of these unwraps will panic as we
+      // know the objects exist in the map
+      //
+      if self.contains_multiple_of(key) {
+        let assigned_object = self
           .objects_within
-          .get_mut(object_key)
+          .get_mut(key)
           .unwrap()
           .remove_entry(assigned_number)
+          .unwrap();
+
+        Some((key.clone(), assigned_object))
       } else {
-        self
+        let assigned_object = self
           .objects_within
-          .remove(object_key)
+          .remove(key)
           .unwrap()
           .remove_entry(assigned_number)
+          .unwrap();
+
+        Some((key.clone(), assigned_object))
       }
     } else {
       None
     };
 
-    if removed_data.is_some() && reassign {
-      self.change_display_to(None, None);
+    if removed_data.is_some() && reassign == Reassign::True {
+      self.clear_display_data();
 
       self.reassign_display_data();
     }
@@ -173,10 +171,28 @@ impl Pixel {
   }
 
   /// Gets a reference to the display item currently inside the pixel
-  pub fn get_current_display_data(&self) -> Option<&ObjectDisplay> {
-    if let Some((assigned_key, assigned_number)) = &self.get_both_assignments() {
+  pub fn get_current_display_data(&self) -> Option<(&Key, &ObjectDisplay)> {
+    if let (Some(assigned_key), Some(assigned_number)) = &self.get_both_assignments() {
       if self.contains_object(assigned_key) {
+<<<<<<< HEAD
+        let object_display = self
+          .get(*assigned_key)
+          .unwrap()
+          .get(assigned_number)
+          .unwrap();
+
+        Some((assigned_key, object_display))
+||||||| b2594e7
         self.get(*assigned_key).unwrap().get(assigned_number)
+=======
+        let object_display = self
+          .get(assigned_key)
+          .unwrap()
+          .get(assigned_number)
+          .unwrap();
+
+        Some((assigned_key, object_display))
+>>>>>>> covert-data-types
       } else {
         None
       }
@@ -185,55 +201,14 @@ impl Pixel {
     }
   }
 
-  pub fn get_all_current_display_data(&self) -> Option<&AssignedObjects> {
+  // redo this and make it more descriptive
+  pub fn get_all_objects_of_assigned_key(&self) -> Option<&AssignedObjects> {
     if let Some(assigned_key) = &self.assigned_display {
       if self.contains_object(assigned_key) {
         Some(self.objects_within.get(assigned_key).unwrap())
       } else {
         None
       }
-    } else {
-      None
-    }
-  }
-
-  /// Returns true if the pixel contains no object data
-  pub fn is_empty(&self) -> bool {
-    self.objects_within.is_empty()
-  }
-
-  /// Returns true if the input key/object is within the map
-  pub fn contains_object(&self, key: &Key) -> bool {
-    self.objects_within.contains_key(key)
-  }
-
-  /// Returns true if the data corresponding to the assigned display key
-  /// has more than 1 object within it
-  pub fn assigned_key_has_multiple_objects(&self) -> bool {
-    if let Some(assigned_key) = &self.assigned_display {
-      self.get(assigned_key).unwrap().len() > 1
-    } else {
-      false
-    }
-  }
-
-  /// Gets a reference to the current assigned object key
-  pub fn get_assigned_key(&self) -> Option<&Key> {
-    self.assigned_display.as_ref()
-  }
-
-  /// Gets a reference to the current assigned_object_number key
-  pub fn get_assigned_number(&self) -> Option<&AssignedNumber> {
-    self.assigned_display_number.as_ref()
-  }
-
-  /// Gets a reference to both the current assigend object and object number
-  pub fn get_both_assignments(&self) -> Option<(&Key, &AssignedNumber)> {
-    if !self.has_no_assignment() {
-      Some((
-        self.get_assigned_key().as_ref().unwrap(),
-        self.get_assigned_number().as_ref().unwrap(),
-      ))
     } else {
       None
     }
@@ -249,14 +224,8 @@ impl Pixel {
     self.objects_within.get_mut(key)
   }
 
-  /// Returns true if the pixel currently has no assigned_display
-  /// Does not include number display, as it should be a given that
-  /// no assigned_display implies no assigned_display_number
-  pub fn has_no_assignment(&self) -> bool {
-    self.assigned_display.is_none()
-  }
-
   /// Gets the latest inserted object and returns it's key
+  // This will be removed once objects are assigned with unique hashes
   pub fn get_latest_object_key(&self) -> Option<&Key> {
     self.objects_within.get_first_key()
   }
@@ -281,9 +250,9 @@ impl Pixel {
   /// if not it'll do nothing
   pub fn reassign_display_data(&mut self) {
     if let Some((key, assigned_number)) = self.get_new_object_assignment() {
-      self.change_display_to(Some(key), Some(assigned_number));
+      let _ = self.change_display_to(key, assigned_number);
     } else {
-      self.change_display_to(None, None);
+      self.clear_display_data();
     }
   }
 
