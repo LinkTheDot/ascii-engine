@@ -123,7 +123,7 @@ mod display_tests {
 
     pixel.insert_object(object.0, object.1, pixel::Reassign::True);
 
-    let pixel_display = pixel.display();
+    let pixel_display = format!("{}", pixel);
 
     assert_eq!(pixel_display, expected_display);
   }
@@ -134,7 +134,7 @@ mod display_tests {
 
     let expected_display = EMPTY_PIXEL;
 
-    let pixel_display = pixel.display();
+    let pixel_display = format!("{}", pixel);
 
     assert_eq!(pixel_display, expected_display);
   }
@@ -148,7 +148,7 @@ mod display_tests {
 
     pixel.insert_object(object.0, object.1, pixel::Reassign::False);
 
-    let pixel_display = pixel.display();
+    let pixel_display = format!("{}", pixel);
 
     assert_eq!(pixel_display, expected_display);
 

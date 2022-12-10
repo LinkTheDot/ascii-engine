@@ -2,6 +2,8 @@ use crate::general_data::coordinates::*;
 use crate::objects::object_data::ObjectInformation;
 use crate::screen::pixel_data_types::*;
 use crate::screen::{object_screen_data::*, pixel, pixel::*};
+use guard::guard;
+use screen_printer::printer::*;
 use std::collections::HashMap;
 use std::error::Error;
 use thread_clock::Clock;
@@ -9,7 +11,7 @@ use thread_clock::Clock;
 pub const GRID_WIDTH: usize = 175;
 pub const GRID_HEIGHT: usize = 40;
 pub const TICK_DURATION: u32 = 24;
-pub const EMPTY_PIXEL: &str = "0";
+pub const EMPTY_PIXEL: &str = " ";
 pub const GRID_SPACER: &str = "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 
 /// This is in the context of the update_placed_objects function
@@ -27,12 +29,18 @@ pub struct ScreenData {
   screen_clock: Clock,
   existing_objects: HashMap<String, ObjectScreenData>,
   screen: Vec<Pixel>,
+  printer: Printer,
+  first_print: bool,
+
+  /// Hides the cursor as long as it lives
+  _cursor_hider: termion::cursor::HideCursor<std::io::Stdout>,
 }
 
 impl ScreenData {
   /// Creates a new screen which in the process starts a new clock
   /// thread
   pub fn new() -> Result<ScreenData, Box<dyn Error>> {
+    let cursor_hider = termion::cursor::HideCursor::from(std::io::stdout());
     let mut screen_clock = Clock::custom(TICK_DURATION).unwrap_or_else(|error| {
       panic!("An error has occurred while spawning a clock thread: '{error}'")
     });
@@ -44,23 +52,45 @@ impl ScreenData {
       screen_clock,
       existing_objects: HashMap::new(),
       screen,
+      printer: Printer::new(GRID_WIDTH, GRID_HEIGHT),
+      first_print: true,
+      _cursor_hider: cursor_hider,
     })
   }
 
   /// Returns the screen as a string depending on what each pixel
   /// is assigned
-  pub fn display(&self) -> String {
-    self
-      .screen
-      .chunks(GRID_WIDTH)
-      .map(|pixel_row| {
-        pixel_row
-          .iter()
-          .map(|pixel| pixel.display())
-          .collect::<String>()
-          + "\n"
-      })
-      .collect()
+  pub fn display(&self) -> Result<String, PrintingError> {
+    Printer::create_grid_from_full_character_list(&self.screen, GRID_WIDTH, GRID_HEIGHT)
+  }
+
+  // return an error when those are added
+  /// Prints the screen as it currently is.
+  pub fn print_screen(&mut self) {
+    if self.first_print {
+      println!("{}", "\n".repeat(GRID_HEIGHT + 10));
+
+      self.first_print = false;
+    }
+
+    guard!( let Ok(screen) = self.display() else { return; } );
+
+    let _ = self.printer.dynamic_print(screen);
+  }
+
+  /// Replaces every pixel with whitespace, does not overwrite assignment.
+  pub fn clear_screen(&mut self) -> Result<(), PrintingError> {
+    self.printer.clear_grid()?;
+
+    Ok(())
+  }
+
+  pub fn print_text<T>(&mut self, message: T)
+  where
+    T: std::fmt::Display + std::ops::Deref,
+  {
+    print!("\x1B[0;0H");
+    println!("{message}");
   }
 
   /// Changes the assigned_display of the pixel

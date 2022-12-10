@@ -12,8 +12,7 @@ pub fn main() {
   main_square.place_object(&mut screen_data);
   secondary_square.place_object(&mut screen_data);
 
-  println!("{GRID_SPACER}");
-  println!("{}", screen_data.display());
+  screen_data.print_screen();
 
   parse_user_input(screen_data, main_square);
 }
@@ -22,7 +21,7 @@ fn parse_user_input(mut screen_data: ScreenData, mut main_square: Object) {
   for error_count in (0..5).rev() {
     let mut user_input = String::new();
 
-    println!("choose a mode, 'manual' | 'spin'");
+    screen_data.print_text("choose a mode, 'manual' | 'spin'");
     io::stdin().read_line(&mut user_input).unwrap();
 
     match user_input.to_lowercase().trim() {
@@ -31,26 +30,24 @@ fn parse_user_input(mut screen_data: ScreenData, mut main_square: Object) {
       "e" | "exit" => break,
       // add a clock test that'll synchronize 2 objects
       _ => {
-        println!("{GRID_SPACER}");
-        println!("{}", screen_data.display());
+        screen_data.print_screen();
 
-        println!("Incorrect Input, {} attempts remaining", error_count);
+        screen_data.print_text(format!(
+          "\nIncorrect Input, {} attempts remaining",
+          error_count
+        ));
       }
     }
   }
 
-  exit_countdown();
+  exit_countdown(&mut screen_data);
 }
 
-fn exit_countdown() {
+fn exit_countdown(screen: &mut ScreenData) {
   for exit_counter in (1..6).rev() {
-    println!("{GRID_SPACER}");
-    println!("{GRID_SPACER}");
-    println!("{GRID_SPACER}");
+    screen.clear_screen().unwrap();
 
-    println!("Now closing in {exit_counter}");
-
-    println!("{GRID_SPACER}");
+    println!("\nNow closing in {exit_counter}");
 
     thread::sleep(Duration::from_millis(500));
   }

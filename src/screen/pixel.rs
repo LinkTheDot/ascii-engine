@@ -45,22 +45,6 @@ impl Pixel {
     }
   }
 
-  /// Returns the pixel display depending on what was assigned.
-  /// If nothing was assigned then it'll return an EMPTY_PIXEL.
-  pub fn display(&self) -> String {
-    if let (Some(display_key), Some(assigned_display)) = &self.get_both_assignments() {
-      self
-        .objects_within
-        .get(display_key.as_str())
-        .unwrap()
-        .get(assigned_display)
-        .unwrap()
-        .to_string()
-    } else {
-      EMPTY_PIXEL.to_string()
-    }
-  }
-
   /// Changes the assigned_display of the pixel
   pub fn change_display_to(
     &mut self,
@@ -174,17 +158,6 @@ impl Pixel {
   pub fn get_current_display_data(&self) -> Option<(&Key, &ObjectDisplay)> {
     if let (Some(assigned_key), Some(assigned_number)) = &self.get_both_assignments() {
       if self.contains_object(assigned_key) {
-<<<<<<< HEAD
-        let object_display = self
-          .get(*assigned_key)
-          .unwrap()
-          .get(assigned_number)
-          .unwrap();
-
-        Some((assigned_key, object_display))
-||||||| b2594e7
-        self.get(*assigned_key).unwrap().get(assigned_number)
-=======
         let object_display = self
           .get(assigned_key)
           .unwrap()
@@ -192,7 +165,6 @@ impl Pixel {
           .unwrap();
 
         Some((assigned_key, object_display))
->>>>>>> covert-data-types
       } else {
         None
       }
@@ -264,5 +236,24 @@ impl Pixel {
   fn change_display(&mut self, display: Option<Key>, number: Option<AssignedNumber>) {
     self.assigned_display = display;
     self.assigned_display_number = number;
+  }
+}
+
+impl std::fmt::Display for Pixel {
+  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    if let (Some(display_key), Some(assigned_display)) = &self.get_both_assignments() {
+      write!(
+        f,
+        "{}",
+        self
+          .objects_within
+          .get(display_key.as_str())
+          .unwrap()
+          .get(assigned_display)
+          .unwrap()
+      )
+    } else {
+      write!(f, "{}", EMPTY_PIXEL)
+    }
   }
 }
