@@ -70,8 +70,7 @@ impl HollowSquare for Object {
     for _ in 0..x {
       self.move_object(screen_data, &move_to);
 
-      println!("{GRID_SPACER}");
-      println!("{}", screen_data.display());
+      screen_data.print_screen();
 
       screen_data.wait_for_x_ticks(2);
     }
@@ -118,8 +117,7 @@ impl HollowSquare for Object {
           _ => continue,
         }
 
-        println!("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-        println!("{}", screen_data.display());
+        screen_data.print_screen();
       }
     }
 

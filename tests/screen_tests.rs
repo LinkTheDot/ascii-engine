@@ -14,8 +14,9 @@ pub const OBJECT_3_DISPLAY: &str = "c";
 #[test]
 fn display_logic() {
   let screen = ScreenData::default();
-  let expected_pixel_count = (GRID_WIDTH * GRID_HEIGHT) + GRID_HEIGHT;
-  let display = screen.display();
+  // adding the height - 1 is accounting for new lines
+  let expected_pixel_count = (GRID_WIDTH * GRID_HEIGHT) + GRID_HEIGHT - 1;
+  let display = screen.display().unwrap();
 
   assert_eq!(display.len(), expected_pixel_count);
 }
