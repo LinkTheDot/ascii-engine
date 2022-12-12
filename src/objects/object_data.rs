@@ -5,6 +5,7 @@ use crate::objects::object_movements::*;
 use crate::screen::pixel;
 use crate::screen::pixel_data_types::*;
 use crate::screen::screen_data::*;
+use crate::CONFIG;
 
 /// Contains the name, shape, position, and whether or not the data
 /// should be kept once the count reaches 0
@@ -87,7 +88,10 @@ impl Object {
     for new_pixel_display in self.object_shape.chars() {
       match new_pixel_display {
         ' ' => {
-          let pixel_object_group = (self.name.clone(), (self.number, EMPTY_PIXEL.to_string()));
+          let pixel_object_group = (
+            self.name.clone(),
+            (self.number, CONFIG.empty_pixel.to_string()),
+          );
 
           screen_data.insert_object_at(&pixel_position, pixel_object_group, pixel::Reassign::True);
 

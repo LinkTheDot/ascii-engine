@@ -6,7 +6,7 @@
 use crate::general_data::map_methods::*;
 pub use crate::screen::pixel::{checks::*, pixel_assignments::*};
 use crate::screen::pixel_data_types::*;
-use crate::screen::screen_data::*;
+use crate::CONFIG;
 use anyhow::anyhow;
 use std::collections::{btree_map::Entry, BTreeMap, HashMap};
 
@@ -253,7 +253,7 @@ impl std::fmt::Display for Pixel {
           .unwrap()
       )
     } else {
-      write!(f, "{}", EMPTY_PIXEL)
+      write!(f, "{}", CONFIG.empty_pixel)
     }
   }
 }

@@ -1,7 +1,8 @@
-use crate::general_data::coordinates::*;
+use crate::general_data::{coordinates::*, file_logger};
 use crate::objects::object_data::ObjectInformation;
 use crate::screen::pixel_data_types::*;
 use crate::screen::{object_screen_data::*, pixel, pixel::*};
+use crate::CONFIG;
 use guard::guard;
 use screen_printer::printer::*;
 use std::collections::HashMap;
@@ -10,8 +11,6 @@ use thread_clock::Clock;
 
 pub const GRID_WIDTH: usize = 175;
 pub const GRID_HEIGHT: usize = 40;
-pub const TICK_DURATION: u32 = 24;
-pub const EMPTY_PIXEL: &str = " ";
 pub const GRID_SPACER: &str = "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 
 /// This is in the context of the update_placed_objects function
@@ -32,7 +31,7 @@ pub struct ScreenData {
   printer: Printer,
   first_print: bool,
 
-  /// Hides the cursor as long as it lives
+  /// Hides the cursor as long as this lives
   _cursor_hider: termion::cursor::HideCursor<std::io::Stdout>,
 }
 
@@ -40,10 +39,13 @@ impl ScreenData {
   /// Creates a new screen which in the process starts a new clock
   /// thread
   pub fn new() -> Result<ScreenData, Box<dyn Error>> {
+    // The handle for the file logger, isn't needed right now
+    let _ = file_logger::setup_file_logger();
     let cursor_hider = termion::cursor::HideCursor::from(std::io::stdout());
-    let mut screen_clock = Clock::custom(TICK_DURATION).unwrap_or_else(|error| {
+    let mut screen_clock = Clock::custom(CONFIG.tick_duration).unwrap_or_else(|error| {
       panic!("An error has occurred while spawning a clock thread: '{error}'")
     });
+
     let screen = generate_pixel_grid();
 
     screen_clock.start();

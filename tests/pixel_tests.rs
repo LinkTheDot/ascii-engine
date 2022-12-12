@@ -1,6 +1,6 @@
 use ascii_engine::screen::pixel_data_types::*;
-use ascii_engine::screen::screen_data::EMPTY_PIXEL;
 use ascii_engine::screen::{pixel, pixel::*};
+use ascii_engine::CONFIG;
 use std::collections::HashMap;
 
 /*
@@ -132,7 +132,7 @@ mod display_tests {
   fn has_assigned_objects_and_no_data() {
     let pixel = Pixel::default();
 
-    let expected_display = EMPTY_PIXEL;
+    let expected_display = CONFIG.empty_pixel.clone();
 
     let pixel_display = format!("{}", pixel);
 
@@ -144,7 +144,7 @@ mod display_tests {
     let mut pixel = Pixel::default();
     let [object, _, _] = get_object_list(0);
 
-    let expected_display = EMPTY_PIXEL;
+    let expected_display = CONFIG.empty_pixel.clone();
 
     pixel.insert_object(object.0, object.1, pixel::Reassign::False);
 
