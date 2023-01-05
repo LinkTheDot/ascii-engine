@@ -7,6 +7,7 @@ lazy_static! {
 }
 
 pub mod defaults;
+pub mod prelude;
 
 pub mod general_data {
   pub mod config_builder;
@@ -18,14 +19,12 @@ pub mod general_data {
 }
 
 pub mod objects {
-  pub mod hollow_square;
+  pub mod errors;
   pub mod object_data;
-  pub mod object_movements;
+  pub mod sprites;
 }
 
 pub mod screen {
-  pub mod object_screen_data;
-  pub mod pixel;
-  pub mod pixel_data_types;
+  pub mod objects;
   pub mod screen_data;
 }

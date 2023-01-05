@@ -11,6 +11,8 @@ pub struct ConfigData {
 
   /// In milliseconds
   pub tick_duration: u32,
+  pub grid_width: u32,
+  pub grid_height: u32,
 }
 
 impl Default for ConfigData {
@@ -19,6 +21,8 @@ impl Default for ConfigData {
       log_level: "debug".to_string(),
       empty_pixel: " ".to_string(),
       tick_duration: 24,
+      grid_width: 175,
+      grid_height: 40,
     }
   }
 }
@@ -40,6 +44,8 @@ pub fn get_config() -> Result<ConfigData, ConfigError> {
     .set_default("log_level", default_config_data.log_level)?
     .set_default("empty_pixel", default_config_data.empty_pixel)?
     .set_default("tick_duration", default_config_data.tick_duration)?
+    .set_default("grid_width", default_config_data.grid_width)?
+    .set_default("grid_height", default_config_data.grid_height)?
     .add_source(File::with_name(config_path_name))
     .build()?
     .try_deserialize()
