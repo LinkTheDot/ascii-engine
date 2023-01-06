@@ -1,4 +1,4 @@
-use crate::traits::generate_traits;
+Use crate::traits::generate_traits;
 use proc_macro::TokenStream;
 
 mod traits;

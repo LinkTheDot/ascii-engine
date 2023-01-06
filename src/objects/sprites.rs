@@ -2,17 +2,30 @@ use crate::general_data::coordinates::*;
 use crate::objects::errors::*;
 use guard::guard;
 
-/// The sprite is data about the display and hitbox side of an object.
+/// The Sprite is data about the display and hitbox side of an object.
 ///
-/// The sprite will contain how an object will look, where it's hitbox will be, and
+/// The Sprite will contain how an object will look, where it's Hitbox will be, and
 /// what character in the skin of the object should be classified as "air".
-#[allow(unused)]
 #[derive(Debug)]
 pub struct Sprite {
   skin: Skin,
   hitbox: Vec<(isize, isize)>,
 }
 
+/// The Hitbox is how the screen will determine object interactions.
+///
+/// Creating a hitbox involves getting the shape of the hitbox, and
+/// designating a character to the center and air characters in the shape.
+///
+/// If you want the center character to also be apart of the hitbox, a bool
+/// is stored for such a thing.
+///
+/// Any character that isn't air or the center will be classified apart of the hitbox.
+///
+/// The hitbox will be the physical bounds in relation to that of the Skin.
+/// When comparing both the skin and hitbox, the designated center positions in the
+/// hitbox and skin shapes will determine the placement of the hitbox in relation to the
+/// skin.
 #[derive(Debug)]
 pub struct Hitbox {
   pub shape: String,
@@ -21,6 +34,11 @@ pub struct Hitbox {
   pub center_is_hitbox: bool,
 }
 
+/// The Skin is how an object will appear on the screen.
+///
+/// When creating a skin's shape, center and air characters will need to be designated.
+/// The center character will be replaced with the 'center_replacement_character' field when
+/// building the shape of the Skin.
 #[derive(Debug)]
 pub struct Skin {
   pub shape: String,
@@ -30,6 +48,46 @@ pub struct Skin {
 }
 
 impl Sprite {
+  // OBJECT CREATION IS SUBJECT TO CHANGE
+  /// Creates a new Sprite with the given Skin and Hitbox.
+  ///
+  /// The example will be creating
+  /// # Skin
+  /// ```bash,no_run
+  /// before   after
+  ///  xxx  |   xxx
+  ///  xcx  |   xxx
+  /// ```
+  /// # Hitbox
+  /// ```bash,no_run
+  /// before   after
+  ///  xxx  |   xxx
+  ///  -c-  |   -x-
+  /// ```
+  ///
+  /// # Hitbox Creation
+  /// ```
+  /// use ascii_engine::prelude::*;
+  ///
+  /// let hitbox = Hitbox {
+  ///   shape: "xxx\n-c-".to_string(),
+  ///   center_character: 'c',
+  ///   air_character: '-',
+  ///   center_is_hitbox: true,
+  /// };
+  /// ```
+  ///
+  /// # Skin Creation
+  /// ```
+  /// use ascii_engine::prelude::*;
+  ///
+  /// let skin = Skin {
+  ///   shape: "xxx\nxcx".to_string(),
+  ///   center_character: 'c',
+  ///   center_replacement_character: 'x',
+  ///   air_character: '-',
+  /// };
+  /// ```
   pub fn new(mut skin: Skin, hitbox: Hitbox) -> Result<Self, ObjectError> {
     let hitbox = hitbox.get_hitbox_data()?;
     skin.fix_skin();
@@ -37,24 +95,55 @@ impl Sprite {
     Ok(Self { skin, hitbox })
   }
 
+  /// Returns a reference to the skin's shape
   pub fn get_shape(&self) -> &str {
     &self.skin.shape
   }
 
+  /// Returns a mutable reference to the skin's shape
   pub fn get_mut_shape(&mut self) -> &mut String {
     &mut self.skin.shape
   }
 
+  /// Returns a reference to the relative points of the hitbox to
+  /// the designated center point of the object's skin.
   pub fn get_hitbox(&self) -> &Vec<(isize, isize)> {
     &self.hitbox
   }
 
-  pub fn change_hitbox(&mut self, new_hitbox: Hitbox) {
-    self.hitbox = new_hitbox.get_hitbox_data().unwrap();
+  /// Replaces the object's hitbox with a new one
+  pub fn change_hitbox(&mut self, new_hitbox: Hitbox) -> Result<(), ObjectError> {
+    match new_hitbox.get_hitbox_data() {
+      Ok(hitbox_data) => self.hitbox = hitbox_data,
+      Err(error) => return Err(error),
+    }
+
+    Ok(())
   }
 }
 
 impl Hitbox {
+  // OBJECT CREATION IS SUBJECT TO CHANGE
+  /// Creation of a Hitbox
+  ///
+  /// # Hitbox
+  /// ```bash,no_run
+  /// before   after
+  ///  xxx  |   xxx
+  ///  -c-  |   -x-
+  /// ```
+  ///
+  /// # Hitbox Creation
+  /// ```
+  /// use ascii_engine::prelude::*;
+  ///
+  /// let hitbox = Hitbox {
+  ///   shape: "xxx\n-c-".to_string(),
+  ///   center_character: 'c',
+  ///   air_character: '-',
+  ///   center_is_hitbox: true,
+  /// };
+  /// ```
   pub fn new(
     shape: String,
     center_character: char,
@@ -69,6 +158,10 @@ impl Hitbox {
     }
   }
 
+  /// Converts the given data into a list of relative points from the center.
+  ///
+  /// Returns an error when an invalid hitbox is passed in, or when there's no
+  /// valid center character in the shape of the hitbox.
   fn get_hitbox_data(self) -> Result<Vec<(isize, isize)>, ObjectError> {
     let hitbox_width = valid_rectangle_check(&self.shape)?.0;
     let hitbox = &self.shape.split('\n').collect::<String>();
@@ -106,6 +199,27 @@ impl Hitbox {
 }
 
 impl Skin {
+  // OBJECT CREATION IS SUBJECT TO CHANGE
+  /// Creation of a skin.
+  ///
+  /// # Skin
+  /// ```bash,no_run
+  /// before   after
+  ///  xxx  |   xxx
+  ///  xcx  |   xxx
+  /// ```
+  ///
+  /// # Skin Creation
+  /// ```
+  /// use ascii_engine::prelude::*;
+  ///
+  /// let skin = Skin {
+  ///   shape: "xxx\nxcx".to_string(),
+  ///   center_character: 'c',
+  ///   center_replacement_character: 'x',
+  ///   air_character: '-',
+  /// };
+  /// ```
   pub fn new(
     shape: String,
     center_character: char,
@@ -120,6 +234,8 @@ impl Skin {
     }
   }
 
+  /// Replaces the center character in the skin's shape with the given
+  /// replacement character.
   fn fix_skin(&mut self) {
     self.shape = self.shape.replace(
       &self.center_character.to_string(),

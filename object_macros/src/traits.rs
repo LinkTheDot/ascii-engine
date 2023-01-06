@@ -15,7 +15,7 @@ pub fn generate_traits(ast: &syn::DeriveInput) -> TokenStream {
     fn change_sprite(&mut self, new_model: String);
 
     fn get_hitbox(&self) -> &Vec<(isize, isize)>;
-    fn change_hitbox(&mut self, new_hitbox_model: Hitbox);
+    fn change_hitbox(&mut self, new_hitbox_model: Hitbox) -> Result<(), ascii_engine::objects::errors::ObjectError>;
 
     fn get_unique_hash(&self) -> &u64;
 
@@ -50,7 +50,7 @@ pub fn generate_traits(ast: &syn::DeriveInput) -> TokenStream {
       self.object_data.get_hitbox()
     }
 
-    fn change_hitbox(&mut self, new_hitbox: Hitbox) {
+    fn change_hitbox(&mut self, new_hitbox: Hitbox) -> Result<(), ascii_engine::objects::errors::ObjectError> {
       self.object_data.change_hitbox(new_hitbox)
     }
 

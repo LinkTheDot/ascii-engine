@@ -11,7 +11,6 @@ use std::collections::{hash_map::DefaultHasher, HashMap};
 // ObjectData will be basic things that the engine will need the object to hold.
 // Said struct would contain data such as, object center point, sprite, hit box,
 //   current_position, and more to be implemented.
-#[allow(unused)]
 pub struct Objects {
   objects: HashMap<DefaultHasher, Vec<ObjectData>>,
 }
