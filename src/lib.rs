@@ -22,6 +22,7 @@ pub mod objects {
   pub mod errors;
   pub mod object_data;
   pub mod sprites;
+  pub mod traits;
 }
 
 pub mod screen {

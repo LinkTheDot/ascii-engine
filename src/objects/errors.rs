@@ -1,3 +1,5 @@
+use crate::objects::object_data::Strata;
+
 #[derive(Debug, PartialEq, Eq)]
 /// This is the list of possible errors that could occurr
 /// while handling objects.
@@ -15,4 +17,18 @@ pub enum ObjectError {
   // possibly just make this mean there's no hitbox
   // period
   EmptyHitboxString,
+
+  /// This error is returned when a strata that wasn't 0-100 was passed in.
+  IncorrectStrataRange(Strata),
+
+  /// The object has attempted to move out of bounds.
+  OutOfBounds(Direction),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Direction {
+  Top,
+  Left,
+  Right,
+  Down,
 }

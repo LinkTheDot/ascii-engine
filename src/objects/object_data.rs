@@ -1,5 +1,7 @@
 use crate::general_data::{coordinates::*, hasher};
-use crate::objects::{errors::ObjectError, sprites::*};
+use crate::objects::errors::*;
+pub use crate::objects::traits::*;
+use crate::CONFIG;
 
 /// This is the data that will be required for the Object derive macro.
 ///
@@ -10,25 +12,23 @@ pub struct ObjectData {
   unique_hash: u64,
   /// Based on where the center is.
   object_position: usize,
+  top_left_position: usize,
   strata: Strata,
   sprite: Sprite,
 }
 
-/// The Strata will the the priority on the screen.
-/// That which has a higher Strata, will be above those with lower strata.
+/// The Strata will be the priority on the screen.
+/// That which has a lower Strata, will be above those with higher strata.
 ///
-/// A Strata will contain an integer for anything with same Stratas.
-/// An object with a lower number has a higher priority to show up on top.
-///
-/// If multiple objects have same Strata and Strata Numbers, the unique hashes will
-/// be used to determine the one that stays on top.
-#[derive(Debug, PartialEq, Eq)]
-pub enum Strata {
-  Top(u16),
-  High(u16),
-  Medium(u16),
-  Low(u16),
-  Background(u16),
+/// The strata is a range from 0-100, any number outside of that range will
+/// not be accepted.
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub struct Strata(pub usize);
+
+impl Strata {
+  pub fn correct_range(&self) -> bool {
+    self.0 <= 100
+  }
 }
 
 impl ObjectData {
@@ -38,15 +38,69 @@ impl ObjectData {
   ///
   /// To create ObjectData you will need the Sprite.
   /// A Sprite contains the data for the object's Skin and Hitbox.
-  pub fn new(object_position: Coordinates, sprite: Sprite, strata: Strata) -> Self {
+  pub fn new(
+    object_position: Coordinates,
+    sprite: Sprite,
+    strata: Strata,
+  ) -> Result<Self, ObjectError> {
     let unique_hash = hasher::get_unique_hash();
+    let top_left_position =
+      get_top_left_coordinates_of_skin(&object_position.coordinates_to_index(), &sprite);
 
-    Self {
+    if !strata.correct_range() {
+      return Err(ObjectError::IncorrectStrataRange(strata));
+    }
+
+    Ok(Self {
       unique_hash,
       object_position: object_position.coordinates_to_index(),
       strata,
       sprite,
+      top_left_position,
+    })
+  }
+
+  pub fn get_top_left_coordinates_of_skin(&self) -> usize {
+    get_top_left_coordinates_of_skin(&self.object_position, &self.sprite)
+  }
+
+  pub fn top_left(&self) -> &usize {
+    &self.top_left_position
+  }
+
+  /// Returns the (width, height) of the current sprite shape.
+  pub fn get_sprite_dimensions(&self) -> (usize, usize) {
+    let shape = self.sprite.get_shape();
+    let rows: Vec<&str> = shape.split('\n').collect();
+
+    let width = rows[0].chars().count();
+    let height = rows.len();
+
+    (width, height)
+  }
+
+  pub fn change_position(&mut self, new_position: usize) -> Result<(), ObjectError> {
+    let (object_width, object_height) = self.get_sprite_dimensions();
+
+    if object_width + (new_position % CONFIG.grid_width as usize) >= CONFIG.grid_width as usize {
+      return Err(ObjectError::OutOfBounds(Direction::Right));
+    } else if object_height + (new_position / CONFIG.grid_width as usize)
+      >= CONFIG.grid_height as usize
+    {
+      return Err(ObjectError::OutOfBounds(Direction::Down));
     }
+
+    let new_top_left =
+      get_top_left_coordinates_of_skin(self.sprite.get_center_character_index(), &self.sprite);
+
+    self.object_position = new_position;
+    self.top_left_position = new_top_left;
+
+    Ok(())
+  }
+
+  pub fn get_air_char(&self) -> char {
+    self.sprite.air_character()
   }
 
   /// Returns a reference to the unique hash
@@ -89,4 +143,31 @@ impl ObjectData {
   pub fn change_strata(&mut self, new_strata: Strata) {
     self.strata = new_strata
   }
+}
+
+fn get_top_left_coordinates_of_skin(true_center_position: &usize, sprite: &Sprite) -> usize {
+  let sprite_rows: Vec<&str> = sprite.get_shape().split('\n').collect();
+  let sprite_width = sprite_rows[0].chars().count();
+
+  let top_left_coordinates = (0, 0);
+
+  let skin_center_index = sprite.get_center_character_index();
+  let skin_center_coordinates = (
+    skin_center_index % sprite_width,
+    skin_center_index / sprite_width,
+  );
+
+  let true_center_coordinates = (
+    true_center_position % CONFIG.grid_width as usize,
+    true_center_position / CONFIG.grid_width as usize,
+  );
+
+  let relative_coordinates = top_left_coordinates.subtract(skin_center_coordinates);
+  let true_top_left_coordinates = (
+    relative_coordinates.0 + true_center_coordinates.0 as isize,
+    relative_coordinates.1 + true_center_coordinates.1 as isize,
+  );
+
+  (true_top_left_coordinates.0 + (CONFIG.grid_width as isize * true_top_left_coordinates.1))
+    as usize
 }

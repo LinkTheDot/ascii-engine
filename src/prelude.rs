@@ -1,3 +1,3 @@
-pub use crate::objects::{object_data::*, sprites::*};
+pub use crate::objects::{errors::ObjectError, object_data::*, sprites::*};
 pub use crate::screen::screen_data::*;
-pub use object_macros::Object;
+pub use crate::CONFIG;

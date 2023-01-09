@@ -45,6 +45,7 @@ pub struct Skin {
   pub center_character: char,
   pub center_replacement_character: char,
   pub air_character: char,
+  center_character_index: usize,
 }
 
 impl Sprite {
@@ -95,6 +96,10 @@ impl Sprite {
     Ok(Self { skin, hitbox })
   }
 
+  pub fn get_center_character_index(&self) -> &usize {
+    &self.skin.center_character_index
+  }
+
   /// Returns a reference to the skin's shape
   pub fn get_shape(&self) -> &str {
     &self.skin.shape
@@ -119,6 +124,10 @@ impl Sprite {
     }
 
     Ok(())
+  }
+
+  pub fn air_character(&self) -> char {
+    self.skin.air_character
   }
 }
 
@@ -145,13 +154,13 @@ impl Hitbox {
   /// };
   /// ```
   pub fn new(
-    shape: String,
+    shape: &str,
     center_character: char,
     air_character: char,
     center_is_hitbox: bool,
   ) -> Self {
     Self {
-      shape,
+      shape: shape.to_string(),
       center_character,
       air_character,
       center_is_hitbox,
@@ -179,7 +188,7 @@ impl Hitbox {
     Ok(hitbox.chars().enumerate().fold(
       Vec::new(),
       |mut hitbox_bounds, (current_iteration, current_hitbox_char)| {
-        let current_index = (
+        let current_character_coordinates = (
           current_iteration % hitbox_width,
           current_iteration / hitbox_width,
         );
@@ -187,7 +196,7 @@ impl Hitbox {
         if current_hitbox_char != self.air_character
           || self.center_is_hitbox && current_hitbox_char == self.center_character
         {
-          let coordinates = current_index.subtract(hitbox_center_coordinates);
+          let coordinates = current_character_coordinates.subtract(hitbox_center_coordinates);
 
           hitbox_bounds.push(coordinates);
         }
@@ -221,16 +230,22 @@ impl Skin {
   /// };
   /// ```
   pub fn new(
-    shape: String,
+    shape: &str,
     center_character: char,
     center_replacement_character: char,
     air_character: char,
-  ) -> Self {
-    Self {
-      shape,
-      center_character,
-      center_replacement_character,
-      air_character,
+  ) -> Result<Self, ObjectError> {
+    let center_character_index = shape.chars().position(|pixel| pixel == center_character);
+
+    match center_character_index {
+      None => Err(ObjectError::NoCenter),
+      Some(center_character_index) => Ok(Self {
+        shape: shape.to_string(),
+        center_character,
+        center_replacement_character,
+        air_character,
+        center_character_index,
+      }),
     }
   }
 

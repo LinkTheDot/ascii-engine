@@ -1,24 +1,44 @@
-use crate::objects::object_data::*;
-use std::collections::{hash_map::DefaultHasher, HashMap};
+use crate::objects::{errors::ObjectError, object_data::*};
+use std::collections::HashMap;
 
 /// Object data will contain all object hashes and their
 /// corresponding object types
-// For now this will only contain the list of raw ObjectData.
-// Once the Object trait is implemented this will hold a generic <O>.
-// O will be any type that has the Object trait.
-//
-// The object trait will require a field of ObjectData.
-// ObjectData will be basic things that the engine will need the object to hold.
-// Said struct would contain data such as, object center point, sprite, hit box,
-//   current_position, and more to be implemented.
-pub struct Objects {
-  objects: HashMap<DefaultHasher, Vec<ObjectData>>,
+// Might need to just store a reference to the object data in an
+// object instead of the object itself.
+// On top of that it might have to be an Arc<Mutex<ObjectData>> in both
+// the object and this Objects struct
+pub struct Objects<'a, O: Object> {
+  objects: HashMap<Strata, HashMap<u64, &'a mut O>>,
 }
 
-impl Objects {
+impl<'a, O> Objects<'a, O>
+where
+  O: Object,
+{
   pub fn new() -> Self {
     Self {
       objects: HashMap::new(),
     }
+  }
+
+  pub fn insert(&mut self, key: u64, object: &'a mut O) -> Result<(), ObjectError> {
+    let object_strata = *object.get_strata();
+
+    if let Some(strata_objects) = self.objects.get_mut(&object_strata) {
+      strata_objects.insert(key, object);
+    } else if object_strata.correct_range() {
+      self
+        .objects
+        .insert(object_strata, HashMap::from([(key, object)]));
+    } else {
+      // This error is probably unreachable.
+      return Err(ObjectError::IncorrectStrataRange(object_strata));
+    }
+
+    Ok(())
+  }
+
+  pub fn get(&self, key: &Strata) -> Option<&HashMap<u64, &'a mut O>> {
+    self.objects.get(key)
   }
 }
