@@ -1,9 +1,14 @@
-pub use crate::objects::{errors::ObjectError, object_data::Strata, sprites::*};
+pub use crate::objects::{
+  errors::ObjectError,
+  object_data::{ObjectData, Strata},
+  sprites::*,
+};
 pub use object_macros::Object;
+pub use std::sync::{Arc, Mutex};
 
 pub trait Object {
-  fn get_position(&self) -> &usize;
-  fn get_top_left_position(&self) -> &usize;
+  fn get_position(&self) -> usize;
+  fn get_top_left_position(&self) -> usize;
 
   fn get_sprite_dimensions(&self) -> (usize, usize);
 
@@ -12,14 +17,16 @@ pub trait Object {
 
   fn get_air_char(&self) -> char;
 
-  fn get_sprite(&self) -> &str;
+  fn get_sprite(&self) -> String;
   fn change_sprite(&mut self, new_model: String);
 
-  fn get_hitbox(&self) -> &Vec<(isize, isize)>;
+  fn get_hitbox(&self) -> Vec<(isize, isize)>;
   fn change_hitbox(&mut self, new_hitbox_model: Hitbox) -> Result<(), ObjectError>;
 
-  fn get_unique_hash(&self) -> &u64;
+  fn get_unique_hash(&self) -> u64;
 
-  fn get_strata(&self) -> &Strata;
+  fn get_strata(&self) -> Strata;
   fn change_strata(&mut self, new_strata: Strata) -> Result<(), ObjectError>;
+
+  fn get_object_data(&self) -> Arc<Mutex<ObjectData>>;
 }

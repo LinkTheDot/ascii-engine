@@ -5,6 +5,7 @@ edition = "2021"
 
 members = [
   "object_macros",
+  "screen_printer",
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -16,7 +17,7 @@ termios = "0.3.3"
 oneshot = "0.1.5"
 anyhow = "1.0.66"
 guard = "0.5.1"
-screen_printer = "0.1.1"
+# screen_printer = "0.1.1"
 termion = "2.0.1"
 lazy_static = "1.4.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -26,4 +27,7 @@ rand = "0.8.5"
 log4rs = "1.2.0"
 log = "0.4.17"
 chrono = "0.4.23"
+tokio = { version = "1.24.1", features = ["full"] }
+
 object_macros = { path = "object_macros" }
+screen_printer = { path = "screen_printer"}

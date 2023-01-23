@@ -3,6 +3,9 @@ use crate::objects::errors::*;
 pub use crate::objects::traits::*;
 use crate::CONFIG;
 
+#[allow(unused)]
+use log::debug;
+
 /// This is the data that will be required for the Object derive macro.
 ///
 /// ObjectData contains data such as, the object's unique hash, the position of the
@@ -44,8 +47,10 @@ impl ObjectData {
     strata: Strata,
   ) -> Result<Self, ObjectError> {
     let unique_hash = hasher::get_unique_hash();
-    let top_left_position =
-      get_top_left_coordinates_of_skin(&object_position.coordinates_to_index(), &sprite);
+    let top_left_position = get_top_left_coordinates_of_skin(
+      object_position.coordinates_to_index(CONFIG.grid_width as usize),
+      &sprite,
+    );
 
     if !strata.correct_range() {
       return Err(ObjectError::IncorrectStrataRange(strata));
@@ -53,7 +58,7 @@ impl ObjectData {
 
     Ok(Self {
       unique_hash,
-      object_position: object_position.coordinates_to_index(),
+      object_position: object_position.coordinates_to_index(CONFIG.grid_width as usize),
       strata,
       sprite,
       top_left_position,
@@ -61,7 +66,7 @@ impl ObjectData {
   }
 
   pub fn get_top_left_coordinates_of_skin(&self) -> usize {
-    get_top_left_coordinates_of_skin(&self.object_position, &self.sprite)
+    get_top_left_coordinates_of_skin(self.object_position, &self.sprite)
   }
 
   pub fn top_left(&self) -> &usize {
@@ -90,8 +95,8 @@ impl ObjectData {
       return Err(ObjectError::OutOfBounds(Direction::Down));
     }
 
-    let new_top_left =
-      get_top_left_coordinates_of_skin(self.sprite.get_center_character_index(), &self.sprite);
+    debug!("position: {}", self.object_position);
+    let new_top_left = get_top_left_coordinates_of_skin(self.object_position, &self.sprite);
 
     self.object_position = new_position;
     self.top_left_position = new_top_left;
@@ -145,29 +150,41 @@ impl ObjectData {
   }
 }
 
-fn get_top_left_coordinates_of_skin(true_center_position: &usize, sprite: &Sprite) -> usize {
+fn get_top_left_coordinates_of_skin(object_position: usize, sprite: &Sprite) -> usize {
+  let relative_coordinates = get_0_0_relative_to_center(sprite);
+  debug!(
+    "object (0, 0) relative to center: {:?}",
+    relative_coordinates
+  );
+
+  // get coordinates of object
+  let object_coordinates = object_position.index_to_coordinates(CONFIG.grid_width as usize);
+  debug!("inside coordinates: {:?}", object_coordinates);
+
+  // get the coordinates for the top left of the object
+  let true_top_left_coordinates = (
+    object_coordinates.0 as isize - relative_coordinates.0,
+    object_coordinates.1 as isize - relative_coordinates.1,
+  );
+  debug!("top left coordinates: {:?}", true_top_left_coordinates);
+
+  // convert coordinates to index
+  (true_top_left_coordinates.0 + (CONFIG.grid_width as isize * true_top_left_coordinates.1))
+    as usize
+}
+
+fn get_0_0_relative_to_center(sprite: &Sprite) -> (isize, isize) {
   let sprite_rows: Vec<&str> = sprite.get_shape().split('\n').collect();
-  let sprite_width = sprite_rows[0].chars().count();
+  let sprite_width = sprite_rows[0].chars().count() as isize;
 
-  let top_left_coordinates = (0, 0);
-
-  let skin_center_index = sprite.get_center_character_index();
+  let skin_center_index = *sprite.get_center_character_index() as isize;
   let skin_center_coordinates = (
     skin_center_index % sprite_width,
     skin_center_index / sprite_width,
   );
 
-  let true_center_coordinates = (
-    true_center_position % CONFIG.grid_width as usize,
-    true_center_position / CONFIG.grid_width as usize,
-  );
-
-  let relative_coordinates = top_left_coordinates.subtract(skin_center_coordinates);
-  let true_top_left_coordinates = (
-    relative_coordinates.0 + true_center_coordinates.0 as isize,
-    relative_coordinates.1 + true_center_coordinates.1 as isize,
-  );
-
-  (true_top_left_coordinates.0 + (CONFIG.grid_width as isize * true_top_left_coordinates.1))
-    as usize
+  (
+    skin_center_coordinates.0.abs(),
+    skin_center_coordinates.1.abs(),
+  )
 }

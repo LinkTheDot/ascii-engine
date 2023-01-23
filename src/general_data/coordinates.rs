@@ -1,5 +1,6 @@
 use crate::CONFIG;
 
+/// (x, y)
 pub type Coordinates = (usize, usize);
 
 pub enum Movements {
@@ -10,9 +11,7 @@ pub enum Movements {
 }
 
 pub trait CoordinateMethods {
-  fn index_to_coordinates(index: usize) -> Self;
-  /// (x, y)
-  fn coordinates_to_index(&self) -> usize;
+  fn coordinates_to_index(&self, width: usize) -> usize;
 
   fn add(&self, add: Coordinates) -> Self;
   fn subtract(&self, subtract: Coordinates) -> (isize, isize);
@@ -20,16 +19,20 @@ pub trait CoordinateMethods {
   fn get_coordinates_in_between(&self, bottom_right: &Self) -> Vec<Coordinates>;
 }
 
-impl CoordinateMethods for Coordinates {
-  fn index_to_coordinates(index: usize) -> Self {
-    (
-      index % CONFIG.grid_width as usize,
-      index / CONFIG.grid_width as usize,
-    )
-  }
+#[allow(non_camel_case_types)]
+pub trait usizeMethods {
+  fn index_to_coordinates(&self, width: usize) -> (usize, usize);
+}
 
-  fn coordinates_to_index(&self) -> usize {
-    self.0 + CONFIG.grid_width as usize * self.1
+impl usizeMethods for usize {
+  fn index_to_coordinates(&self, width: usize) -> (usize, usize) {
+    (self % width, self / width)
+  }
+}
+
+impl CoordinateMethods for Coordinates {
+  fn coordinates_to_index(&self, width: usize) -> usize {
+    self.0 + width * self.1
   }
 
   fn add(&self, add: Coordinates) -> Self {

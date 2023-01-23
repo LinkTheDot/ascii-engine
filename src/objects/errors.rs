@@ -23,6 +23,9 @@ pub enum ObjectError {
 
   /// The object has attempted to move out of bounds.
   OutOfBounds(Direction),
+
+  /// Something went wrong with getting a lock on an object's object_data.
+  FailedToGetLock,
 }
 
 #[derive(Debug, PartialEq, Eq)]

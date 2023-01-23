@@ -2,6 +2,9 @@ use crate::general_data::coordinates::*;
 use crate::objects::errors::*;
 use guard::guard;
 
+#[allow(unused)]
+use log::debug;
+
 /// The Sprite is data about the display and hitbox side of an object.
 ///
 /// The Sprite will contain how an object will look, where it's Hitbox will be, and
@@ -45,6 +48,7 @@ pub struct Skin {
   pub center_character: char,
   pub center_replacement_character: char,
   pub air_character: char,
+  /// Doesn't count new lines
   center_character_index: usize,
 }
 
@@ -235,7 +239,10 @@ impl Skin {
     center_replacement_character: char,
     air_character: char,
   ) -> Result<Self, ObjectError> {
-    let center_character_index = shape.chars().position(|pixel| pixel == center_character);
+    let cleaned_shape = shape.replace('\n', "");
+    let center_character_index = cleaned_shape
+      .chars()
+      .position(|pixel| pixel == center_character);
 
     match center_character_index {
       None => Err(ObjectError::NoCenter),
@@ -256,6 +263,10 @@ impl Skin {
       &self.center_character.to_string(),
       &self.center_replacement_character.to_string(),
     );
+  }
+
+  pub fn get_center_character_index(&self) -> usize {
+    self.center_character_index
   }
 }
 

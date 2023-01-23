@@ -5,7 +5,10 @@ use std::sync::mpsc::{channel, Receiver};
 use std::thread;
 use termios::{tcsetattr, Termios, ECHO, ICANON, TCSANOW};
 
-pub fn get_user_input() -> String {
+#[allow(unused)]
+use log::{debug, info};
+
+fn get_user_input() -> String {
   let stdin = 0;
 
   let mut termios = Termios::from_fd(stdin).unwrap();
@@ -29,14 +32,17 @@ pub fn spawn_input_thread() -> (Receiver<String>, Sender<()>) {
   let (input_sender, input_receiver) = channel();
   let (end_sender, end_receiver) = oneshot::channel();
 
+  info!("Spawning input thread.");
   let _ = thread::spawn(move || {
+    info!("Input thread successfully spawned.");
+
     while end_receiver.try_recv().is_err() {
       let input = get_user_input();
 
       let _ = input_sender.send(input);
     }
 
-    println!("thread killed");
+    info!("Input thread killed.");
   });
 
   (input_receiver, end_sender)

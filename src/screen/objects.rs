@@ -1,5 +1,7 @@
-use crate::objects::{errors::ObjectError, object_data::*};
+use crate::errors::*;
+use crate::objects::object_data::*;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 /// Object data will contain all object hashes and their
 /// corresponding object types
@@ -7,29 +9,27 @@ use std::collections::HashMap;
 // object instead of the object itself.
 // On top of that it might have to be an Arc<Mutex<ObjectData>> in both
 // the object and this Objects struct
-pub struct Objects<'a, O: Object> {
-  objects: HashMap<Strata, HashMap<u64, &'a mut O>>,
+pub struct Objects {
+  objects: HashMap<Strata, HashMap<u64, Arc<Mutex<ObjectData>>>>,
 }
 
-impl<'a, O> Objects<'a, O>
-where
-  O: Object,
-{
+impl Objects {
   pub fn new() -> Self {
     Self {
       objects: HashMap::new(),
     }
   }
 
-  pub fn insert(&mut self, key: u64, object: &'a mut O) -> Result<(), ObjectError> {
-    let object_strata = *object.get_strata();
+  pub fn insert<O: Object>(&mut self, key: u64, object: &O) -> Result<(), ObjectError> {
+    let object_strata = object.get_strata();
 
     if let Some(strata_objects) = self.objects.get_mut(&object_strata) {
-      strata_objects.insert(key, object);
+      strata_objects.insert(key, object.get_object_data());
     } else if object_strata.correct_range() {
-      self
-        .objects
-        .insert(object_strata, HashMap::from([(key, object)]));
+      self.objects.insert(
+        object_strata,
+        HashMap::from([(key, object.get_object_data())]),
+      );
     } else {
       // This error is probably unreachable.
       return Err(ObjectError::IncorrectStrataRange(object_strata));
@@ -38,7 +38,7 @@ where
     Ok(())
   }
 
-  pub fn get(&self, key: &Strata) -> Option<&HashMap<u64, &'a mut O>> {
+  pub fn get(&self, key: &Strata) -> Option<&HashMap<u64, Arc<Mutex<ObjectData>>>> {
     self.objects.get(key)
   }
 }

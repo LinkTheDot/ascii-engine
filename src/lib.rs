@@ -7,6 +7,7 @@ lazy_static! {
 }
 
 pub mod defaults;
+pub mod errors;
 pub mod prelude;
 
 pub mod general_data {
@@ -26,6 +27,7 @@ pub mod objects {
 }
 
 pub mod screen {
+  pub mod errors;
   pub mod objects;
   pub mod screen_data;
 }
