@@ -177,7 +177,7 @@ fn get_0_0_relative_to_center(sprite: &Sprite) -> (isize, isize) {
   let sprite_rows: Vec<&str> = sprite.get_shape().split('\n').collect();
   let sprite_width = sprite_rows[0].chars().count() as isize;
 
-  let skin_center_index = *sprite.get_center_character_index() as isize;
+  let skin_center_index = sprite.get_center_character_index() as isize;
   let skin_center_coordinates = (
     skin_center_index % sprite_width,
     skin_center_index / sprite_width,

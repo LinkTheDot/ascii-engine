@@ -1,5 +1,3 @@
-use crate::CONFIG;
-
 /// (x, y)
 pub type Coordinates = (usize, usize);
 

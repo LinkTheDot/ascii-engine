@@ -55,44 +55,6 @@ pub struct Skin {
 impl Sprite {
   // OBJECT CREATION IS SUBJECT TO CHANGE
   /// Creates a new Sprite with the given Skin and Hitbox.
-  ///
-  /// The example will be creating
-  /// # Skin
-  /// ```bash,no_run
-  /// before   after
-  ///  xxx  |   xxx
-  ///  xcx  |   xxx
-  /// ```
-  /// # Hitbox
-  /// ```bash,no_run
-  /// before   after
-  ///  xxx  |   xxx
-  ///  -c-  |   -x-
-  /// ```
-  ///
-  /// # Hitbox Creation
-  /// ```
-  /// use ascii_engine::prelude::*;
-  ///
-  /// let hitbox = Hitbox {
-  ///   shape: "xxx\n-c-".to_string(),
-  ///   center_character: 'c',
-  ///   air_character: '-',
-  ///   center_is_hitbox: true,
-  /// };
-  /// ```
-  ///
-  /// # Skin Creation
-  /// ```
-  /// use ascii_engine::prelude::*;
-  ///
-  /// let skin = Skin {
-  ///   shape: "xxx\nxcx".to_string(),
-  ///   center_character: 'c',
-  ///   center_replacement_character: 'x',
-  ///   air_character: '-',
-  /// };
-  /// ```
   pub fn new(mut skin: Skin, hitbox: Hitbox) -> Result<Self, ObjectError> {
     let hitbox = hitbox.get_hitbox_data()?;
     skin.fix_skin();
@@ -100,8 +62,8 @@ impl Sprite {
     Ok(Self { skin, hitbox })
   }
 
-  pub fn get_center_character_index(&self) -> &usize {
-    &self.skin.center_character_index
+  pub fn get_center_character_index(&self) -> usize {
+    self.skin.center_character_index
   }
 
   /// Returns a reference to the skin's shape
@@ -145,18 +107,6 @@ impl Hitbox {
   ///  xxx  |   xxx
   ///  -c-  |   -x-
   /// ```
-  ///
-  /// # Hitbox Creation
-  /// ```
-  /// use ascii_engine::prelude::*;
-  ///
-  /// let hitbox = Hitbox {
-  ///   shape: "xxx\n-c-".to_string(),
-  ///   center_character: 'c',
-  ///   air_character: '-',
-  ///   center_is_hitbox: true,
-  /// };
-  /// ```
   pub fn new(
     shape: &str,
     center_character: char,
@@ -197,7 +147,7 @@ impl Hitbox {
           current_iteration / hitbox_width,
         );
 
-        if current_hitbox_char != self.air_character
+        if current_hitbox_char != self.air_character && current_hitbox_char != self.center_character
           || self.center_is_hitbox && current_hitbox_char == self.center_character
         {
           let coordinates = current_character_coordinates.subtract(hitbox_center_coordinates);
@@ -220,18 +170,6 @@ impl Skin {
   /// before   after
   ///  xxx  |   xxx
   ///  xcx  |   xxx
-  /// ```
-  ///
-  /// # Skin Creation
-  /// ```
-  /// use ascii_engine::prelude::*;
-  ///
-  /// let skin = Skin {
-  ///   shape: "xxx\nxcx".to_string(),
-  ///   center_character: 'c',
-  ///   center_replacement_character: 'x',
-  ///   air_character: '-',
-  /// };
   /// ```
   pub fn new(
     shape: &str,
@@ -275,12 +213,12 @@ impl Skin {
 ///
 /// An error is returned when the hitbox isn't a rectangle.
 fn valid_rectangle_check(object: &str) -> Result<(usize, usize), ObjectError> {
-  let rows: Vec<&str> = object.split('\n').collect();
-  let object_width = if !rows.is_empty() {
-    rows[0].chars().count()
-  } else {
+  if object.chars().count() == 0 {
     return Err(ObjectError::EmptyHitboxString);
-  };
+  }
+
+  let rows: Vec<&str> = object.split('\n').collect();
+  let object_width = rows[0].chars().count();
 
   let rows_have_same_lengths = rows.iter().all(|row| row.chars().count() == object_width);
 
@@ -288,5 +226,122 @@ fn valid_rectangle_check(object: &str) -> Result<(usize, usize), ObjectError> {
     Ok((object_width, rows.len()))
   } else {
     Err(ObjectError::NonRectangularShape)
+  }
+}
+
+#[cfg(test)]
+mod skin_logic {
+  use super::*;
+
+  #[test]
+  fn fix_skin_logic() {
+    let mut skin = Skin::new("x-x\nxcx\nx-x", 'c', '-', '-').unwrap();
+
+    let expected_shape = "x-x\nx-x\nx-x";
+
+    skin.fix_skin();
+
+    assert_eq!(skin.shape, expected_shape)
+  }
+}
+
+#[cfg(test)]
+mod valid_rectangle_check_logic {
+  use super::*;
+
+  #[test]
+  fn valid_rectangle() {
+    let rectangle = "xxx\nxxx\nxxx";
+
+    let expected_dimensions = Ok((3, 3));
+
+    let rectangle_dimensions = valid_rectangle_check(rectangle);
+
+    assert_eq!(rectangle_dimensions, expected_dimensions);
+  }
+
+  #[test]
+  fn invalid_rectangle() {
+    let shape = "xx\nxxx\nx\nxxxxxx";
+
+    let expected_error = Err(ObjectError::NonRectangularShape);
+
+    let returned_data = valid_rectangle_check(shape);
+
+    assert_eq!(returned_data, expected_error);
+  }
+
+  #[test]
+  fn empty_string_passed_in() {
+    let empty_string = "";
+
+    let expected_error = Err(ObjectError::EmptyHitboxString);
+
+    let returned_data = valid_rectangle_check(empty_string);
+
+    assert_eq!(returned_data, expected_error);
+  }
+}
+
+#[cfg(test)]
+mod get_hitbox_data_logic {
+  use super::*;
+
+  #[test]
+  fn valid_data_center_is_hitbox() {
+    let hitbox = get_hitbox_data(true);
+
+    // xxx
+    //  x  < this x is the center character
+    let expected_hitbox_data = Ok(vec![(-1, -1), (0, -1), (1, -1), (0, 0)]);
+
+    let hitbox_data = hitbox.get_hitbox_data();
+
+    assert_eq!(hitbox_data, expected_hitbox_data);
+  }
+
+  #[test]
+  fn valid_data_center_is_not_hitbox() {
+    let hitbox = get_hitbox_data(false);
+
+    // xxx
+    //  c  < this center character is not apart of the hitbox
+    let expected_hitbox_data = Ok(vec![(-1, -1), (0, -1), (1, -1)]);
+
+    let hitbox_data = hitbox.get_hitbox_data();
+
+    assert_eq!(hitbox_data, expected_hitbox_data);
+  }
+
+  #[test]
+  fn invalid_shape() {
+    let mut hitbox = get_hitbox_data(true);
+    hitbox.shape = "a-s-d-qwf-e-ff\n\n\nwe-gwe-w-vwea\nasd\n".to_string();
+
+    let expected_error = Err(ObjectError::NonRectangularShape);
+
+    let hitbox_data = hitbox.get_hitbox_data();
+
+    assert_eq!(hitbox_data, expected_error);
+  }
+
+  #[test]
+  fn no_center_character() {
+    let mut hitbox = get_hitbox_data(true);
+    hitbox.shape = "".to_string();
+
+    let expected_error = Err(ObjectError::EmptyHitboxString);
+
+    let hitbox_data = hitbox.get_hitbox_data();
+
+    assert_eq!(hitbox_data, expected_error);
+  }
+
+  fn get_hitbox_data(center_is_hitbox: bool) -> Hitbox {
+    let shape = "xyz\n-c-";
+    let center_character = 'c';
+    let air_character = '-';
+
+    Hitbox::new(shape, center_character, air_character, center_is_hitbox)
   }
 }

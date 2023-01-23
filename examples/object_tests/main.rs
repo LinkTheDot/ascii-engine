@@ -30,7 +30,7 @@ fn main() {
 
   let sprite = get_square_sprite();
   let square_object_data = ObjectData::new((10, 10), sprite, Strata(1)).unwrap();
-  let mut square2 = Square {
+  let square2 = Square {
     object_data: Arc::new(Mutex::new(square_object_data)),
   };
 
