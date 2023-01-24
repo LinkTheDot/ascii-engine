@@ -19,6 +19,7 @@ pub trait CoordinateMethods {
 
 #[allow(non_camel_case_types)]
 pub trait usizeMethods {
+  /// Returns (x, y).
   fn index_to_coordinates(&self, width: usize) -> (usize, usize);
 }
 

@@ -50,7 +50,7 @@ impl ObjectData {
   ) -> Result<Self, ObjectError> {
     let unique_hash = hasher::get_unique_hash();
     let top_left_position = get_top_left_index_of_skin(
-      object_position.coordinates_to_index(CONFIG.grid_width as usize),
+      object_position.coordinates_to_index(CONFIG.grid_width as usize + 1),
       &sprite,
     );
 
@@ -60,42 +60,36 @@ impl ObjectData {
 
     Ok(Self {
       unique_hash,
-      object_position: object_position.coordinates_to_index(CONFIG.grid_width as usize),
+      object_position: object_position.coordinates_to_index(CONFIG.grid_width as usize + 1),
       strata,
       sprite,
       top_left_position,
     })
   }
 
+  /// Returns a newly calculated frame index of the topleft point of the object
   pub fn get_top_left_index_of_skin(&self) -> usize {
     get_top_left_index_of_skin(self.object_position, &self.sprite)
   }
 
+  /// Returns the currently assigned frame index of the topleft point of the object
   pub fn top_left(&self) -> &usize {
     &self.top_left_position
   }
 
   /// Returns the (width, height) of the current sprite shape.
   pub fn get_sprite_dimensions(&self) -> (usize, usize) {
-    let shape = self.sprite.get_shape();
-    let rows: Vec<&str> = shape.split('\n').collect();
+    let object_skin_shape = self.sprite.get_shape();
+    let sprite_skin_rows: Vec<&str> = object_skin_shape.split('\n').collect();
 
-    let width = rows[0].chars().count();
-    let height = rows.len();
+    let sprite_skin_width = sprite_skin_rows[0].chars().count();
+    let sprite_skin_height = sprite_skin_rows.len();
 
-    (width, height)
+    (sprite_skin_width, sprite_skin_height)
   }
 
   pub fn change_position(&mut self, new_position: usize) -> Result<(), ObjectError> {
-    let (object_width, object_height) = self.get_sprite_dimensions();
-
-    if object_width + (new_position % CONFIG.grid_width as usize) >= CONFIG.grid_width as usize {
-      return Err(ObjectError::OutOfBounds(Direction::Right));
-    } else if object_height + (new_position / CONFIG.grid_width as usize)
-      >= CONFIG.grid_height as usize
-    {
-      return Err(ObjectError::OutOfBounds(Direction::Down));
-    }
+    self.check_if_valid_position(new_position)?;
 
     debug!("position: {}", self.object_position);
     let new_top_left = get_top_left_index_of_skin(self.object_position, &self.sprite);
@@ -104,6 +98,20 @@ impl ObjectData {
     self.top_left_position = new_top_left;
 
     Ok(())
+  }
+
+  fn check_if_valid_position(&self, new_position: usize) -> Result<(), ObjectError> {
+    let (object_width, object_height) = self.get_sprite_dimensions();
+
+    if object_width + (new_position % CONFIG.grid_width as usize) >= CONFIG.grid_width as usize {
+      Err(ObjectError::OutOfBounds(Direction::Right))
+    } else if object_height + (new_position / CONFIG.grid_width as usize)
+      >= CONFIG.grid_height as usize
+    {
+      Err(ObjectError::OutOfBounds(Direction::Down))
+    } else {
+      Ok(())
+    }
   }
 
   pub fn get_air_char(&self) -> char {
@@ -195,11 +203,11 @@ mod tests {
 
   #[test]
   fn get_top_left_coordinates_of_skin_logic() {
-    let object_coordinates = (10, 10);
-    let object_index = object_coordinates.coordinates_to_index(CONFIG.grid_width as usize + 1);
+    let (x, y) = (10, 10);
+    let object_index = (x, y).coordinates_to_index(CONFIG.grid_width as usize + 1);
     let sprite = get_sprite(true);
 
-    let expected_index = 1593;
+    let expected_index = ((CONFIG.grid_width + 1) as usize * (y - 1)) + (x - 1);
 
     let top_left_index = get_top_left_index_of_skin(object_index, &sprite);
 
@@ -217,31 +225,18 @@ mod tests {
     assert_eq!(relative_position, expected_position);
   }
 
-  fn get_object_data(object_position: (usize, usize), center_is_hitbox: bool) -> ObjectData {
-    let sprite = get_sprite(center_is_hitbox);
-    let strata = Strata(0);
-
-    match ObjectData::new(object_position, sprite, strata) {
-      Ok(object_data) => object_data,
-      Err(error) => panic!("An error has occurred while getting the object data: {error:?}"),
-    }
-  }
+  //
+  // Functions used for tests
 
   fn get_sprite(center_is_hitbox: bool) -> Sprite {
     let skin = get_skin();
     let hitbox = get_hitbox(center_is_hitbox);
 
-    match Sprite::new(skin, hitbox) {
-      Ok(sprite) => sprite,
-      Err(error) => panic!("An error has occurred while getting the sprite: '{error:?}"),
-    }
+    Sprite::new(skin, hitbox).unwrap()
   }
 
   fn get_skin() -> Skin {
-    match Skin::new(SHAPE, CENTER_CHAR, CENTER_REPLACEMENT_CHAR, AIR_CHAR) {
-      Ok(skin) => skin,
-      Err(error) => panic!("An error has occurred while getting the skin: '{error:?}'"),
-    }
+    Skin::new(SHAPE, CENTER_CHAR, CENTER_REPLACEMENT_CHAR, AIR_CHAR).unwrap()
   }
 
   fn get_hitbox(center_is_hitbox: bool) -> Hitbox {

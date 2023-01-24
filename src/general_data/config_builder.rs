@@ -63,7 +63,7 @@ fn create_missing_config_file(
     .create_new(true)
     .open(config_path)?;
 
-  write!(config_file, "{}", serialized_config_data)?;
+  write!(config_file, "{serialized_config_data}")?;
 
   Ok(())
 }

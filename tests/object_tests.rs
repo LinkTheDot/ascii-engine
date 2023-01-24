@@ -168,23 +168,227 @@ mod object_data_logic {
 
     assert!(object_data.is_err());
   }
+
+  #[cfg(test)]
+  mod get_logic {
+    use super::*;
+
+    #[test]
+    fn get_top_left_index() {
+      let (x, y) = (10, 10);
+      let object_data = get_object_data((x, y), true);
+
+      let expected_top_left_index = ((CONFIG.grid_width + 1) as usize * (y - 1)) + (x - 1);
+
+      assert_eq!(object_data.top_left(), &expected_top_left_index);
+    }
+
+    #[test]
+    fn get_new_top_left() {
+      let (x, y) = (10, 10);
+      let object_data = get_object_data((x, y), true);
+
+      let expected_new_top_left_index = ((CONFIG.grid_width + 1) as usize * (y - 1)) + (x - 1);
+
+      assert_eq!(
+        object_data.get_top_left_index_of_skin(),
+        expected_new_top_left_index
+      );
+    }
+
+    #[test]
+    fn get_sprite_skin_dimensions() {
+      let (x, y) = (10, 10);
+      let object_data = get_object_data((x, y), true);
+
+      let expected_sprite_skin_dimensions = (3, 3);
+
+      assert_eq!(
+        object_data.get_sprite_dimensions(),
+        expected_sprite_skin_dimensions
+      );
+    }
+
+    #[test]
+    fn get_air_character() {
+      let (x, y) = (10, 10);
+      let object_data = get_object_data((x, y), true);
+
+      let expected_air_character = '-';
+
+      assert_eq!(object_data.get_air_char(), expected_air_character);
+    }
+
+    #[test]
+    fn get_unique_hash() {
+      let (x, y) = (10, 10);
+      let object_data = get_object_data((x, y), true);
+
+      assert!(*object_data.get_unique_hash() != 0);
+    }
+
+    #[test]
+    fn get_center_frame_index() {
+      let (x, y) = (10, 10);
+      let object_data = get_object_data((x, y), true);
+
+      let expected_current_center_frame_index = ((CONFIG.grid_width + 1) as usize * y) + x;
+
+      assert_eq!(
+        *object_data.get_object_position(),
+        expected_current_center_frame_index
+      );
+    }
+
+    #[test]
+    fn get_sprite_skin() {
+      let (x, y) = (10, 10);
+      let object_data = get_object_data((x, y), true);
+
+      let expected_sprite_skin = "x-x\nx-x\nx-x";
+
+      assert_eq!(object_data.get_sprite(), expected_sprite_skin);
+    }
+
+    #[test]
+    fn get_hitbox() {
+      let (x, y) = (10, 10);
+      let object_data = get_object_data((x, y), true);
+
+      let expected_hitbox = vec![(-1, -1), (0, -1), (1, -1), (0, 0)];
+
+      assert_eq!(object_data.get_hitbox(), &expected_hitbox);
+    }
+
+    #[test]
+    fn get_strata() {
+      let (x, y) = (10, 10);
+      let object_data = get_object_data((x, y), true);
+
+      let expected_strata = Strata(0);
+
+      assert_eq!(object_data.get_strata(), &expected_strata);
+    }
+  }
+
+  #[cfg(test)]
+  mod change_logic {
+    use super::*;
+
+    #[test]
+    fn change_position() {
+      let (x, y) = (10, 10);
+      let mut object_data = get_object_data((x, y), true);
+      let (new_x, new_y) = (x + 5, y + 5);
+
+      let expected_new_position = ((CONFIG.grid_width + 1) as usize * new_y) + new_x;
+
+      object_data
+        .change_position(((CONFIG.grid_width + 1) as usize * new_y) + new_x)
+        .unwrap();
+
+      let object_position = *object_data.get_object_position();
+
+      assert_eq!(object_position, expected_new_position);
+    }
+
+    #[test]
+    fn change_position_out_of_bounds_right() {
+      let (x, y) = (CONFIG.grid_width as usize, 15);
+      let mut object_data = get_object_data((x, y), true);
+      let (new_x, new_y) = (x - 1, y + 1);
+
+      let expected_result = Err(ObjectError::OutOfBounds(Direction::Right));
+
+      let change_position_result =
+        object_data.change_position(((CONFIG.grid_width) as usize * new_y) + new_x);
+
+      assert_eq!(change_position_result, expected_result);
+    }
+
+    #[test]
+    fn change_position_out_of_bounds_down() {
+      let (x, y) = (15, CONFIG.grid_width as usize);
+      let mut object_data = get_object_data((x, y), true);
+      let (new_x, new_y) = (x + 1, y + 1);
+
+      let expected_result = Err(ObjectError::OutOfBounds(Direction::Down));
+
+      let change_position_result =
+        object_data.change_position(((CONFIG.grid_width + 1) as usize * new_y) + new_x);
+
+      assert_eq!(change_position_result, expected_result);
+    }
+
+    #[test]
+    fn change_strata_logic() {
+      let (x, y) = (10, 10);
+      let mut object_data = get_object_data((x, y), true);
+
+      let expected_new_strata = Strata(5);
+
+      object_data.change_strata(Strata(5));
+
+      assert_eq!(object_data.get_strata(), &expected_new_strata);
+    }
+
+    #[test]
+    fn change_hitbox_valid_new_hitbox() {
+      let mut object_data = get_object_data((5, 5), true);
+      let new_hitbox = Hitbox::new("xxxxx\n--c--", 'c', '-', false);
+
+      let expected_hitbox_data = vec![(-2, -1), (-1, -1), (0, -1), (1, -1), (2, -1)];
+
+      object_data.change_hitbox(new_hitbox).unwrap();
+
+      let new_hitbox_data = object_data.get_hitbox();
+
+      assert_eq!(new_hitbox_data, &expected_hitbox_data);
+    }
+
+    #[test]
+    /// Has no center character.
+    fn change_hitbox_invalid_new_hitbox() {
+      let mut object_data = get_object_data((5, 5), true);
+      let new_hitbox = Hitbox::new("xxxxx\n-----", 'c', '-', false);
+
+      let changed_hitbox_result = object_data.change_hitbox(new_hitbox);
+
+      assert!(changed_hitbox_result.is_err());
+    }
+
+    #[test]
+    fn change_sprite() {
+      let mut object_data = get_object_data((5, 5), true);
+      let new_sprite = "xxx\nx-x";
+
+      let expected_sprite = new_sprite;
+
+      object_data.change_sprite(new_sprite.to_owned());
+
+      let changed_sprite = object_data.get_sprite();
+
+      assert_eq!(changed_sprite, expected_sprite);
+    }
+  }
+}
+
+fn get_object_data(object_position: (usize, usize), center_is_hitbox: bool) -> ObjectData {
+  let sprite = get_sprite(center_is_hitbox);
+  let strata = Strata(0);
+
+  ObjectData::new(object_position, sprite, strata).unwrap()
 }
 
 fn get_sprite(center_is_hitbox: bool) -> Sprite {
   let skin = get_skin();
   let hitbox = get_hitbox(center_is_hitbox);
 
-  match Sprite::new(skin, hitbox) {
-    Ok(sprite) => sprite,
-    Err(error) => panic!("An error has occurred while getting the sprite: '{error:?}"),
-  }
+  Sprite::new(skin, hitbox).unwrap()
 }
 
 fn get_skin() -> Skin {
-  match Skin::new(SHAPE, CENTER_CHAR, CENTER_REPLACEMENT_CHAR, AIR_CHAR) {
-    Ok(skin) => skin,
-    Err(error) => panic!("An error has occurred while getting the skin: '{error:?}'"),
-  }
+  Skin::new(SHAPE, CENTER_CHAR, CENTER_REPLACEMENT_CHAR, AIR_CHAR).unwrap()
 }
 
 fn get_hitbox(center_is_hitbox: bool) -> Hitbox {
