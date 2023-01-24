@@ -14,7 +14,9 @@ use log::debug;
 pub struct ObjectData {
   unique_hash: u64,
   /// Based on where the center is.
+  /// counts new lines
   object_position: usize,
+  /// counts new lines
   top_left_position: usize,
   strata: Strata,
   sprite: Sprite,
@@ -47,7 +49,7 @@ impl ObjectData {
     strata: Strata,
   ) -> Result<Self, ObjectError> {
     let unique_hash = hasher::get_unique_hash();
-    let top_left_position = get_top_left_coordinates_of_skin(
+    let top_left_position = get_top_left_index_of_skin(
       object_position.coordinates_to_index(CONFIG.grid_width as usize),
       &sprite,
     );
@@ -65,8 +67,8 @@ impl ObjectData {
     })
   }
 
-  pub fn get_top_left_coordinates_of_skin(&self) -> usize {
-    get_top_left_coordinates_of_skin(self.object_position, &self.sprite)
+  pub fn get_top_left_index_of_skin(&self) -> usize {
+    get_top_left_index_of_skin(self.object_position, &self.sprite)
   }
 
   pub fn top_left(&self) -> &usize {
@@ -96,7 +98,7 @@ impl ObjectData {
     }
 
     debug!("position: {}", self.object_position);
-    let new_top_left = get_top_left_coordinates_of_skin(self.object_position, &self.sprite);
+    let new_top_left = get_top_left_index_of_skin(self.object_position, &self.sprite);
 
     self.object_position = new_position;
     self.top_left_position = new_top_left;
@@ -150,26 +152,22 @@ impl ObjectData {
   }
 }
 
-fn get_top_left_coordinates_of_skin(object_position: usize, sprite: &Sprite) -> usize {
+/// Object_position is an index of a frame.
+/// This index will account for any newlines.
+fn get_top_left_index_of_skin(object_position: usize, sprite: &Sprite) -> usize {
   let relative_coordinates = get_0_0_relative_to_center(sprite);
-  debug!(
-    "object (0, 0) relative to center: {:?}",
-    relative_coordinates
-  );
 
   // get coordinates of object
-  let object_coordinates = object_position.index_to_coordinates(CONFIG.grid_width as usize);
-  debug!("inside coordinates: {:?}", object_coordinates);
+  let object_coordinates = object_position.index_to_coordinates(CONFIG.grid_width as usize + 1);
 
   // get the coordinates for the top left of the object
   let true_top_left_coordinates = (
-    object_coordinates.0 as isize - relative_coordinates.0,
-    object_coordinates.1 as isize - relative_coordinates.1,
+    object_coordinates.0 as isize + relative_coordinates.0,
+    object_coordinates.1 as isize + relative_coordinates.1,
   );
-  debug!("top left coordinates: {:?}", true_top_left_coordinates);
 
   // convert coordinates to index
-  (true_top_left_coordinates.0 + (CONFIG.grid_width as isize * true_top_left_coordinates.1))
+  (true_top_left_coordinates.0 + ((CONFIG.grid_width as isize + 1) * true_top_left_coordinates.1))
     as usize
 }
 
@@ -183,8 +181,72 @@ fn get_0_0_relative_to_center(sprite: &Sprite) -> (isize, isize) {
     skin_center_index / sprite_width,
   );
 
-  (
-    skin_center_coordinates.0.abs(),
-    skin_center_coordinates.1.abs(),
-  )
+  (-skin_center_coordinates.0, -skin_center_coordinates.1)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  const SHAPE: &str = "x-x\nxcx\nx-x";
+  const CENTER_CHAR: char = 'c';
+  const CENTER_REPLACEMENT_CHAR: char = '-';
+  const AIR_CHAR: char = '-';
+
+  #[test]
+  fn get_top_left_coordinates_of_skin_logic() {
+    let object_coordinates = (10, 10);
+    let object_index = object_coordinates.coordinates_to_index(CONFIG.grid_width as usize + 1);
+    let sprite = get_sprite(true);
+
+    let expected_index = 1593;
+
+    let top_left_index = get_top_left_index_of_skin(object_index, &sprite);
+
+    assert_eq!(top_left_index, expected_index);
+  }
+
+  #[test]
+  fn get_0_0_relative_to_center_logic() {
+    let sprite = get_sprite(true);
+
+    let expected_position = (-1, -1);
+
+    let relative_position = get_0_0_relative_to_center(&sprite);
+
+    assert_eq!(relative_position, expected_position);
+  }
+
+  fn get_object_data(object_position: (usize, usize), center_is_hitbox: bool) -> ObjectData {
+    let sprite = get_sprite(center_is_hitbox);
+    let strata = Strata(0);
+
+    match ObjectData::new(object_position, sprite, strata) {
+      Ok(object_data) => object_data,
+      Err(error) => panic!("An error has occurred while getting the object data: {error:?}"),
+    }
+  }
+
+  fn get_sprite(center_is_hitbox: bool) -> Sprite {
+    let skin = get_skin();
+    let hitbox = get_hitbox(center_is_hitbox);
+
+    match Sprite::new(skin, hitbox) {
+      Ok(sprite) => sprite,
+      Err(error) => panic!("An error has occurred while getting the sprite: '{error:?}"),
+    }
+  }
+
+  fn get_skin() -> Skin {
+    match Skin::new(SHAPE, CENTER_CHAR, CENTER_REPLACEMENT_CHAR, AIR_CHAR) {
+      Ok(skin) => skin,
+      Err(error) => panic!("An error has occurred while getting the skin: '{error:?}'"),
+    }
+  }
+
+  fn get_hitbox(center_is_hitbox: bool) -> Hitbox {
+    let shape = "xxx\n-c-";
+
+    Hitbox::new(shape, 'c', '-', center_is_hitbox)
+  }
 }

@@ -100,10 +100,11 @@ impl ScreenData {
 
   /// Prints whitespace over the screen.
   pub fn clear_screen(&mut self) -> Result<(), ScreenError> {
-    match self.printer.clear_grid() {
-      Ok(_) => Ok(()),
-      Err(error) => Err(ScreenError::PrintingError(error)),
+    if let Err(error) = self.printer.clear_grid() {
+      return Err(ScreenError::PrintingError(error));
     }
+
+    Ok(())
   }
 
   /// Prints text at the top of the screen.

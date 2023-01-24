@@ -120,15 +120,63 @@ mod sprite_logic {
 
     assert_eq!(air_character, expected_air_character);
   }
+}
 
-  fn get_sprite(center_is_hitbox: bool) -> Sprite {
-    let skin = get_skin();
-    let hitbox = get_hitbox(center_is_hitbox);
+#[cfg(test)]
+mod object_data_logic {
+  use super::*;
 
-    match Sprite::new(skin, hitbox) {
-      Ok(sprite) => sprite,
-      Err(error) => panic!("An error has occurred while getting the sprite: '{error:?}'"),
+  #[cfg(test)]
+  mod strata_correct_range_logic {
+    use super::*;
+
+    #[test]
+    fn valid_range() {
+      let strata = Strata(5);
+
+      assert!(strata.correct_range());
     }
+
+    #[test]
+    /// Strata is higher than 100
+    fn invalid_range() {
+      let strata = Strata(101);
+
+      assert!(!strata.correct_range());
+    }
+  }
+
+  #[test]
+  fn creation_logic_valid_strata() {
+    let position = (10, 10);
+    let sprite = get_sprite(true);
+    let strata = Strata(5);
+
+    let object_data = ObjectData::new(position, sprite, strata);
+
+    assert!(object_data.is_ok());
+  }
+
+  #[test]
+  /// Strata is higher than 100
+  fn creation_logic_invalid_strata() {
+    let position = (10, 10);
+    let sprite = get_sprite(true);
+    let strata = Strata(101);
+
+    let object_data = ObjectData::new(position, sprite, strata);
+
+    assert!(object_data.is_err());
+  }
+}
+
+fn get_sprite(center_is_hitbox: bool) -> Sprite {
+  let skin = get_skin();
+  let hitbox = get_hitbox(center_is_hitbox);
+
+  match Sprite::new(skin, hitbox) {
+    Ok(sprite) => sprite,
+    Err(error) => panic!("An error has occurred while getting the sprite: '{error:?}"),
   }
 }
 
@@ -140,9 +188,7 @@ fn get_skin() -> Skin {
 }
 
 fn get_hitbox(center_is_hitbox: bool) -> Hitbox {
-  let shape = "xyz\n-c-";
-  let center_character = 'c';
-  let air_character = '-';
+  let shape = "xxx\n-c-";
 
-  Hitbox::new(shape, center_character, air_character, center_is_hitbox)
+  Hitbox::new(shape, 'c', '-', center_is_hitbox)
 }
