@@ -1,5 +1,5 @@
 log_level = "debug"
 empty_pixel = "'"
-tick_duration = 24
+tick_duration = 12
 grid_width = 175
 grid_height = 40

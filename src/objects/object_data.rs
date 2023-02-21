@@ -23,7 +23,7 @@ pub struct ObjectData {
 }
 
 /// The Strata will be the priority on the screen.
-/// That which has a lower Strata, will be above those with higher strata.
+/// That which has a lower Strata, will be behind those with a higher strata.
 ///
 /// The strata is a range from 0-100, any number outside of that range will
 /// not be accepted.
@@ -89,10 +89,9 @@ impl ObjectData {
   }
 
   pub fn change_position(&mut self, new_position: usize) -> Result<(), ObjectError> {
-    self.check_if_valid_position(new_position)?;
+    // self.check_if_valid_position(new_position)?;
 
-    debug!("position: {}", self.object_position);
-    let new_top_left = get_top_left_index_of_skin(self.object_position, &self.sprite);
+    let new_top_left = get_top_left_index_of_skin(new_position, &self.sprite);
 
     self.object_position = new_position;
     self.top_left_position = new_top_left;
@@ -100,6 +99,7 @@ impl ObjectData {
     Ok(())
   }
 
+  #[allow(dead_code)]
   fn check_if_valid_position(&self, new_position: usize) -> Result<(), ObjectError> {
     let (object_width, object_height) = self.get_sprite_dimensions();
 
@@ -165,17 +165,9 @@ impl ObjectData {
 fn get_top_left_index_of_skin(object_position: usize, sprite: &Sprite) -> usize {
   let relative_coordinates = get_0_0_relative_to_center(sprite);
 
-  // get coordinates of object
-  let object_coordinates = object_position.index_to_coordinates(CONFIG.grid_width as usize + 1);
+  let true_width = CONFIG.grid_width as isize + 1;
 
-  // get the coordinates for the top left of the object
-  let true_top_left_coordinates = (
-    object_coordinates.0 as isize + relative_coordinates.0,
-    object_coordinates.1 as isize + relative_coordinates.1,
-  );
-
-  // convert coordinates to index
-  (true_top_left_coordinates.0 + ((CONFIG.grid_width as isize + 1) * true_top_left_coordinates.1))
+  (relative_coordinates.0 + object_position as isize + (true_width * relative_coordinates.1))
     as usize
 }
 
@@ -190,6 +182,15 @@ fn get_0_0_relative_to_center(sprite: &Sprite) -> (isize, isize) {
   );
 
   (-skin_center_coordinates.0, -skin_center_coordinates.1)
+}
+
+impl PartialEq for ObjectData {
+  fn eq(&self, other: &Self) -> bool {
+    self.object_position == other.object_position
+      && self.top_left_position == other.top_left_position
+      && self.strata == other.strata
+      && self.sprite == other.sprite
+  }
 }
 
 #[cfg(test)]

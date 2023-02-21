@@ -30,7 +30,7 @@ pub enum ObjectError {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Direction {
-  Top,
+  Up,
   Left,
   Right,
   Down,

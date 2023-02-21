@@ -7,7 +7,7 @@ use std::{io, io::Write};
 ///
 /// Each error will contain 'ErrorData' which holds the
 /// expected and outcome results in the event of the error.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum PrintingError {
   RowTooLong(LengthErrorData),
   RowTooShort(LengthErrorData),
@@ -44,7 +44,7 @@ pub struct Printer {
 }
 
 /// Error data for when incorrect sizes are detected in a method
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct LengthErrorData {
   pub expected_length: usize,
   pub got_length: usize,

@@ -13,7 +13,7 @@ pub trait Object {
   fn get_sprite_dimensions(&self) -> (usize, usize);
 
   fn move_to(&mut self, new_position: (usize, usize)) -> Result<(), ObjectError>;
-  fn move_by(&mut self, added_position: (isize, isize));
+  fn move_by(&mut self, added_position: (isize, isize)) -> Result<(), ObjectError>;
 
   fn get_air_char(&self) -> char;
 

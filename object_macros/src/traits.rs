@@ -32,9 +32,16 @@ pub fn generate_traits(ast: &syn::DeriveInput) -> TokenStream {
       object_data_guard.change_position(new_index)
     }
 
-    fn move_by(&mut self, _added_position: (isize, isize)) {
-      //
-      //
+    fn move_by(&mut self, added_position: (isize, isize)) -> Result<(), ObjectError> {
+      use std::cmp::Ordering;
+
+      let true_width = CONFIG.grid_width as isize + 1;
+
+      let new_index = added_position.0 + (true_width * added_position.1) + self.get_position() as isize;
+
+      let mut object_data_guard = self.object_data.lock().unwrap();
+
+      object_data_guard.change_position(new_index as usize)
     }
 
     fn get_air_char(&self) -> char {

@@ -9,7 +9,7 @@ use log::debug;
 ///
 /// The Sprite will contain how an object will look, where it's Hitbox will be, and
 /// what character in the skin of the object should be classified as "air".
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Sprite {
   skin: Skin,
   hitbox: Vec<(isize, isize)>,
@@ -42,7 +42,7 @@ pub struct Hitbox {
 /// When creating a skin's shape, center and air characters will need to be designated.
 /// The center character will be replaced with the 'center_replacement_character' field when
 /// building the shape of the Skin.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Skin {
   pub shape: String,
   pub center_character: char,

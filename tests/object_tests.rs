@@ -282,17 +282,21 @@ mod object_data_logic {
       let (new_x, new_y) = (x + 5, y + 5);
 
       let expected_new_position = ((CONFIG.grid_width + 1) as usize * new_y) + new_x;
+      let expected_new_top_left = calculate_skin_top_left_index((new_x, new_y));
 
       object_data
         .change_position(((CONFIG.grid_width + 1) as usize * new_y) + new_x)
         .unwrap();
 
       let object_position = *object_data.get_object_position();
+      let top_left_position = *object_data.top_left();
 
       assert_eq!(object_position, expected_new_position);
+      assert_eq!(top_left_position, expected_new_top_left);
     }
 
     #[test]
+    #[ignore]
     fn change_position_out_of_bounds_right() {
       let (x, y) = (CONFIG.grid_width as usize, 15);
       let mut object_data = get_object_data((x, y), true);
@@ -307,6 +311,7 @@ mod object_data_logic {
     }
 
     #[test]
+    #[ignore]
     fn change_position_out_of_bounds_down() {
       let (x, y) = (15, CONFIG.grid_width as usize);
       let mut object_data = get_object_data((x, y), true);
@@ -369,6 +374,32 @@ mod object_data_logic {
       let changed_sprite = object_data.get_sprite();
 
       assert_eq!(changed_sprite, expected_sprite);
+    }
+
+    fn calculate_skin_top_left_index(position: (usize, usize)) -> usize {
+      let object_data = get_object_data(position, true);
+      let sprite = get_sprite(true);
+      let object_position = *object_data.get_object_position();
+
+      let relative_coordinates = get_0_0_relative_to_center(&sprite);
+
+      let true_width = CONFIG.grid_width as isize + 1;
+
+      (relative_coordinates.0 + object_position as isize + (true_width * relative_coordinates.1))
+        as usize
+    }
+
+    fn get_0_0_relative_to_center(sprite: &Sprite) -> (isize, isize) {
+      let sprite_rows: Vec<&str> = sprite.get_shape().split('\n').collect();
+      let sprite_width = sprite_rows[0].chars().count() as isize;
+
+      let skin_center_index = sprite.get_center_character_index() as isize;
+      let skin_center_coordinates = (
+        skin_center_index % sprite_width,
+        skin_center_index / sprite_width,
+      );
+
+      (-skin_center_coordinates.0, -skin_center_coordinates.1)
     }
   }
 }

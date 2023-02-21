@@ -2,8 +2,7 @@ use crate::general_data::config_builder;
 use lazy_static::lazy_static;
 
 lazy_static! {
-  pub static ref CONFIG: config_builder::ConfigData = config_builder::get_config()
-    .unwrap_or_else(|err| panic!("an error has occurred getting the config: '{err}'"));
+  pub static ref CONFIG: config_builder::ConfigData = config_builder::get_config().unwrap();
 }
 
 pub mod defaults;

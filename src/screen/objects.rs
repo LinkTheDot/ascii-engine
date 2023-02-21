@@ -14,6 +14,7 @@ pub struct Objects {
 }
 
 impl Objects {
+  #[allow(clippy::new_without_default)]
   pub fn new() -> Self {
     Self {
       objects: HashMap::new(),
@@ -31,13 +32,13 @@ impl Objects {
         HashMap::from([(key, object.get_object_data())]),
       );
     } else {
-      // This error is probably unreachable.
       return Err(ObjectError::IncorrectStrataRange(object_strata));
     }
 
     Ok(())
   }
 
+  /// Returns a reference to the objects corresponding to the given Strata level.
   pub fn get(&self, key: &Strata) -> Option<&HashMap<u64, Arc<Mutex<ObjectData>>>> {
     self.objects.get(key)
   }
