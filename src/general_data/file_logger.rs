@@ -10,7 +10,7 @@ use log4rs::{
 /// Setups up the file logger for the program
 pub fn setup_file_logger() -> Result<log4rs::Handle, SetLoggerError> {
   let date = Utc::now();
-  let log_file_path = format!("logs/{}", date).replace(' ', "-");
+  let log_file_path = format!("logs/{date}").replace(' ', "-");
   let logging_format = "{d(%H:%M:%S %Z)(utc)} | {f}: {L} | {l} - {m}\n";
 
   let log_level = get_log_level();

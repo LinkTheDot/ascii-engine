@@ -1,16 +1,17 @@
-use crate::general_data::{coordinates::*, file_logger};
-use crate::objects::object_data::ObjectInformation;
-use crate::screen::pixel_data_types::*;
-use crate::screen::{object_screen_data::*, pixel, pixel::*};
+use crate::errors::*;
+use crate::general_data::file_logger;
+use crate::objects::object_data::*;
+use crate::screen::objects::*;
 use crate::CONFIG;
 use guard::guard;
 use screen_printer::printer::*;
-use std::collections::HashMap;
 use std::error::Error;
+use std::sync::MutexGuard;
 use thread_clock::Clock;
 
-pub const GRID_WIDTH: usize = 175;
-pub const GRID_HEIGHT: usize = 40;
+#[allow(unused)]
+use log::debug;
+
 pub const GRID_SPACER: &str = "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 
 /// This is in the context of the update_placed_objects function
@@ -26,8 +27,7 @@ pub enum Actions {
 /// The set of pixels that make up the screen
 pub struct ScreenData {
   screen_clock: Clock,
-  existing_objects: HashMap<String, ObjectScreenData>,
-  screen: Vec<Pixel>,
+  object_data: Objects,
   printer: Printer,
   first_print: bool,
 
@@ -36,8 +36,8 @@ pub struct ScreenData {
 }
 
 impl ScreenData {
-  /// Creates a new screen which in the process starts a new clock
-  /// thread
+  /// Creates a new screen and starts all processes required for the engine.
+  /// These include the file logger, clock, and cursor hider.
   pub fn new() -> Result<ScreenData, Box<dyn Error>> {
     // The handle for the file logger, isn't needed right now
     let _ = file_logger::setup_file_logger();
@@ -46,15 +46,12 @@ impl ScreenData {
       panic!("An error has occurred while spawning a clock thread: '{error}'")
     });
 
-    let screen = generate_pixel_grid();
-
     screen_clock.start();
 
     Ok(ScreenData {
       screen_clock,
-      existing_objects: HashMap::new(),
-      screen,
-      printer: Printer::new(GRID_WIDTH, GRID_HEIGHT),
+      object_data: Objects::new(),
+      printer: Printer::new(CONFIG.grid_width as usize, CONFIG.grid_height as usize),
       first_print: true,
       _cursor_hider: cursor_hider,
     })
@@ -62,31 +59,53 @@ impl ScreenData {
 
   /// Returns the screen as a string depending on what each pixel
   /// is assigned
-  pub fn display(&self) -> Result<String, PrintingError> {
-    Printer::create_grid_from_full_character_list(&self.screen, GRID_WIDTH, GRID_HEIGHT)
+  pub fn display(&self) -> Result<String, ScreenError> {
+    let mut frame = Self::create_blank_frame();
+
+    for strata_number in 0..=100 {
+      guard!( let Some(objects) = self.object_data.get(&Strata(strata_number)) else { continue } );
+
+      for object in objects.values() {
+        // No clue how to get this to error
+        let object_guard = object.lock().unwrap();
+
+        Self::apply_rows_in_frame(object_guard, &mut frame)?;
+      }
+    }
+
+    Ok(frame)
   }
 
-  // return an error when those are added
   /// Prints the screen as it currently is.
-  pub fn print_screen(&mut self) {
+  pub fn print_screen(&mut self) -> Result<(), ScreenError> {
     if self.first_print {
-      println!("{}", "\n".repeat(GRID_HEIGHT + 10));
+      println!("{}", "\n".repeat(CONFIG.grid_height as usize + 10));
 
       self.first_print = false;
     }
 
-    guard!( let Ok(screen) = self.display() else { return; } );
+    let screen = self.display()?;
 
-    let _ = self.printer.dynamic_print(screen);
+    match self.printer.dynamic_print(screen) {
+      Ok(_) => Ok(()),
+      Err(error) => Err(ScreenError::PrintingError(error)),
+    }
+    // println!("{GRID_SPACER}");
+    // print!("{screen}");
+    //
+    // Ok(())
   }
 
-  /// Replaces every pixel with whitespace, does not overwrite assignment.
-  pub fn clear_screen(&mut self) -> Result<(), PrintingError> {
-    self.printer.clear_grid()?;
+  /// Prints whitespace over the screen.
+  pub fn clear_screen(&mut self) -> Result<(), ScreenError> {
+    if let Err(error) = self.printer.clear_grid() {
+      return Err(ScreenError::PrintingError(error));
+    }
 
     Ok(())
   }
 
+  /// Prints text at the top of the screen.
   pub fn print_text<T>(&mut self, message: T)
   where
     T: std::fmt::Display + std::ops::Deref,
@@ -95,181 +114,193 @@ impl ScreenData {
     println!("{message}");
   }
 
-  /// Changes the assigned_display of the pixel
-  /// If the input is invalid it'll set the display to None
-  pub fn change_pixel_display_at(
-    &mut self,
-    pixel_at: &Coordinates,
-    change_to: Key,
-    assigned_number: AssignedNumber,
-  ) -> anyhow::Result<()> {
-    self.screen[pixel_at.coordinates_to_index()].change_display_to(change_to, assigned_number)
+  /// Waits for the input amount of ticks.
+  /// The time between ticks is determined by the given value
+  /// in the config file.
+  pub fn wait_for_x_ticks(&mut self, x: u32) {
+    // Fix the documentation on how this errors
+    let _ = self.screen_clock.wait_for_x_ticks(x);
   }
 
-  /// Inserts the object at the given coordinates
-  /// and if there's no assignment it'll assign
-  /// the inserted object to the pixel if reassign is true
-  pub fn insert_object_at(
-    &mut self,
-    at_pixel: &Coordinates,
-    insert: KeyAndObjectDisplay,
-    reassign: pixel::Reassign,
-  ) {
-    self.screen[at_pixel.coordinates_to_index()].insert_object(insert.0, insert.1, reassign)
+  pub fn add_object<O: Object>(&mut self, object: &O) -> Result<(), ObjectError> {
+    self.object_data.insert(object.get_unique_hash(), object)
   }
 
-  /// Inserts all objects passed in to the
-  /// given coordinates, does not reassign
-  /// the pixel for any of them
-  pub fn insert_all_objects_at(
-    &mut self,
-    pixel_at: &Coordinates,
-    objects: Vec<KeyAndObjectDisplay>,
-  ) {
-    for object_data in objects {
-      self.insert_object_at(pixel_at, object_data, Reassign::False)
-    }
-  }
+  fn apply_rows_in_frame(
+    object: MutexGuard<ObjectData>,
+    current_frame: &mut String,
+  ) -> Result<(), ScreenError> {
+    let object_position = *object.top_left();
+    let (object_width, _object_height) = object.get_sprite_dimensions();
+    let air_character = object.get_air_char().to_owned();
 
-  /// Returns true if the pixel contains no object data
-  pub fn pixel_is_empty(&self, pixel_at: &Coordinates) -> bool {
-    self.screen[pixel_at.coordinates_to_index()].is_empty()
-  }
+    let object_shape = object.get_sprite().to_string().replace('\n', "");
+    drop(object); // Drops the object lock early since it's no longer needed.
+    let object_characters = object_shape.chars();
 
-  pub fn get_mut_pixel_at(&mut self, pixel_at: &Coordinates) -> &mut Pixel {
-    &mut self.screen[pixel_at.coordinates_to_index()]
-  }
+    // out_of_bounds_check(object_position, object_width, object_height)?;
 
-  pub fn get_pixel_at(&self, pixel_at: &Coordinates) -> &Pixel {
-    &self.screen[pixel_at.coordinates_to_index()]
-  }
+    for (index, character) in object_characters.enumerate() {
+      if character != air_character {
+        let current_row_count = index / object_width;
 
-  /// Removes the data that's currently assigned to display and returns it
-  /// Deletes the entry if there's only 1 object in there
-  pub fn remove_displayed_object_data_at(
-    &mut self,
-    pixel_at: &Coordinates,
-  ) -> Option<KeyAndObjectDisplay> {
-    self
-      .get_mut_pixel_at(pixel_at)
-      .remove_displayed_object(Reassign::False)
-  }
+        // (top_left_index + (row_adder + column_adder)) - column_correction
+        let character_index = (object_position
+          + (((CONFIG.grid_width as usize + 1) * current_row_count) + index))
+          - (current_row_count * object_width);
 
-  /// This will take the assigned object display data within the first
-  /// enserted pixel's coordinates and move it to the second
-  /// data of the overwritten pixel is returned as an optional
-  // change latest to assigned
-  pub fn replace_latest_object_in_pixel(
-    &mut self,
-    pixel_1: &Coordinates,
-    pixel_2: &Coordinates,
-  ) -> Option<KeyAndObjectDisplay> {
-    if !self.pixel_is_empty(pixel_1) {
-      let pixel_1_data = self.remove_displayed_object_data_at(pixel_1).unwrap();
-      let pixel_2_data = if !self.pixel_is_empty(pixel_2) {
-        self.remove_displayed_object_data_at(pixel_2)
-      } else {
-        None
-      };
-
-      self.insert_object_at(pixel_2, pixel_1_data, Reassign::True);
-
-      pixel_2_data
-    } else {
-      None
-    }
-  }
-
-  /// Moves the data from pixel_1 to pixel_2 and reassigns
-  /// the pixel to display the new data
-  pub fn transfer_assigned_object_in_pixel_to(
-    &mut self,
-    pixel_1: &Coordinates,
-    pixel_2: &Coordinates,
-  ) {
-    let object = self.remove_displayed_object_data_at(pixel_1);
-
-    if let Some(object) = object {
-      self.insert_object_at(pixel_2, object, Reassign::True);
-    }
-  }
-
-  /// Returns the currently existing and total number of objects
-  /// that have existed with the same name
-  pub fn object_already_exists(&self, name: &String) -> Option<CurrentAndTotalObjects> {
-    self.existing_objects.get(name).map(|object_data| {
-      (
-        object_data.get_currently_existing(),
-        object_data.get_total_count(),
-      )
-    })
-  }
-
-  /// If the object exists then it'll increment the total count
-  /// if it does not exist then it'll add the object to the list
-  pub fn update_existing_objects(&mut self, object: &ObjectInformation) {
-    if self
-      .existing_objects
-      .contains_key(&object.get_name().to_string())
-    {
-      self
-        .existing_objects
-        .get_mut(&object.get_name().to_string())
-        .unwrap()
-        .increment_total();
-    } else {
-      let object_name = object.get_name().to_string();
-
-      self
-        .existing_objects
-        .insert(object_name.clone(), ObjectScreenData::new(&object_name));
-
-      self.update_total_objects(&object_name);
-    }
-  }
-
-  /// Increments or Decrements the currently placed number of objects depending
-  /// on what is passed in
-  pub fn update_placed_objects(&mut self, name: &Key, action: Actions) {
-    if let Some(object_screen_data) = self.existing_objects.get_mut(name) {
-      match action {
-        Actions::Add => object_screen_data.increment_current(),
-        Actions::Subtract => object_screen_data.decrement_current(),
+        current_frame.replace_range(
+          character_index..(character_index + 1),
+          &character.to_string(),
+        );
       }
     }
+
+    Ok(())
   }
 
-  /// If the object exists then it'll increment the total number of them
-  fn update_total_objects(&mut self, name: &Key) {
-    if self.existing_objects.contains_key(name) {
-      self
-        .existing_objects
-        .get_mut(name)
-        .unwrap()
-        .increment_total();
-    }
-  }
+  fn create_blank_frame() -> String {
+    let pixel_row = CONFIG.empty_pixel.repeat(CONFIG.grid_width as usize) + "\n";
 
-  /// Returns a reference to the given object_screen_data
-  pub fn get_existing_object(&self, object: &String) -> Option<&ObjectScreenData> {
-    if self.existing_objects.contains_key(object) {
-      self.existing_objects.get(object)
-    } else {
-      None
-    }
-  }
+    let mut frame = pixel_row.repeat(CONFIG.grid_height as usize);
+    frame.pop();
 
-  pub fn wait_for_x_ticks(&mut self, x: u32) {
-    let _ = self.screen_clock.wait_for_x_ticks(x);
+    frame
   }
 }
 
-/// Generates a 1-Dimensional grid of Pixels
-pub fn generate_pixel_grid() -> Vec<Pixel> {
-  (0..(GRID_WIDTH * GRID_HEIGHT)) //
-    .fold(Vec::new(), |mut pixel_vec, pixel_index| {
-      pixel_vec.push(Pixel::new(pixel_index));
+#[allow(dead_code)]
+fn out_of_bounds_check(
+  object_position: usize,
+  object_width: usize,
+  object_height: usize,
+) -> Result<(), ScreenError> {
+  if object_width + (object_position % (CONFIG.grid_width as usize + 1))
+    >= CONFIG.grid_width as usize + 1
+  {
+    return Err(ScreenError::ObjectError(ObjectError::OutOfBounds(
+      Direction::Right,
+    )));
+  } else if object_height + (object_position / (CONFIG.grid_width as usize + 1))
+    >= CONFIG.grid_height as usize
+  {
+    return Err(ScreenError::ObjectError(ObjectError::OutOfBounds(
+      Direction::Down,
+    )));
+  }
 
-      pixel_vec
-    })
+  Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::general_data::coordinates::*;
+
+  const SHAPE: &str = "x-x\nxcx\nx-x";
+  const CENTER_CHAR: char = 'c';
+  const CENTER_REPLACEMENT_CHAR: char = '-';
+  const AIR_CHAR: char = '-';
+
+  #[test]
+  fn change_position_out_of_bounds_right() {
+    let position = ((CONFIG.grid_width - 1) as usize, 15);
+    let position = position.coordinates_to_index(CONFIG.grid_width as usize + 1);
+    let (width, height) = (3, 3);
+
+    let expected_result = Err(ScreenError::ObjectError(ObjectError::OutOfBounds(
+      Direction::Right,
+    )));
+
+    let check_result = out_of_bounds_check(position, width, height);
+
+    assert_eq!(check_result, expected_result);
+  }
+
+  #[test]
+  fn change_position_out_of_bounds_down() {
+    let position = (15, CONFIG.grid_width as usize + 1);
+    let position = position.coordinates_to_index(CONFIG.grid_width as usize);
+    let (width, height) = (3, 3);
+
+    let expected_result = Err(ScreenError::ObjectError(ObjectError::OutOfBounds(
+      Direction::Down,
+    )));
+
+    let check_result = out_of_bounds_check(position, width, height);
+
+    assert_eq!(check_result, expected_result);
+  }
+
+  #[test]
+  fn create_blank_frame() {
+    let expected_pixel_count =
+      ((CONFIG.grid_width * CONFIG.grid_height) + CONFIG.grid_height - 1) as usize;
+
+    let blank_frame = ScreenData::create_blank_frame();
+
+    assert!(blank_frame.chars().count() == expected_pixel_count);
+  }
+
+  #[cfg(test)]
+  mod apply_row_in_frame_logic {
+    use super::*;
+
+    #[test]
+    fn correct_input() {
+      let object_data = get_object_data((10, 10), false);
+      let find_character = SHAPE.chars().next().unwrap();
+      let top_left_index = *object_data.top_left();
+      let object_data = Mutex::new(object_data);
+      let mut current_frame = ScreenData::create_blank_frame();
+
+      let expected_top_left_character = find_character;
+      let expected_left_of_expected_character = CONFIG.empty_pixel.chars().next().unwrap();
+
+      ScreenData::apply_rows_in_frame(object_data.lock().unwrap(), &mut current_frame).unwrap();
+
+      let object_top_left_character_in_frame = current_frame.chars().nth(top_left_index);
+      let left_of_index_in_frame = current_frame.chars().nth(top_left_index - 1);
+
+      println!("\n\n{current_frame:?}\n\n");
+      println!("top_left: {top_left_index}");
+
+      assert_eq!(
+        object_top_left_character_in_frame.unwrap(),
+        expected_top_left_character
+      );
+      assert_eq!(
+        left_of_index_in_frame.unwrap(),
+        expected_left_of_expected_character
+      );
+    }
+  }
+
+  //
+  // -- Data for tests below --
+  //
+
+  fn get_object_data(object_position: (usize, usize), center_is_hitbox: bool) -> ObjectData {
+    let sprite = get_sprite(center_is_hitbox);
+    let strata = Strata(0);
+
+    ObjectData::new(object_position, sprite, strata).unwrap()
+  }
+
+  fn get_sprite(center_is_hitbox: bool) -> Sprite {
+    let skin = get_skin();
+    let hitbox = get_hitbox(center_is_hitbox);
+
+    Sprite::new(skin, hitbox).unwrap()
+  }
+
+  fn get_skin() -> Skin {
+    Skin::new(SHAPE, CENTER_CHAR, CENTER_REPLACEMENT_CHAR, AIR_CHAR).unwrap()
+  }
+
+  fn get_hitbox(center_is_hitbox: bool) -> Hitbox {
+    let shape = "xxx\n-c-";
+
+    Hitbox::new(shape, 'c', '-', center_is_hitbox)
+  }
 }

@@ -1,46 +1,112 @@
-use ascii_engine::screen::pixel_data_types::*;
-use ascii_engine::screen::screen_data::*;
-use std::collections::HashMap;
+use ascii_engine::prelude::*;
+use ascii_engine::screen::objects::*;
+use std::sync::{Arc, Mutex};
 
-pub const OBJECT_1_NAME: &str = "O1";
-pub const OBJECT_1_DISPLAY: &str = "a";
-
-pub const OBJECT_2_NAME: &str = "O2";
-pub const OBJECT_2_DISPLAY: &str = "b";
-
-pub const OBJECT_3_NAME: &str = "O3";
-pub const OBJECT_3_DISPLAY: &str = "c";
+const SHAPE: &str = "x-x\nxcx\nx-x";
+const CENTER_CHAR: char = 'c';
+const CENTER_REPLACEMENT_CHAR: char = '-';
+const AIR_CHAR: char = '-';
 
 #[test]
 fn display_logic() {
   let screen = ScreenData::default();
   // adding the height - 1 is accounting for new lines
-  let expected_pixel_count = (GRID_WIDTH * GRID_HEIGHT) + GRID_HEIGHT - 1;
+  let expected_pixel_count =
+    ((CONFIG.grid_width * CONFIG.grid_height) + CONFIG.grid_height - 1) as usize;
   let display = screen.display().unwrap();
 
-  assert_eq!(display.len(), expected_pixel_count);
+  assert_eq!(display.chars().count(), expected_pixel_count);
 }
 
-pub fn get_object_list(number_assignment: u32) -> [KeyAndObjectDisplay; 3] {
-  [
-    (
-      OBJECT_1_NAME.to_string(),
-      (number_assignment, OBJECT_1_DISPLAY.to_string()),
-    ),
-    (
-      OBJECT_2_NAME.to_string(),
-      (number_assignment, OBJECT_2_DISPLAY.to_string()),
-    ),
-    (
-      OBJECT_3_NAME.to_string(),
-      (number_assignment, OBJECT_3_DISPLAY.to_string()),
-    ),
-  ]
+#[cfg(test)]
+mod object_storage_tests {
+  use super::*;
+
+  #[test]
+  fn insert_valid_object_data() {
+    let object_data = Arc::new(Mutex::new(get_object_data((5, 5), true)));
+    let object = Square::new(object_data);
+    let mut object_storage = Objects::new();
+
+    let insert_result = object_storage.insert(object.get_unique_hash(), &object);
+
+    assert!(insert_result.is_ok());
+  }
+
+  #[test]
+  fn insert_invalid_object_data() {
+    let object_data = Arc::new(Mutex::new(get_object_data((5, 5), true)));
+    object_data.lock().unwrap().change_strata(Strata(101));
+    let object = Square::new(object_data);
+    let mut object_storage = Objects::new();
+
+    let expected_result = Err(ObjectError::IncorrectStrataRange(Strata(101)));
+
+    let insert_result = object_storage.insert(object.get_unique_hash(), &object);
+
+    assert_eq!(insert_result, expected_result);
+  }
+
+  #[test]
+  fn get_logic() {
+    let object_data = Arc::new(Mutex::new(get_object_data((5, 5), true)));
+    let object = Square::new(object_data);
+    let mut object_storage = Objects::new();
+    object_storage
+      .insert(object.get_unique_hash(), &object)
+      .unwrap();
+
+    let expected_data = get_object_data((5, 5), true);
+
+    // Gets just the object data inside from all the nesting.
+    // This is required because neither Mutex or MutexGuard implement Eq.
+    let inside_data = object_storage
+      .get(&Strata(0))
+      .unwrap()
+      .get(&object.get_unique_hash())
+      .unwrap()
+      .lock()
+      .unwrap();
+
+    assert_eq!(*inside_data, expected_data);
+  }
 }
 
-pub fn convert_object_for_assertion(object: KeyAndObjectDisplay) -> (Key, AssignedObjects) {
-  let mut assigned_object = HashMap::new();
-  assigned_object.insert(object.1 .0, object.1 .1);
+//
+// -- Data for tests below --
+//
 
-  (object.0, assigned_object)
+#[derive(Object)]
+struct Square {
+  object_data: Arc<Mutex<ObjectData>>,
+}
+
+impl Square {
+  pub fn new(object_data: Arc<Mutex<ObjectData>>) -> Self {
+    Self { object_data }
+  }
+}
+
+fn get_object_data(object_position: (usize, usize), center_is_hitbox: bool) -> ObjectData {
+  let sprite = get_sprite(center_is_hitbox);
+  let strata = Strata(0);
+
+  ObjectData::new(object_position, sprite, strata).unwrap()
+}
+
+fn get_sprite(center_is_hitbox: bool) -> Sprite {
+  let skin = get_skin();
+  let hitbox = get_hitbox(center_is_hitbox);
+
+  Sprite::new(skin, hitbox).unwrap()
+}
+
+fn get_skin() -> Skin {
+  Skin::new(SHAPE, CENTER_CHAR, CENTER_REPLACEMENT_CHAR, AIR_CHAR).unwrap()
+}
+
+fn get_hitbox(center_is_hitbox: bool) -> Hitbox {
+  let shape = "xxx\n-c-";
+
+  Hitbox::new(shape, 'c', '-', center_is_hitbox)
 }

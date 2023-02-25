@@ -1,10 +1,4 @@
-use crate::screen::{pixel::*, screen_data::ScreenData};
-
-impl Default for Pixel {
-  fn default() -> Self {
-    Self::new(0)
-  }
-}
+use crate::screen::screen_data::ScreenData;
 
 impl Default for ScreenData {
   fn default() -> Self {

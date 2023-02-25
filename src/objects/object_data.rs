@@ -1,158 +1,248 @@
-#![allow(unused)]
-
-use crate::general_data::coordinates::*;
-use crate::objects::object_movements::*;
-use crate::screen::pixel;
-use crate::screen::pixel_data_types::*;
-use crate::screen::screen_data::*;
+use crate::general_data::{coordinates::*, hasher};
+use crate::objects::errors::*;
+pub use crate::objects::traits::*;
 use crate::CONFIG;
 
-/// Contains the name, shape, position, and whether or not the data
-/// should be kept once the count reaches 0
-pub struct ObjectInformation<'a> {
-  name: &'a str,
-  object_shape: &'a str,
-  position: Coordinates,
-  keep_data: bool,
-}
+#[allow(unused)]
+use log::debug;
 
-impl<'a> ObjectInformation<'a> {
-  /// Creates an instance of ObjectInformation with the given info
-  /// Position is defaulted to (0, 0) if None is inserted
-  /// keep_data is defaulted to false if None is inserted
-  pub fn from(
-    name: &'a str,
-    object_shape: &'a str,
-    position: Option<Coordinates>,
-    keep_data: Option<bool>,
-  ) -> Self {
-    let position = if let Some(coords) = position {
-      coords
-    } else {
-      (0, 0)
-    };
-
-    let keep_data = if let Some(keep_data) = keep_data {
-      keep_data
-    } else {
-      false
-    };
-
-    ObjectInformation {
-      name,
-      object_shape,
-      position,
-      keep_data,
-    }
-  }
-
-  pub fn get_name(&self) -> &'a str {
-    self.name
-  }
-}
-
+/// This is the data that will be required for the Object derive macro.
+///
+/// ObjectData contains data such as, the object's unique hash, the position of the
+/// defined center point, the strata, and the Sprite.
 #[derive(Debug)]
-/// An Object is the data that the screen uses to determine how to print and
-/// handle whatever your object is
-/// An object's assigned number should have no relevance to itself
-/// and is merely there to help the screen identify different objects
-/// with the same name
-pub struct Object {
-  pub name: Key,
-  pub number: AssignedNumber,
-  pub width: usize,
-  pub height: usize,
-  pub object_shape: String,
-  pub position: Coordinates,
+pub struct ObjectData {
+  unique_hash: u64,
+  /// Based on where the center is.
+  /// counts new lines
+  object_position: usize,
+  /// counts new lines
+  top_left_position: usize,
+  strata: Strata,
+  sprite: Sprite,
 }
 
-impl Object {
-  /// Creates an object with the given ObjectInformation
-  pub fn create(object_information: ObjectInformation, screen: &mut ScreenData) -> Self {
-    Object {
-      name: object_information.name.to_string(),
-      number: 0,
-      width: get_object_width(object_information.object_shape),
-      height: get_object_height(object_information.object_shape),
-      object_shape: object_information.object_shape.to_string(),
-      position: object_information.position,
-    }
-  }
+/// The Strata will be the priority on the screen.
+/// That which has a lower Strata, will be behind those with a higher strata.
+///
+/// The strata is a range from 0-100, any number outside of that range will
+/// not be accepted.
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub struct Strata(pub usize);
 
-  /// Places the object on the screen converting " " into empty pixels
-  pub fn place_object(&self, screen_data: &mut ScreenData) {
-    let mut pixel_position = self.position;
-
-    screen_data.update_placed_objects(&self.name, Actions::Add);
-
-    for new_pixel_display in self.object_shape.chars() {
-      match new_pixel_display {
-        ' ' => {
-          let pixel_object_group = (
-            self.name.clone(),
-            (self.number, CONFIG.empty_pixel.to_string()),
-          );
-
-          screen_data.insert_object_at(&pixel_position, pixel_object_group, pixel::Reassign::True);
-
-          pixel_position.0 += 1
-        }
-        '\n' => {
-          pixel_position.0 = self.position.0;
-          pixel_position.1 += 1;
-        }
-        _ => {
-          let pixel_object_group = (
-            self.name.clone(),
-            (self.number, new_pixel_display.to_string()),
-          );
-
-          screen_data.insert_object_at(&pixel_position, pixel_object_group, pixel::Reassign::True);
-
-          pixel_position.0 += 1
-        }
-      }
-    }
-  }
-
-  /// Gets the coordinates at the bottom right of the object
-  pub fn get_bottom_right_of_object(&self) -> Coordinates {
-    (
-      self.position.0 + self.width - 1,
-      self.position.1 + self.height - 1,
-    )
-  }
-
-  /// Returns true if movement in any given direction goes out of bounds
-  pub fn movement_goes_out_of_bounds(&self, move_to: ObjectMovements) -> bool {
-    let new_position = match self.position.move_coords(&move_to) {
-      Some(coords) => coords,
-      None => return false,
-    };
-
-    new_position
-      .get_object_bounds(&move_to, self.width, self.height)
-      .is_some()
-  }
-
-  /// Prints the data in every pixel that the object inhabits
-  /// This should only be used for debugging purposes
-  pub fn print_square_data(&self, screen: &ScreenData) {
-    let bottom_right_of_square = self.get_bottom_right_of_object();
-    let mut coordinate_cube = self
-      .position
-      .get_coordinates_in_between(&bottom_right_of_square);
-
-    for coordinate in coordinate_cube {
-      println!("{:?}", screen.get_pixel_at(&coordinate));
-    }
+impl Strata {
+  pub fn correct_range(&self) -> bool {
+    self.0 <= 100
   }
 }
 
-pub fn get_object_width(object_shape: &str) -> usize {
-  object_shape.split('\n').next().unwrap().len()
+impl ObjectData {
+  /// This will create the data for an object.
+  /// The data will contain things such as what the object looks like, the hitbox,
+  /// what layer the object sits on, the position, and more.
+  ///
+  /// To create ObjectData you will need the Sprite.
+  /// A Sprite contains the data for the object's Skin and Hitbox.
+  pub fn new(
+    object_position: Coordinates,
+    sprite: Sprite,
+    strata: Strata,
+  ) -> Result<Self, ObjectError> {
+    let unique_hash = hasher::get_unique_hash();
+    let top_left_position = get_top_left_index_of_skin(
+      object_position.coordinates_to_index(CONFIG.grid_width as usize + 1),
+      &sprite,
+    );
+
+    if !strata.correct_range() {
+      return Err(ObjectError::IncorrectStrataRange(strata));
+    }
+
+    Ok(Self {
+      unique_hash,
+      object_position: object_position.coordinates_to_index(CONFIG.grid_width as usize + 1),
+      strata,
+      sprite,
+      top_left_position,
+    })
+  }
+
+  /// Returns a newly calculated frame index of the topleft point of the object
+  pub fn get_top_left_index_of_skin(&self) -> usize {
+    get_top_left_index_of_skin(self.object_position, &self.sprite)
+  }
+
+  /// Returns the currently assigned frame index of the topleft point of the object
+  pub fn top_left(&self) -> &usize {
+    &self.top_left_position
+  }
+
+  /// Returns the (width, height) of the current sprite shape.
+  pub fn get_sprite_dimensions(&self) -> (usize, usize) {
+    let object_skin_shape = self.sprite.get_shape();
+    let sprite_skin_rows: Vec<&str> = object_skin_shape.split('\n').collect();
+
+    let sprite_skin_width = sprite_skin_rows[0].chars().count();
+    let sprite_skin_height = sprite_skin_rows.len();
+
+    (sprite_skin_width, sprite_skin_height)
+  }
+
+  pub fn change_position(&mut self, new_position: usize) -> Result<(), ObjectError> {
+    // self.check_if_valid_position(new_position)?;
+
+    let new_top_left = get_top_left_index_of_skin(new_position, &self.sprite);
+
+    self.object_position = new_position;
+    self.top_left_position = new_top_left;
+
+    Ok(())
+  }
+
+  #[allow(dead_code)]
+  fn check_if_valid_position(&self, new_position: usize) -> Result<(), ObjectError> {
+    let (object_width, object_height) = self.get_sprite_dimensions();
+
+    if object_width + (new_position % CONFIG.grid_width as usize) >= CONFIG.grid_width as usize {
+      Err(ObjectError::OutOfBounds(Direction::Right))
+    } else if object_height + (new_position / CONFIG.grid_width as usize)
+      >= CONFIG.grid_height as usize
+    {
+      Err(ObjectError::OutOfBounds(Direction::Down))
+    } else {
+      Ok(())
+    }
+  }
+
+  pub fn get_air_char(&self) -> char {
+    self.sprite.air_character()
+  }
+
+  /// Returns a reference to the unique hash
+  pub fn get_unique_hash(&self) -> &u64 {
+    &self.unique_hash
+  }
+
+  /// Returns a reference to the current position
+  pub fn get_object_position(&self) -> &usize {
+    &self.object_position
+  }
+
+  /// Returns a reference to the String for the object's appearance
+  pub fn get_sprite(&self) -> &str {
+    self.sprite.get_shape()
+  }
+
+  /// Replaces the String for the object's appearance
+  pub fn change_sprite(&mut self, new_model: String) {
+    *self.sprite.get_mut_shape() = new_model;
+  }
+
+  /// Returns a reference to the relative points of the hitbox to
+  /// the designated center point of the object's skin.
+  pub fn get_hitbox(&self) -> &Vec<(isize, isize)> {
+    self.sprite.get_hitbox()
+  }
+
+  /// Replaces the object's hitbox with a new one
+  pub fn change_hitbox(&mut self, new_hitbox: Hitbox) -> Result<(), ObjectError> {
+    self.sprite.change_hitbox(new_hitbox)
+  }
+
+  /// Returns a reference to the Strata
+  pub fn get_strata(&self) -> &Strata {
+    &self.strata
+  }
+
+  /// Changes the object's Strata with the given one.
+  pub fn change_strata(&mut self, new_strata: Strata) {
+    self.strata = new_strata
+  }
 }
 
-pub fn get_object_height(object_shape: &str) -> usize {
-  object_shape.split('\n').count()
+/// Object_position is an index of a frame.
+/// This index will account for any newlines.
+fn get_top_left_index_of_skin(object_position: usize, sprite: &Sprite) -> usize {
+  let relative_coordinates = get_0_0_relative_to_center(sprite);
+
+  let true_width = CONFIG.grid_width as isize + 1;
+
+  (relative_coordinates.0 + object_position as isize + (true_width * relative_coordinates.1))
+    as usize
+}
+
+fn get_0_0_relative_to_center(sprite: &Sprite) -> (isize, isize) {
+  let sprite_rows: Vec<&str> = sprite.get_shape().split('\n').collect();
+  let sprite_width = sprite_rows[0].chars().count() as isize;
+
+  let skin_center_index = sprite.get_center_character_index() as isize;
+  let skin_center_coordinates = (
+    skin_center_index % sprite_width,
+    skin_center_index / sprite_width,
+  );
+
+  (-skin_center_coordinates.0, -skin_center_coordinates.1)
+}
+
+impl PartialEq for ObjectData {
+  fn eq(&self, other: &Self) -> bool {
+    self.object_position == other.object_position
+      && self.top_left_position == other.top_left_position
+      && self.strata == other.strata
+      && self.sprite == other.sprite
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  const SHAPE: &str = "x-x\nxcx\nx-x";
+  const CENTER_CHAR: char = 'c';
+  const CENTER_REPLACEMENT_CHAR: char = '-';
+  const AIR_CHAR: char = '-';
+
+  #[test]
+  fn get_top_left_coordinates_of_skin_logic() {
+    let (x, y) = (10, 10);
+    let object_index = (x, y).coordinates_to_index(CONFIG.grid_width as usize + 1);
+    let sprite = get_sprite(true);
+
+    let expected_index = ((CONFIG.grid_width + 1) as usize * (y - 1)) + (x - 1);
+
+    let top_left_index = get_top_left_index_of_skin(object_index, &sprite);
+
+    assert_eq!(top_left_index, expected_index);
+  }
+
+  #[test]
+  fn get_0_0_relative_to_center_logic() {
+    let sprite = get_sprite(true);
+
+    let expected_position = (-1, -1);
+
+    let relative_position = get_0_0_relative_to_center(&sprite);
+
+    assert_eq!(relative_position, expected_position);
+  }
+
+  //
+  // Functions used for tests
+
+  fn get_sprite(center_is_hitbox: bool) -> Sprite {
+    let skin = get_skin();
+    let hitbox = get_hitbox(center_is_hitbox);
+
+    Sprite::new(skin, hitbox).unwrap()
+  }
+
+  fn get_skin() -> Skin {
+    Skin::new(SHAPE, CENTER_CHAR, CENTER_REPLACEMENT_CHAR, AIR_CHAR).unwrap()
+  }
+
+  fn get_hitbox(center_is_hitbox: bool) -> Hitbox {
+    let shape = "xxx\n-c-";
+
+    Hitbox::new(shape, 'c', '-', center_is_hitbox)
+  }
 }

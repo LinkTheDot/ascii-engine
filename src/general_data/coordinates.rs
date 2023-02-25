@@ -1,74 +1,48 @@
-use crate::objects::object_movements::ObjectMovements;
-use crate::screen::screen_data::{GRID_HEIGHT, GRID_WIDTH};
-
+/// (x, y)
 pub type Coordinates = (usize, usize);
 
+pub enum Movements {
+  Up,
+  Down,
+  Left,
+  Right,
+}
+
 pub trait CoordinateMethods {
-  fn index_to_coordinates(index: usize) -> Self;
-  fn coordinates_to_index(&self) -> usize;
+  fn coordinates_to_index(&self, width: usize) -> usize;
 
-  fn add(&self, add: Coordinates) -> Option<Coordinates>;
-  fn subtract(&self, subtract: Coordinates) -> Option<Coordinates>;
-
-  fn move_coords(&self, move_to: &ObjectMovements) -> Option<Coordinates>;
+  fn add(&self, add: Coordinates) -> Self;
+  fn subtract(&self, subtract: Coordinates) -> (isize, isize);
 
   fn get_coordinates_in_between(&self, bottom_right: &Self) -> Vec<Coordinates>;
-  fn get_object_bounds(
-    &self,
-    move_to: &ObjectMovements,
-    width: usize,
-    height: usize,
-  ) -> Option<Coordinates>;
+}
+
+#[allow(non_camel_case_types)]
+pub trait usizeMethods {
+  /// Returns (x, y).
+  fn index_to_coordinates(&self, width: usize) -> (usize, usize);
+}
+
+impl usizeMethods for usize {
+  fn index_to_coordinates(&self, width: usize) -> (usize, usize) {
+    (self % width, self / width)
+  }
 }
 
 impl CoordinateMethods for Coordinates {
-  fn index_to_coordinates(index: usize) -> Self {
-    (index / GRID_WIDTH, index % GRID_WIDTH)
+  fn coordinates_to_index(&self, width: usize) -> usize {
+    self.0 + width * self.1
   }
 
-  fn coordinates_to_index(&self) -> usize {
-    self.0 + GRID_WIDTH * self.1
+  fn add(&self, add: Coordinates) -> Self {
+    (self.0 + add.0, self.1 + add.1)
   }
 
-  fn add(&self, add: Coordinates) -> Option<Coordinates> {
-    let x = if self.0 != GRID_WIDTH {
-      self.0 + add.0
-    } else {
-      return None;
-    };
-
-    let y = if self.1 != GRID_HEIGHT {
-      self.1 + add.1
-    } else {
-      return None;
-    };
-
-    Some((x, y))
-  }
-
-  fn subtract(&self, subtract: Coordinates) -> Option<Coordinates> {
-    let x = if self.0 != 0 {
-      self.0 - subtract.0
-    } else {
-      return None;
-    };
-
-    let y = if self.1 != 0 {
-      self.1 - subtract.1
-    } else {
-      return None;
-    };
-
-    Some((x, y))
-  }
-
-  fn move_coords(&self, move_to: &ObjectMovements) -> Option<Coordinates> {
-    match move_to {
-      ObjectMovements::Up => self.subtract((0, 1)),
-      ObjectMovements::Down => self.add((0, 1)),
-      ObjectMovements::Left => self.subtract((1, 0)),
-      ObjectMovements::Right => self.add((1, 0)),
-    }
+  fn subtract(&self, subtract: Coordinates) -> (isize, isize) {
+    (
+      self.0 as isize - subtract.0 as isize,
+      self.1 as isize - subtract.1 as isize,
+    )
   }
 
   fn get_coordinates_in_between(&self, bottom_right: &Self) -> Vec<Coordinates> {
@@ -88,19 +62,5 @@ impl CoordinateMethods for Coordinates {
     }
 
     coordinates_in_between
-  }
-
-  fn get_object_bounds(
-    &self,
-    move_to: &ObjectMovements,
-    width: usize,
-    height: usize,
-  ) -> Option<Coordinates> {
-    match move_to {
-      ObjectMovements::Up => self.subtract((1, 0)),
-      ObjectMovements::Down => self.subtract((0, 1)),
-      ObjectMovements::Left => self.add((width, 0)),
-      ObjectMovements::Right => self.add((0, height)),
-    }
   }
 }
