@@ -254,11 +254,12 @@ impl DynamicPrinterMethods for Printer {
           .index
           .index_as_coordinates(&self.grid_width);
 
-        x += self.origin_position.0;
+        // adding 1 accounts for the non-zero based numbering of the terminal cursor
+        x += self.origin_position.0 + 1;
         y += self.origin_position.1;
 
-        let cursor_movement = format!("\x1B[{};{}H", y, x);
-        let movement_with_pixels = format!("{}{}", cursor_movement, pixel_difference.pixels);
+        let cursor_movement = format!("\x1B[{y};{x}H");
+        let movement_with_pixels = format!("{cursor_movement}{}", pixel_difference.pixels);
 
         printable_diff.push_str(&movement_with_pixels);
 
