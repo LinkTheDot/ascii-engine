@@ -2,6 +2,7 @@ use crate::general_data::config_builder;
 use lazy_static::lazy_static;
 
 lazy_static! {
+  // Only way this can cause an error is if the code for the config builder was done wrong.
   pub static ref CONFIG: config_builder::ConfigData = config_builder::get_config().unwrap();
 }
 
@@ -20,6 +21,7 @@ pub mod general_data {
 
 pub mod objects {
   pub mod errors;
+  pub mod hitboxes;
   pub mod object_data;
   pub mod sprites;
   pub mod traits;

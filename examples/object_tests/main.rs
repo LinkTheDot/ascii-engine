@@ -1,5 +1,7 @@
+// use ascii_engine::general_data::coordinates::*;
 use ascii_engine::general_data::user_input::spawn_input_thread;
 use ascii_engine::prelude::*;
+// use ascii_engine::screen::objects::Objects;
 use std::sync::{Arc, Mutex};
 
 #[allow(unused)]
@@ -21,7 +23,21 @@ struct Square {
 impl Square {
   fn new(position: (usize, usize)) -> Self {
     let sprite = get_square_sprite();
-    let square_object_data = ObjectData::new(position, sprite, Strata(0)).unwrap();
+    let hitbox = get_square_hitbox();
+    let name = String::from("Square");
+    let square_object_data = ObjectData::new(position, sprite, hitbox, Strata(0), name).unwrap();
+
+    Square {
+      object_data: Arc::new(Mutex::new(square_object_data)),
+    }
+  }
+
+  fn create_empty_square(position: (usize, usize)) -> Self {
+    let skin = Skin::new("%%%%%\n%-c-%\n%%%%%", 'c', '-', '-').unwrap();
+    let sprite = Sprite::new(skin).unwrap();
+    let hitbox = HitboxCreationData::new("", '-');
+    let name = String::from("Square");
+    let square_object_data = ObjectData::new(position, sprite, hitbox, Strata(0), name).unwrap();
 
     Square {
       object_data: Arc::new(Mutex::new(square_object_data)),
@@ -32,13 +48,16 @@ impl Square {
 fn main() {
   let mut screen = ScreenData::new().unwrap();
 
-  let square = Square::new((5, 5));
-  // let square2 = Square::new((10, 10));
+  let mut square = Square::new((5, 5));
+  let mut square2 = Square::new((10, 10));
+  let mut empty_square = Square::create_empty_square((15, 5));
+  debug!("empty_square_is \n{:#?}", empty_square);
 
   info!("{:#?}", square);
 
-  screen.add_object(&square).log_if_err();
-  // screen.add_object(&square2).log_if_err();
+  screen.add_object(&mut square).log_if_err();
+  screen.add_object(&mut square2).log_if_err();
+  screen.add_object(&mut empty_square).log_if_err();
 
   screen.print_screen().log_if_err();
 
@@ -54,7 +73,7 @@ fn spin_object<O: Object>(screen: &mut ScreenData, mut object: O) {
     for _ in 0..26 {
       screen.print_screen().log_if_err();
 
-      object.move_by((1, 0)).log_if_err();
+      object.move_by((2, 0));
 
       screen.wait_for_x_ticks(1);
     }
@@ -62,7 +81,7 @@ fn spin_object<O: Object>(screen: &mut ScreenData, mut object: O) {
     for _ in 0..13 {
       screen.print_screen().log_if_err();
 
-      object.move_by((0, 1)).log_if_err();
+      object.move_by((0, 1));
 
       screen.wait_for_x_ticks(2);
     }
@@ -70,7 +89,7 @@ fn spin_object<O: Object>(screen: &mut ScreenData, mut object: O) {
     for _ in 0..26 {
       screen.print_screen().log_if_err();
 
-      object.move_by((-1, 0)).log_if_err();
+      object.move_by((-1, 0));
 
       screen.wait_for_x_ticks(1);
     }
@@ -78,7 +97,7 @@ fn spin_object<O: Object>(screen: &mut ScreenData, mut object: O) {
     for _ in 0..13 {
       screen.print_screen().log_if_err();
 
-      object.move_by((0, -1)).log_if_err();
+      object.move_by((0, -1));
 
       screen.wait_for_x_ticks(2);
     }
@@ -86,7 +105,8 @@ fn spin_object<O: Object>(screen: &mut ScreenData, mut object: O) {
 }
 
 #[allow(dead_code)]
-fn user_move<O: Object + std::fmt::Debug>(screen: &mut ScreenData, mut object: O) {
+// fn user_move<O: Object + std::fmt::Debug>(screen: &mut ScreenData, mut object: O) {
+fn user_move(screen: &mut ScreenData, mut object: Square) {
   let (user_input, input_kill_sender) = spawn_input_thread();
   let mut previous_position = object.get_top_left_position();
 
@@ -121,9 +141,13 @@ fn user_move<O: Object + std::fmt::Debug>(screen: &mut ScreenData, mut object: O
 
     // info!("Position: ({}, {})", current_x, current_y);
     // square.move_to((current_x, current_y)).unwrap();
-    object
-      .move_by(move_by)
-      .unwrap_or_else(|error| error!("{error:?}"));
+    let collisions = object.move_by(move_by);
+
+    if !collisions.is_empty() {
+      // info!("collision: {collisions:?}");
+
+      object.move_by((-move_by.0, -move_by.1));
+    }
 
     let new_position = object.get_top_left_position();
 
@@ -141,11 +165,14 @@ fn user_move<O: Object + std::fmt::Debug>(screen: &mut ScreenData, mut object: O
 }
 
 fn get_square_sprite() -> Sprite {
-  let hitbox = Hitbox::new("xxx\n-c-", 'c', '-', true);
   let skin = Skin::new("xxxxx\nx-c-x\nxxxxx", 'c', '-', '-').unwrap();
   // "--x--\n-xxx-\nxxxxx\nx-c-x"
 
-  Sprite::new(skin, hitbox).unwrap()
+  Sprite::new(skin).unwrap()
+}
+
+fn get_square_hitbox() -> HitboxCreationData {
+  HitboxCreationData::new("xxxxx\nxxcxx\nxxxxx", 'c')
 }
 
 trait ResultTraits {
