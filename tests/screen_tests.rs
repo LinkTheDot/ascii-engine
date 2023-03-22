@@ -5,7 +5,7 @@ const SHAPE: &str = "x-x\nxcx\nx-x";
 const CENTER_CHAR: char = 'c';
 const CENTER_REPLACEMENT_CHAR: char = '-';
 const AIR_CHAR: char = '-';
-const OBJECT_NAME: &str = "rectangle";
+const MODEL_NAME: &str = "rectangle";
 
 #[test]
 fn display_logic() {
@@ -19,30 +19,30 @@ fn display_logic() {
 }
 
 #[cfg(test)]
-mod object_storage_tests {
+mod model_storage_tests {
   use super::*;
 
   #[test]
-  fn insert_valid_object_data() {
-    let object_data = Arc::new(Mutex::new(get_object_data((5, 5))));
-    let object = Square::new(object_data);
-    let mut object_storage = Objects::new();
+  fn insert_valid_model_data() {
+    let model_data = Arc::new(Mutex::new(get_model_data((5, 5))));
+    let model = Square::new(model_data);
+    let mut model_storage = Models::new();
 
-    let insert_result = object_storage.insert(&object.get_unique_hash(), &object);
+    let insert_result = model_storage.insert(&model.get_unique_hash(), &model);
 
     assert!(insert_result.is_ok());
   }
 
   #[test]
-  fn insert_invalid_object_data() {
-    let object_data = Arc::new(Mutex::new(get_object_data((5, 5))));
-    object_data.lock().unwrap().change_strata(Strata(101));
-    let object = Square::new(object_data);
-    let mut object_storage = Objects::new();
+  fn insert_invalid_model_data() {
+    let model_data = Arc::new(Mutex::new(get_model_data((5, 5))));
+    model_data.lock().unwrap().change_strata(Strata(101));
+    let model = Square::new(model_data);
+    let mut model_storage = Models::new();
 
-    let expected_result = Err(ObjectError::IncorrectStrataRange(Strata(101)));
+    let expected_result = Err(ModelError::IncorrectStrataRange(Strata(101)));
 
-    let insert_result = object_storage.insert(&object.get_unique_hash(), &object);
+    let insert_result = model_storage.insert(&model.get_unique_hash(), &model);
 
     assert_eq!(insert_result, expected_result);
   }
@@ -50,21 +50,21 @@ mod object_storage_tests {
   #[test]
   #[ignore]
   fn get_logic() {
-    // let object_data = Arc::new(Mutex::new(get_object_data((5, 5))));
-    // let object = Square::new(object_data);
-    // let mut object_storage = Objects::new();
-    // object_storage
-    //   .insert(object.get_unique_hash(), &object)
+    // let model_data = Arc::new(Mutex::new(get_model_data((5, 5))));
+    // let model = Square::new(model_data);
+    // let mut model_storage = Models::new();
+    // model_storage
+    //   .insert(model.get_unique_hash(), &model)
     //   .unwrap();
     //
-    // let expected_data = get_object_data((5, 5));
+    // let expected_data = get_model_data((5, 5));
     //
-    // // Gets just the object data inside from all the nesting.
+    // // Gets just the model data inside from all the nesting.
     // // This is required because neither Mutex or MutexGuard implement Eq.
-    // let inside_data = object_storage
+    // let inside_data = model_storage
     //   .get_strata_keys(&Strata(0))
     //   .unwrap()
-    //   .get(&object.get_unique_hash())
+    //   .get(&model.get_unique_hash())
     //   .unwrap()
     //   .lock()
     //   .unwrap();
@@ -77,28 +77,28 @@ mod object_storage_tests {
 // -- Data for tests below --
 //
 
-#[derive(Object)]
+#[derive(Model)]
 struct Square {
-  object_data: Arc<Mutex<ObjectData>>,
+  model_data: Arc<Mutex<ModelData>>,
 }
 
 impl Square {
-  pub fn new(object_data: Arc<Mutex<ObjectData>>) -> Self {
-    Self { object_data }
+  pub fn new(model_data: Arc<Mutex<ModelData>>) -> Self {
+    Self { model_data }
   }
 }
 
-fn get_object_data(object_position: (usize, usize)) -> ObjectData {
+fn get_model_data(model_position: (usize, usize)) -> ModelData {
   let sprite = get_sprite();
   let hitbox = get_hitbox();
   let strata = Strata(0);
 
-  ObjectData::new(
-    object_position,
+  ModelData::new(
+    model_position,
     sprite,
     hitbox,
     strata,
-    OBJECT_NAME.to_string(),
+    MODEL_NAME.to_string(),
   )
   .unwrap()
 }

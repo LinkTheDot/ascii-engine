@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 members = [
-  "object_macros",
+  "model_macros",
   "screen_printer",
 ]
 
@@ -29,5 +29,5 @@ log = "0.4.17"
 chrono = "0.4.23"
 tokio = { version = "1.24.1", features = ["full"] }
 
-object_macros = { path = "object_macros" }
+model_macros = { path = "model_macros" }
 screen_printer = { path = "screen_printer"}

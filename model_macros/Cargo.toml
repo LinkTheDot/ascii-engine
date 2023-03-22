@@ -1,5 +1,5 @@
 [package]
-name = "object_macros"
+name = "model_macros"
 version = "0.1.0"
 edition = "2021"
 

@@ -1,7 +1,7 @@
 use crate::errors::*;
 use crate::general_data::file_logger;
-use crate::objects::object_data::*;
-use crate::screen::objects::*;
+use crate::models::model_data::*;
+use crate::screen::models::*;
 use crate::CONFIG;
 use guard::guard;
 use log::error;
@@ -15,7 +15,7 @@ use log::debug;
 
 pub const GRID_SPACER: &str = "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 
-/// This is in the context of the update_placed_objects function
+/// This is in the context of the update_placed_models function
 /// but could technically be used anywhere
 pub enum Actions {
   Add,
@@ -24,11 +24,11 @@ pub enum Actions {
 
 /// Contains all of the data for the screen such as
 /// The clock
-/// The counter for all objects that exist
+/// The counter for all models that exist
 /// The set of pixels that make up the screen
 pub struct ScreenData {
   screen_clock: Clock,
-  object_data: Arc<RwLock<Objects>>,
+  model_data: Arc<RwLock<Models>>,
   printer: Printer,
   first_print: bool,
 
@@ -46,13 +46,13 @@ impl ScreenData {
     let mut screen_clock = Clock::custom(CONFIG.tick_duration).unwrap_or_else(|error| {
       panic!("An error has occurred while spawning a clock thread: '{error}'")
     });
-    let object_data = Arc::new(RwLock::new(Objects::new()));
+    let model_data = Arc::new(RwLock::new(Models::new()));
 
     screen_clock.start();
 
     Ok(ScreenData {
       screen_clock,
-      object_data,
+      model_data,
       printer: Printer::new(CONFIG.grid_width as usize, CONFIG.grid_height as usize),
       first_print: true,
       _cursor_hider: cursor_hider,
@@ -65,26 +65,26 @@ impl ScreenData {
     let mut frame = Self::create_blank_frame();
 
     for strata_number in 0..=100 {
-      let object_data = self.object_data.read().unwrap();
-      guard!( let Some(strata_keys) = object_data.get_strata_keys(&Strata(strata_number)) else { continue } );
+      let model_data = self.model_data.read().unwrap();
+      guard!( let Some(strata_keys) = model_data.get_strata_keys(&Strata(strata_number)) else { continue } );
 
-      for object in strata_keys
+      for model in strata_keys
         .iter()
-        .map(|key| self.object_data.read().unwrap().get_object(key))
+        .map(|key| self.model_data.read().unwrap().get_model(key))
       {
-        guard!( let Some(object) = object else {
-          error!("An object in strata {strata_number} that doesn't exist was attempted to be run.");
+        guard!( let Some(model) = model else {
+          error!("An model in strata {strata_number} that doesn't exist was attempted to be run.");
 
           continue;
         });
 
-        let object_guard = object.lock().unwrap();
+        let model_guard = model.lock().unwrap();
 
         // Instead of returning any errors here just do nothing instead.
         //
-        // Returning an error here would be a problem for objects that aren't
+        // Returning an error here would be a problem for models that aren't
         // suppose to be on screen.
-        Self::apply_object_in_frame(object_guard, &mut frame)?;
+        Self::apply_model_in_frame(model_guard, &mut frame)?;
       }
     }
 
@@ -136,40 +136,40 @@ impl ScreenData {
     let _ = self.screen_clock.wait_for_x_ticks(x);
   }
 
-  pub fn add_object<O: Object>(&mut self, object: &mut O) -> Result<(), ObjectError> {
-    object.assign_object_list(self.object_data.clone());
+  pub fn add_model<O: Model>(&mut self, model: &mut O) -> Result<(), ModelError> {
+    model.assign_model_list(self.model_data.clone());
 
     self
-      .object_data
+      .model_data
       .write()
       .unwrap()
-      .insert(&object.get_unique_hash(), object)
+      .insert(&model.get_unique_hash(), model)
   }
 
-  fn apply_object_in_frame(
-    object: MutexGuard<ObjectData>,
+  fn apply_model_in_frame(
+    model: MutexGuard<ModelData>,
     current_frame: &mut String,
   ) -> Result<(), ScreenError> {
-    let object_position = *object.top_left();
-    let (object_width, _object_height) = object.get_sprite_dimensions();
-    let air_character = object.get_air_char().to_owned();
+    let model_position = *model.top_left();
+    let (model_width, _model_height) = model.get_sprite_dimensions();
+    let air_character = model.get_air_char().to_owned();
 
-    let object_shape = object.get_sprite().to_string().replace('\n', "");
-    drop(object); // Drops the object lock early since it's no longer needed.
-    let object_characters = object_shape.chars();
+    let model_shape = model.get_sprite().to_string().replace('\n', "");
+    drop(model); // Drops the model lock early since it's no longer needed.
+    let model_characters = model_shape.chars();
 
-    // Error returned here to prevent the program from crashing when an object is found to be out of bounds.
+    // Error returned here to prevent the program from crashing when an model is found to be out of bounds.
     // Uncomment when it's fully implemented.
-    // out_of_bounds_check(object_position, object_width, object_height)?;
+    // out_of_bounds_check(model_position, model_width, model_height)?;
 
-    for (index, character) in object_characters.enumerate() {
+    for (index, character) in model_characters.enumerate() {
       if character != air_character {
-        let current_row_count = index / object_width;
+        let current_row_count = index / model_width;
 
         // (top_left_index + (row_adder + column_adder)) - column_correction
-        let character_index = (object_position
+        let character_index = (model_position
           + (((CONFIG.grid_width as usize + 1) * current_row_count) + index))
-          - (current_row_count * object_width);
+          - (current_row_count * model_width);
 
         current_frame.replace_range(
           character_index..(character_index + 1),
@@ -194,25 +194,25 @@ impl ScreenData {
 
 #[allow(dead_code)]
 fn out_of_bounds_check(
-  object_position: usize,
-  object_width: usize,
-  object_height: usize,
+  model_position: usize,
+  model_width: usize,
+  model_height: usize,
 ) -> Result<(), ScreenError> {
   // Implement all directions
   // possibly just calculate the x value for this
   // for out of bounds left,
   //   if x == grid_width then say it went out of bounds left
 
-  if object_width + (object_position % (CONFIG.grid_width as usize + 1))
+  if model_width + (model_position % (CONFIG.grid_width as usize + 1))
     >= CONFIG.grid_width as usize + 1
   {
-    return Err(ScreenError::ObjectError(ObjectError::OutOfBounds(
+    return Err(ScreenError::ModelError(ModelError::OutOfBounds(
       Direction::Right,
     )));
-  } else if object_height + (object_position / (CONFIG.grid_width as usize + 1))
+  } else if model_height + (model_position / (CONFIG.grid_width as usize + 1))
     >= CONFIG.grid_height as usize
   {
-    return Err(ScreenError::ObjectError(ObjectError::OutOfBounds(
+    return Err(ScreenError::ModelError(ModelError::OutOfBounds(
       Direction::Down,
     )));
   }
@@ -224,7 +224,7 @@ fn out_of_bounds_check(
 mod tests {
   use super::*;
   use crate::general_data::coordinates::*;
-  use crate::objects::hitboxes::HitboxCreationData;
+  use crate::models::hitboxes::HitboxCreationData;
 
   const SHAPE: &str = "x-x\nxcx\nx-x";
   const CENTER_CHAR: char = 'c';
@@ -237,7 +237,7 @@ mod tests {
     let position = position.coordinates_to_index(CONFIG.grid_width as usize + 1);
     let (width, height) = (3, 3);
 
-    let expected_result = Err(ScreenError::ObjectError(ObjectError::OutOfBounds(
+    let expected_result = Err(ScreenError::ModelError(ModelError::OutOfBounds(
       Direction::Right,
     )));
 
@@ -252,7 +252,7 @@ mod tests {
     let position = position.coordinates_to_index(CONFIG.grid_width as usize);
     let (width, height) = (3, 3);
 
-    let expected_result = Err(ScreenError::ObjectError(ObjectError::OutOfBounds(
+    let expected_result = Err(ScreenError::ModelError(ModelError::OutOfBounds(
       Direction::Down,
     )));
 
@@ -277,25 +277,25 @@ mod tests {
 
     #[test]
     fn correct_input() {
-      let object_data = get_object_data((10, 10));
+      let model_data = get_model_data((10, 10));
       let find_character = SHAPE.chars().next().unwrap();
-      let top_left_index = *object_data.top_left();
-      let object_data = Mutex::new(object_data);
+      let top_left_index = *model_data.top_left();
+      let model_data = Mutex::new(model_data);
       let mut current_frame = ScreenData::create_blank_frame();
 
       let expected_top_left_character = find_character;
       let expected_left_of_expected_character = CONFIG.empty_pixel.chars().next().unwrap();
 
-      ScreenData::apply_object_in_frame(object_data.lock().unwrap(), &mut current_frame).unwrap();
+      ScreenData::apply_model_in_frame(model_data.lock().unwrap(), &mut current_frame).unwrap();
 
-      let object_top_left_character_in_frame = current_frame.chars().nth(top_left_index);
+      let model_top_left_character_in_frame = current_frame.chars().nth(top_left_index);
       let left_of_index_in_frame = current_frame.chars().nth(top_left_index - 1);
 
       println!("\n\n{current_frame:?}\n\n");
       println!("top_left: {top_left_index}");
 
       assert_eq!(
-        object_top_left_character_in_frame.unwrap(),
+        model_top_left_character_in_frame.unwrap(),
         expected_top_left_character
       );
       assert_eq!(
@@ -309,13 +309,13 @@ mod tests {
   // -- Data for tests below --
   //
 
-  fn get_object_data(object_position: (usize, usize)) -> ObjectData {
+  fn get_model_data(model_position: (usize, usize)) -> ModelData {
     let sprite = get_sprite();
     let strata = Strata(0);
     let hitbox = get_hitbox();
-    let object_name = String::from("object");
+    let model_name = String::from("model");
 
-    ObjectData::new(object_position, sprite, hitbox, strata, object_name).unwrap()
+    ModelData::new(model_position, sprite, hitbox, strata, model_name).unwrap()
   }
 
   fn get_sprite() -> Sprite {

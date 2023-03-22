@@ -1,5 +1,5 @@
 use crate::general_data::coordinates::*;
-use crate::objects::errors::*;
+use crate::models::errors::*;
 use crate::CONFIG;
 use guard::guard;
 
@@ -21,7 +21,7 @@ impl Hitbox {
   pub fn from(
     hitbox_data: HitboxCreationData,
     skin_relative_center: (isize, isize),
-  ) -> Result<Self, ObjectError> {
+  ) -> Result<Self, ModelError> {
     hitbox_data.get_hitbox_data(skin_relative_center)
   }
 
@@ -36,12 +36,12 @@ impl Hitbox {
 
   /// Gives the coordinates of the top left of the hitbox.
   /// Returns (x, y).
-  pub fn get_hitbox_position(&self, object_position: usize) -> (isize, isize) {
-    let (object_x, object_y) = object_position.index_to_coordinates(CONFIG.grid_width as usize + 1);
+  pub fn get_hitbox_position(&self, model_position: usize) -> (isize, isize) {
+    let (model_x, model_y) = model_position.index_to_coordinates(CONFIG.grid_width as usize + 1);
 
     (
-      object_x as isize + self.relative_position_to_skin.0,
-      object_y as isize + self.relative_position_to_skin.1,
+      model_x as isize + self.relative_position_to_skin.0,
+      model_y as isize + self.relative_position_to_skin.1,
     )
   }
 
@@ -56,7 +56,7 @@ impl Hitbox {
 }
 
 impl HitboxCreationData {
-  // OBJECT CREATION WILL CHANGE TO A FILE FORMAT
+  // MODEL CREATION WILL CHANGE TO A FILE FORMAT
   pub fn new(shape: &str, center_character: char) -> Self {
     Self {
       shape: shape.to_string(),
@@ -68,7 +68,7 @@ impl HitboxCreationData {
   ///
   /// Returns an error when an invalid hitbox is passed in, or when there's no
   /// valid center character in the shape of the hitbox.
-  fn get_hitbox_data(self, skin_relative_center: (isize, isize)) -> Result<Hitbox, ObjectError> {
+  fn get_hitbox_data(self, skin_relative_center: (isize, isize)) -> Result<Hitbox, ModelError> {
     if self.shape.trim() == "" {
       return Ok(Hitbox::create_empty());
     }
@@ -79,7 +79,7 @@ impl HitboxCreationData {
       .chars()
       .position(|pixel| pixel == self.center_character);
 
-    guard!( let Some(hitbox_center_index) = hitbox_center_index else { return Err(ObjectError::NoCenter) });
+    guard!( let Some(hitbox_center_index) = hitbox_center_index else { return Err(ModelError::NoCenter) });
 
     let hitbox_center_coordinates = (
       (hitbox_center_index % hitbox_width) as isize,
@@ -102,20 +102,20 @@ impl HitboxCreationData {
 /// (width, height).
 ///
 /// An error is returned when the hitbox isn't a rectangle.
-fn valid_rectangle_check(object: &str) -> Result<(usize, usize), ObjectError> {
-  if object.chars().count() == 0 {
-    return Err(ObjectError::EmptyHitboxString);
+fn valid_rectangle_check(model: &str) -> Result<(usize, usize), ModelError> {
+  if model.chars().count() == 0 {
+    return Err(ModelError::EmptyHitboxString);
   }
 
-  let rows: Vec<&str> = object.split('\n').collect();
-  let object_width = rows[0].chars().count();
+  let rows: Vec<&str> = model.split('\n').collect();
+  let model_width = rows[0].chars().count();
 
-  let rows_have_same_lengths = rows.iter().all(|row| row.chars().count() == object_width);
+  let rows_have_same_lengths = rows.iter().all(|row| row.chars().count() == model_width);
 
   if rows_have_same_lengths {
-    Ok((object_width, rows.len()))
+    Ok((model_width, rows.len()))
   } else {
-    Err(ObjectError::NonRectangularShape)
+    Err(ModelError::NonRectangularShape)
   }
 }
 
@@ -138,7 +138,7 @@ mod valid_rectangle_check_logic {
   fn invalid_rectangle() {
     let shape = "xx\nxxx\nx\nxxxxxx";
 
-    let expected_error = Err(ObjectError::NonRectangularShape);
+    let expected_error = Err(ModelError::NonRectangularShape);
 
     let returned_data = valid_rectangle_check(shape);
 
@@ -149,7 +149,7 @@ mod valid_rectangle_check_logic {
   fn empty_string_passed_in() {
     let empty_string = "";
 
-    let expected_error = Err(ObjectError::EmptyHitboxString);
+    let expected_error = Err(ModelError::EmptyHitboxString);
 
     let returned_data = valid_rectangle_check(empty_string);
 

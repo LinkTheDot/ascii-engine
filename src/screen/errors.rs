@@ -1,10 +1,10 @@
-use crate::objects::errors::*;
+use crate::models::errors::*;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ScreenError {
-  ObjectError(ObjectError),
+  ModelError(ModelError),
 
   PrintingError(screen_printer::printer::PrintingError),
 
-  NoExistingObjects,
+  NoExistingModels,
 }
