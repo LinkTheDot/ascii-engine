@@ -24,8 +24,14 @@ pub enum ObjectError {
   /// The object has attempted to move out of bounds.
   OutOfBounds(Direction),
 
-  /// Something went wrong with getting a lock on an object's object_data.
+  /// A thread holding a copy of an object panicked when trying to obtain the lock of said object.
   FailedToGetLock,
+
+  /// When an object that already exists is attempted to be inserted into the screen.
+  ObjectAlreadyExists,
+
+  /// When internal object data was attempted to be changed with an object hash that doesn't exist.
+  ObjectDoesntExist,
 }
 
 #[derive(Debug, PartialEq, Eq)]

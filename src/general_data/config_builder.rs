@@ -1,4 +1,4 @@
-use config::{Config, ConfigError, File};
+use config::{builder::DefaultState, Config, ConfigBuilder, ConfigError, File};
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::{fs::OpenOptions, path::Path};
@@ -41,11 +41,7 @@ pub fn get_config() -> Result<ConfigData, ConfigError> {
   }
 
   Config::builder()
-    .set_default("log_level", default_config_data.log_level)?
-    .set_default("empty_pixel", default_config_data.empty_pixel)?
-    .set_default("tick_duration", default_config_data.tick_duration)?
-    .set_default("grid_width", default_config_data.grid_width)?
-    .set_default("grid_height", default_config_data.grid_height)?
+    .set_defaults(default_config_data)?
     .add_source(File::with_name(config_path_name))
     .build()?
     .try_deserialize()
@@ -66,4 +62,32 @@ fn create_missing_config_file(
   write!(config_file, "{serialized_config_data}")?;
 
   Ok(())
+}
+
+trait ConfigTraits {
+  /// Assigns the default values given by "ConfigData::default()" to the config.
+  ///
+  /// Assigned defaults will correct any missing fields in the config file.
+  /// For when the entire file is missing, look to "create_missing_config_file()".
+  ///
+  /// # Errors
+  ///
+  /// An error is returned when one of the input names contains non-ascii characters.
+  fn set_defaults(self, default_data: ConfigData) -> Result<Self, ConfigError>
+  where
+    Self: Sized;
+}
+
+impl ConfigTraits for ConfigBuilder<DefaultState> {
+  fn set_defaults(self, default_data: ConfigData) -> Result<Self, ConfigError>
+  where
+    Self: Sized,
+  {
+    self
+      .set_default("log_level", default_data.log_level)?
+      .set_default("empty_pixel", default_data.empty_pixel)?
+      .set_default("tick_duration", default_data.tick_duration)?
+      .set_default("grid_width", default_data.grid_width)?
+      .set_default("grid_height", default_data.grid_height)
+  }
 }

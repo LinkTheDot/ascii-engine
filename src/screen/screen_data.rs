@@ -4,9 +4,10 @@ use crate::objects::object_data::*;
 use crate::screen::objects::*;
 use crate::CONFIG;
 use guard::guard;
+use log::error;
 use screen_printer::printer::*;
 use std::error::Error;
-use std::sync::MutexGuard;
+use std::sync::{Arc, MutexGuard, RwLock};
 use thread_clock::Clock;
 
 #[allow(unused)]
@@ -27,7 +28,7 @@ pub enum Actions {
 /// The set of pixels that make up the screen
 pub struct ScreenData {
   screen_clock: Clock,
-  object_data: Objects,
+  object_data: Arc<RwLock<Objects>>,
   printer: Printer,
   first_print: bool,
 
@@ -45,12 +46,13 @@ impl ScreenData {
     let mut screen_clock = Clock::custom(CONFIG.tick_duration).unwrap_or_else(|error| {
       panic!("An error has occurred while spawning a clock thread: '{error}'")
     });
+    let object_data = Arc::new(RwLock::new(Objects::new()));
 
     screen_clock.start();
 
     Ok(ScreenData {
       screen_clock,
-      object_data: Objects::new(),
+      object_data,
       printer: Printer::new(CONFIG.grid_width as usize, CONFIG.grid_height as usize),
       first_print: true,
       _cursor_hider: cursor_hider,
@@ -63,13 +65,26 @@ impl ScreenData {
     let mut frame = Self::create_blank_frame();
 
     for strata_number in 0..=100 {
-      guard!( let Some(objects) = self.object_data.get(&Strata(strata_number)) else { continue } );
+      let object_data = self.object_data.read().unwrap();
+      guard!( let Some(strata_keys) = object_data.get_strata_keys(&Strata(strata_number)) else { continue } );
 
-      for object in objects.values() {
-        // No clue how to get this to error
+      for object in strata_keys
+        .iter()
+        .map(|key| self.object_data.read().unwrap().get_object(key))
+      {
+        guard!( let Some(object) = object else {
+          error!("An object in strata {strata_number} that doesn't exist was attempted to be run.");
+
+          continue;
+        });
+
         let object_guard = object.lock().unwrap();
 
-        Self::apply_rows_in_frame(object_guard, &mut frame)?;
+        // Instead of returning any errors here just do nothing instead.
+        //
+        // Returning an error here would be a problem for objects that aren't
+        // suppose to be on screen.
+        Self::apply_object_in_frame(object_guard, &mut frame)?;
       }
     }
 
@@ -86,14 +101,11 @@ impl ScreenData {
 
     let screen = self.display()?;
 
-    match self.printer.dynamic_print(screen) {
-      Ok(_) => Ok(()),
-      Err(error) => Err(ScreenError::PrintingError(error)),
+    if let Err(error) = self.printer.dynamic_print(screen) {
+      return Err(ScreenError::PrintingError(error));
     }
-    // println!("{GRID_SPACER}");
-    // print!("{screen}");
-    //
-    // Ok(())
+
+    Ok(())
   }
 
   /// Prints whitespace over the screen.
@@ -117,16 +129,24 @@ impl ScreenData {
   /// Waits for the input amount of ticks.
   /// The time between ticks is determined by the given value
   /// in the config file.
+  // The way the clock is handled should be changed.
+  // Pass around a clock_receiver instead of using the screen itself to handle that.
   pub fn wait_for_x_ticks(&mut self, x: u32) {
     // Fix the documentation on how this errors
     let _ = self.screen_clock.wait_for_x_ticks(x);
   }
 
-  pub fn add_object<O: Object>(&mut self, object: &O) -> Result<(), ObjectError> {
-    self.object_data.insert(object.get_unique_hash(), object)
+  pub fn add_object<O: Object>(&mut self, object: &mut O) -> Result<(), ObjectError> {
+    object.assign_object_list(self.object_data.clone());
+
+    self
+      .object_data
+      .write()
+      .unwrap()
+      .insert(&object.get_unique_hash(), object)
   }
 
-  fn apply_rows_in_frame(
+  fn apply_object_in_frame(
     object: MutexGuard<ObjectData>,
     current_frame: &mut String,
   ) -> Result<(), ScreenError> {
@@ -138,6 +158,8 @@ impl ScreenData {
     drop(object); // Drops the object lock early since it's no longer needed.
     let object_characters = object_shape.chars();
 
+    // Error returned here to prevent the program from crashing when an object is found to be out of bounds.
+    // Uncomment when it's fully implemented.
     // out_of_bounds_check(object_position, object_width, object_height)?;
 
     for (index, character) in object_characters.enumerate() {
@@ -160,10 +182,11 @@ impl ScreenData {
   }
 
   fn create_blank_frame() -> String {
+    // This was the fastest way I found to create a large 2-dimensional string of 1 character.
     let pixel_row = CONFIG.empty_pixel.repeat(CONFIG.grid_width as usize) + "\n";
 
     let mut frame = pixel_row.repeat(CONFIG.grid_height as usize);
-    frame.pop();
+    frame.pop(); // remove new line
 
     frame
   }
@@ -175,6 +198,11 @@ fn out_of_bounds_check(
   object_width: usize,
   object_height: usize,
 ) -> Result<(), ScreenError> {
+  // Implement all directions
+  // possibly just calculate the x value for this
+  // for out of bounds left,
+  //   if x == grid_width then say it went out of bounds left
+
   if object_width + (object_position % (CONFIG.grid_width as usize + 1))
     >= CONFIG.grid_width as usize + 1
   {
@@ -196,6 +224,7 @@ fn out_of_bounds_check(
 mod tests {
   use super::*;
   use crate::general_data::coordinates::*;
+  use crate::objects::hitboxes::HitboxCreationData;
 
   const SHAPE: &str = "x-x\nxcx\nx-x";
   const CENTER_CHAR: char = 'c';
@@ -248,7 +277,7 @@ mod tests {
 
     #[test]
     fn correct_input() {
-      let object_data = get_object_data((10, 10), false);
+      let object_data = get_object_data((10, 10));
       let find_character = SHAPE.chars().next().unwrap();
       let top_left_index = *object_data.top_left();
       let object_data = Mutex::new(object_data);
@@ -257,7 +286,7 @@ mod tests {
       let expected_top_left_character = find_character;
       let expected_left_of_expected_character = CONFIG.empty_pixel.chars().next().unwrap();
 
-      ScreenData::apply_rows_in_frame(object_data.lock().unwrap(), &mut current_frame).unwrap();
+      ScreenData::apply_object_in_frame(object_data.lock().unwrap(), &mut current_frame).unwrap();
 
       let object_top_left_character_in_frame = current_frame.chars().nth(top_left_index);
       let left_of_index_in_frame = current_frame.chars().nth(top_left_index - 1);
@@ -280,27 +309,28 @@ mod tests {
   // -- Data for tests below --
   //
 
-  fn get_object_data(object_position: (usize, usize), center_is_hitbox: bool) -> ObjectData {
-    let sprite = get_sprite(center_is_hitbox);
+  fn get_object_data(object_position: (usize, usize)) -> ObjectData {
+    let sprite = get_sprite();
     let strata = Strata(0);
+    let hitbox = get_hitbox();
+    let object_name = String::from("object");
 
-    ObjectData::new(object_position, sprite, strata).unwrap()
+    ObjectData::new(object_position, sprite, hitbox, strata, object_name).unwrap()
   }
 
-  fn get_sprite(center_is_hitbox: bool) -> Sprite {
+  fn get_sprite() -> Sprite {
     let skin = get_skin();
-    let hitbox = get_hitbox(center_is_hitbox);
 
-    Sprite::new(skin, hitbox).unwrap()
+    Sprite::new(skin).unwrap()
   }
 
   fn get_skin() -> Skin {
     Skin::new(SHAPE, CENTER_CHAR, CENTER_REPLACEMENT_CHAR, AIR_CHAR).unwrap()
   }
 
-  fn get_hitbox(center_is_hitbox: bool) -> Hitbox {
+  fn get_hitbox() -> HitboxCreationData {
     let shape = "xxx\n-c-";
 
-    Hitbox::new(shape, 'c', '-', center_is_hitbox)
+    HitboxCreationData::new(shape, 'c')
   }
 }
