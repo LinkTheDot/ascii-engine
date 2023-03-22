@@ -25,7 +25,6 @@ pub struct ObjectData {
   sprite: Sprite,
   hitbox: Hitbox,
   /// Exists only when objects are placed on the screen
-  // last worked here
   existing_objects: Option<Arc<RwLock<Objects>>>,
 }
 
@@ -232,7 +231,6 @@ impl ObjectData {
   //
   //   // accounts for the fact that the position of objects is based off of "grid_width + 1".
   //   // This is needed because the calculation for the section is based off the true grid width.
-  //   debug!("{} -= {}", object_x, object_y);
   //   object_x -= object_y;
   //
   //   // x_position_in_grid_two = floor(object_x / section_x_divisor)
