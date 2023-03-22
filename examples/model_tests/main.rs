@@ -3,7 +3,7 @@ use ascii_engine::general_data::user_input::spawn_input_thread;
 use ascii_engine::prelude::*;
 // use ascii_engine::screen::models::Models;
 use crate::screen_config::*;
-use std::sync::{Arc, Mutex, RwLock, RwLockWriteGuard};
+use std::sync::{Arc, Mutex, RwLock};
 
 #[allow(unused)]
 use log::{debug, error, info, warn};

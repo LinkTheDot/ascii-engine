@@ -34,6 +34,48 @@ pub enum ModelError {
   ModelDoesntExist,
 }
 
+pub enum ModelCreationError {
+  /// Invalid syntax was found with the line it was on being contained in the error.
+  InvalidSyntax(usize),
+
+  /// A string that was suppose to be 1 character was found to be more or less than 1.
+  /// The line in which this happened is contained in the error.
+  InvalidStringSize(usize),
+
+  /// A Model has a strata range that's impossible.
+  ///
+  /// Returns the given strata range.
+  InvalidStrataRange(usize),
+
+  /// When parsing the appearance of the model, no center was found.
+  SkinHadNoCenter,
+
+  /// When parsing the hitbox of the model, no center was found.
+  HitboxHadNoCenter,
+
+  /// When parsing the appearance of the model, it was found to be non-rectangular.
+  InvalidSkinShape,
+
+  /// When parsing the hitbox of the model, it was found to be non-rectangular.
+  InvalidHitboxShape,
+
+  /// There was no replacement character found for the center character.
+  ///
+  /// Models need a character to replace the center character in the string.
+  NoCenterReplacement,
+
+  /// The model was given no name.
+  NoModelName,
+
+  /// There was no air character assigned to the model's appearance.
+  NoAirCharacter,
+
+  /// There were multiple centers found in the object's appearance and or hitbox.
+  ///
+  /// Returns the list of indexes the center was found in.
+  MultipleCentersFound(Vec<usize>),
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Direction {
   Up,

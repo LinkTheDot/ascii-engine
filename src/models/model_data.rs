@@ -4,6 +4,7 @@ pub use crate::models::traits::*;
 use crate::screen::models::Models;
 use crate::CONFIG;
 use guard::guard;
+use std::path::Path;
 use std::sync::{Arc, RwLock};
 
 #[allow(unused)]
@@ -79,6 +80,10 @@ impl ModelData {
       hitbox,
       existing_models: None,
     })
+  }
+
+  pub fn from_file(path: Path) -> Result<Self, ModelCreationError> {
+    todo!()
   }
 
   /// Returns the index of the model from the top left position.
