@@ -1,18 +1,18 @@
-use crate::objects::errors::*;
+use crate::models::errors::*;
 
 #[allow(unused)]
 use log::debug;
 
-/// The Sprite is data about the display and hitbox side of an object.
+/// The Sprite is data about the display and hitbox side of an model.
 ///
-/// The Sprite will contain how an object will look, where it's Hitbox will be, and
-/// what character in the skin of the object should be classified as "air".
+/// The Sprite will contain how an model will look, where it's Hitbox will be, and
+/// what character in the skin of the model should be classified as "air".
 #[derive(Debug, PartialEq, Eq)]
 pub struct Sprite {
   skin: Skin,
 }
 
-/// The Skin is how an object will appear on the screen.
+/// The Skin is how an model will appear on the screen.
 ///
 /// When creating a skin's shape, center and air characters will need to be designated.
 /// The center character will be replaced with the 'center_replacement_character' field when
@@ -28,8 +28,8 @@ pub struct Skin {
 }
 
 impl Sprite {
-  // OBJECT CREATION WILL CHANGE TO A FILE FORMAT
-  pub fn new(mut skin: Skin) -> Result<Self, ObjectError> {
+  // MODEL CREATION WILL CHANGE TO A FILE FORMAT
+  pub fn new(mut skin: Skin) -> Result<Self, ModelError> {
     skin.fix_skin();
 
     Ok(Self { skin })
@@ -50,13 +50,13 @@ impl Sprite {
   }
 
   // /// Returns a reference to the relative points of the hitbox to
-  // /// the designated center point of the object's skin.
+  // /// the designated center point of the model's skin.
   // pub fn get_hitbox(&self) -> &Vec<(isize, isize)> {
   //   &self.hitbox
   // }
 
-  // /// Replaces the object's hitbox with a new one
-  // pub fn change_hitbox(&mut self, new_hitbox: HitboxCreationData) -> Result<(), ObjectError> {
+  // /// Replaces the model's hitbox with a new one
+  // pub fn change_hitbox(&mut self, new_hitbox: HitboxCreationData) -> Result<(), ModelError> {
   //   match new_hitbox.get_hitbox_data() {
   //     Ok(hitbox_data) => self.hitbox = hitbox_data,
   //     Err(error) => return Err(error),
@@ -71,20 +71,20 @@ impl Sprite {
 }
 
 impl Skin {
-  // OBJECT CREATION WILL CHANGE TO A FILE FORMAT
+  // MODEL CREATION WILL CHANGE TO A FILE FORMAT
   pub fn new(
     shape: &str,
     center_character: char,
     center_replacement_character: char,
     air_character: char,
-  ) -> Result<Self, ObjectError> {
+  ) -> Result<Self, ModelError> {
     let cleaned_shape = shape.replace('\n', "");
     let center_character_index = cleaned_shape
       .chars()
       .position(|pixel| pixel == center_character);
 
     match center_character_index {
-      None => Err(ObjectError::NoCenter),
+      None => Err(ModelError::NoCenter),
       Some(center_character_index) => Ok(Self {
         shape: shape.to_string(),
         center_character,
@@ -160,7 +160,7 @@ mod skin_logic {
 //     let mut hitbox = get_hitbox_data(true);
 //     hitbox.shape = "a-s-d-qwf-e-ff\n\n\nwe-gwe-w-vwea\nasd\n".to_string();
 //
-//     let expected_error = Err(ObjectError::NonRectangularShape);
+//     let expected_error = Err(ModelError::NonRectangularShape);
 //
 //     let hitbox_data = hitbox.get_hitbox_data();
 //
@@ -172,7 +172,7 @@ mod skin_logic {
 //     let mut hitbox = get_hitbox_data(true);
 //     hitbox.shape = "".to_string();
 //
-//     let expected_error = Err(ObjectError::EmptyHitboxString);
+//     let expected_error = Err(ModelError::EmptyHitboxString);
 //
 //     let hitbox_data = hitbox.get_hitbox_data();
 //

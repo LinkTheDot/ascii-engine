@@ -1,7 +1,7 @@
 // use ascii_engine::general_data::coordinates::*;
 use ascii_engine::general_data::user_input::spawn_input_thread;
 use ascii_engine::prelude::*;
-// use ascii_engine::screen::objects::Objects;
+// use ascii_engine::screen::models::Models;
 use crate::screen_config::*;
 use std::sync::{Arc, Mutex, RwLock, RwLockWriteGuard};
 
@@ -10,14 +10,14 @@ use log::{debug, error, info, warn};
 
 mod screen_config;
 
-#[derive(Debug, Object)]
+#[derive(Debug, Model)]
 pub struct Square {
-  object_data: Arc<Mutex<ObjectData>>,
+  model_data: Arc<Mutex<ModelData>>,
 }
 
-#[derive(Debug, Object)]
+#[derive(Debug, Model)]
 pub struct Wall {
-  object_data: Arc<Mutex<ObjectData>>,
+  model_data: Arc<Mutex<ModelData>>,
 }
 
 impl Square {
@@ -25,10 +25,10 @@ impl Square {
     let sprite = get_square_sprite();
     let hitbox = get_square_hitbox();
     let name = String::from("Square");
-    let square_object_data = ObjectData::new(position, sprite, hitbox, Strata(0), name).unwrap();
+    let square_model_data = ModelData::new(position, sprite, hitbox, Strata(0), name).unwrap();
 
     Square {
-      object_data: Arc::new(Mutex::new(square_object_data)),
+      model_data: Arc::new(Mutex::new(square_model_data)),
     }
   }
 
@@ -41,43 +41,43 @@ impl Square {
     let sprite = Sprite::new(skin).unwrap();
     let hitbox = HitboxCreationData::new("", '-');
     let name = String::from("Square");
-    let square_object_data = ObjectData::new(position, sprite, hitbox, Strata(5), name).unwrap();
+    let square_model_data = ModelData::new(position, sprite, hitbox, Strata(5), name).unwrap();
 
     Square {
-      object_data: Arc::new(Mutex::new(square_object_data)),
+      model_data: Arc::new(Mutex::new(square_model_data)),
     }
   }
 
   fn pushed_square(
     screen_config: &mut ScreenConfig,
-    square: Arc<Mutex<ObjectData>>,
+    square: Arc<Mutex<ModelData>>,
     move_by: (isize, isize),
   ) {
-    let pushed_object_guard = square.lock().unwrap();
-    let pushed_object_hash = *pushed_object_guard.get_unique_hash();
-    drop(pushed_object_guard);
+    let pushed_model_guard = square.lock().unwrap();
+    let pushed_model_hash = *pushed_model_guard.get_unique_hash();
+    drop(pushed_model_guard);
 
-    let pushed_object = screen_config.get_square(&pushed_object_hash);
+    let pushed_model = screen_config.get_square(&pushed_model_hash);
 
-    let mut pushed_object_guard = pushed_object.write().unwrap();
-    let collisions = pushed_object_guard.move_by(move_by);
-    drop(pushed_object_guard);
+    let mut pushed_model_guard = pushed_model.write().unwrap();
+    let collisions = pushed_model_guard.move_by(move_by);
+    drop(pushed_model_guard);
 
-    Square::check_collisions(collisions, screen_config, move_by, &pushed_object);
+    Square::check_collisions(collisions, screen_config, move_by, &pushed_model);
   }
 
   fn check_collisions(
-    collision_list: Vec<Arc<Mutex<ObjectData>>>,
+    collision_list: Vec<Arc<Mutex<ModelData>>>,
     screen_config: &mut ScreenConfig,
     move_by: (isize, isize),
     square: &Arc<RwLock<Self>>,
   ) {
     for collision in collision_list {
       let collision_guard = collision.lock().unwrap();
-      let object_name = collision_guard.get_name().to_lowercase();
+      let model_name = collision_guard.get_name().to_lowercase();
       drop(collision_guard);
 
-      match object_name.trim() {
+      match model_name.trim() {
         "square" => Square::pushed_square(screen_config, collision.clone(), move_by),
         "wall" => {
           let move_back = (-move_by.0, -move_by.1);
@@ -103,9 +103,9 @@ impl Wall {
     let name = String::from("Wall");
     let hitbox_data = HitboxCreationData::new(&wall_string, 'c');
 
-    let object_data = ObjectData::new(position, sprite, hitbox_data, Strata(100), name).unwrap();
+    let model_data = ModelData::new(position, sprite, hitbox_data, Strata(100), name).unwrap();
     Self {
-      object_data: Arc::new(Mutex::new(object_data)),
+      model_data: Arc::new(Mutex::new(model_data)),
     }
   }
 
@@ -144,19 +144,19 @@ fn main() {
 
   screen_config.screen.print_screen().log_if_err();
 
-  // spin_object(&mut screen, square); // for automatic movement
+  // spin_model(&mut screen, square); // for automatic movement
   user_move(&mut screen_config, square_list.remove(0)); // for user movement
 
   warn!("Program closed.");
 }
 
 #[allow(dead_code)]
-fn spin_object<O: Object>(screen: &mut ScreenData, mut object: O) {
+fn spin_model<O: Model>(screen: &mut ScreenData, mut model: O) {
   for _ in 0..100 {
     for _ in 0..26 {
       screen.print_screen().log_if_err();
 
-      object.move_by((2, 0));
+      model.move_by((2, 0));
 
       screen.wait_for_x_ticks(1);
     }
@@ -164,7 +164,7 @@ fn spin_object<O: Object>(screen: &mut ScreenData, mut object: O) {
     for _ in 0..13 {
       screen.print_screen().log_if_err();
 
-      object.move_by((0, 1));
+      model.move_by((0, 1));
 
       screen.wait_for_x_ticks(2);
     }
@@ -172,7 +172,7 @@ fn spin_object<O: Object>(screen: &mut ScreenData, mut object: O) {
     for _ in 0..26 {
       screen.print_screen().log_if_err();
 
-      object.move_by((-1, 0));
+      model.move_by((-1, 0));
 
       screen.wait_for_x_ticks(1);
     }
@@ -180,7 +180,7 @@ fn spin_object<O: Object>(screen: &mut ScreenData, mut object: O) {
     for _ in 0..13 {
       screen.print_screen().log_if_err();
 
-      object.move_by((0, -1));
+      model.move_by((0, -1));
 
       screen.wait_for_x_ticks(2);
     }
@@ -188,7 +188,7 @@ fn spin_object<O: Object>(screen: &mut ScreenData, mut object: O) {
 }
 
 #[allow(dead_code)]
-// fn user_move<O: Object + std::fmt::Debug>(screen: &mut ScreenData, mut object: O) {
+// fn user_move<O: Model + std::fmt::Debug>(screen: &mut ScreenData, mut model: O) {
 fn user_move(screen_config: &mut ScreenConfig, square: Arc<RwLock<Square>>) {
   let (user_input, input_kill_sender) = spawn_input_thread();
   let square_guard = square.read().unwrap();
@@ -246,7 +246,7 @@ fn user_move(screen_config: &mut ScreenConfig, square: Arc<RwLock<Square>>) {
       .print_screen()
       .unwrap_or_else(|error| error!("{error:?}"));
 
-    // info!("current_object_data: \n{:#?}", object);
+    // info!("current_model_data: \n{:#?}", model);
     screen_config.screen.wait_for_x_ticks(1);
   }
 }

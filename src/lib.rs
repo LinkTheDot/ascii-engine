@@ -19,16 +19,16 @@ pub mod general_data {
   pub mod user_input;
 }
 
-pub mod objects {
+pub mod models {
   pub mod errors;
   pub mod hitboxes;
-  pub mod object_data;
+  pub mod model_data;
   pub mod sprites;
   pub mod traits;
 }
 
 pub mod screen {
   pub mod errors;
-  pub mod objects;
+  pub mod models;
   pub mod screen_data;
 }

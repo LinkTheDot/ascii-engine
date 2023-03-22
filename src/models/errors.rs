@@ -1,14 +1,14 @@
-use crate::objects::object_data::Strata;
+use crate::models::model_data::Strata;
 
 #[derive(Debug, PartialEq, Eq)]
 /// This is the list of possible errors that could occurr
-/// while handling objects.
-pub enum ObjectError {
-  /// While creating the object, no center point
+/// while handling models.
+pub enum ModelError {
+  /// While creating the model, no center point
   /// was found.
   NoCenter,
 
-  /// While creating the object, no every row
+  /// While creating the model, no every row
   /// contained the same amount of characters.
   NonRectangularShape,
 
@@ -21,17 +21,17 @@ pub enum ObjectError {
   /// This error is returned when a strata that wasn't 0-100 was passed in.
   IncorrectStrataRange(Strata),
 
-  /// The object has attempted to move out of bounds.
+  /// The model has attempted to move out of bounds.
   OutOfBounds(Direction),
 
-  /// A thread holding a copy of an object panicked when trying to obtain the lock of said object.
+  /// A thread holding a copy of an model panicked when trying to obtain the lock of said model.
   FailedToGetLock,
 
-  /// When an object that already exists is attempted to be inserted into the screen.
-  ObjectAlreadyExists,
+  /// When an model that already exists is attempted to be inserted into the screen.
+  ModelAlreadyExists,
 
-  /// When internal object data was attempted to be changed with an object hash that doesn't exist.
-  ObjectDoesntExist,
+  /// When internal model data was attempted to be changed with an model hash that doesn't exist.
+  ModelDoesntExist,
 }
 
 #[derive(Debug, PartialEq, Eq)]
