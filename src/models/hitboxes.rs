@@ -1,7 +1,8 @@
 use crate::general_data::coordinates::*;
 use crate::models::errors::*;
 use crate::CONFIG;
-use guard::guard;
+use log::error;
+use std::cmp::Ordering;
 
 #[derive(Debug)]
 pub struct Hitbox {
@@ -75,11 +76,26 @@ impl HitboxCreationData {
 
     let (hitbox_width, hitbox_height) = valid_rectangle_check(&self.shape)?;
     let hitbox = &self.shape.split('\n').collect::<String>();
-    let hitbox_center_index = hitbox
+    let hitbox_center_indices: Vec<usize> = hitbox
       .chars()
-      .position(|pixel| pixel == self.center_character);
+      .enumerate()
+      .filter(|(_, character)| character == &self.center_character)
+      .map(|(index, _)| index)
+      .collect();
 
-    guard!( let Some(hitbox_center_index) = hitbox_center_index else { return Err(ModelError::NoCenter) });
+    let hitbox_center_index = match hitbox_center_indices.len().cmp(&1) {
+      Ordering::Equal => hitbox_center_indices[0],
+      Ordering::Greater => {
+        error!("Multiple centers were found when attempting to make a hitbox.");
+
+        return Err(ModelError::MultipleCentersFound(hitbox_center_indices));
+      }
+      Ordering::Less => {
+        error!("No centers were found when attempting to make a hitbox.");
+
+        return Err(ModelError::NoCenter);
+      }
+    };
 
     let hitbox_center_coordinates = (
       (hitbox_center_index % hitbox_width) as isize,

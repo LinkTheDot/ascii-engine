@@ -1,4 +1,5 @@
 use crate::models::model_data::Strata;
+use std::ffi::OsString;
 
 #[derive(Debug, PartialEq, Eq)]
 /// This is the list of possible errors that could occurr
@@ -32,26 +33,29 @@ pub enum ModelError {
 
   /// When internal model data was attempted to be changed with an model hash that doesn't exist.
   ModelDoesntExist,
+
+  /// There were multiple centers found in the object's appearance and or hitbox.
+  ///
+  /// Returns the list of indexes the center was found in.
+  MultipleCentersFound(Vec<usize>),
+
+  /// Contains the types of errors that can happen when parsing a model file.
+  ModelCreationError(ModelCreationError),
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum ModelCreationError {
   /// Invalid syntax was found with the line it was on being contained in the error.
   InvalidSyntax(usize),
 
   /// A string that was suppose to be 1 character was found to be more or less than 1.
   /// The line in which this happened is contained in the error.
-  InvalidStringSize(usize),
+  InvalidStringSizeAtLine(usize),
 
   /// A Model has a strata range that's impossible.
   ///
   /// Returns the given strata range.
   InvalidStrataRange(usize),
-
-  /// When parsing the appearance of the model, no center was found.
-  SkinHadNoCenter,
-
-  /// When parsing the hitbox of the model, no center was found.
-  HitboxHadNoCenter,
 
   /// When parsing the appearance of the model, it was found to be non-rectangular.
   InvalidSkinShape,
@@ -59,21 +63,18 @@ pub enum ModelCreationError {
   /// When parsing the hitbox of the model, it was found to be non-rectangular.
   InvalidHitboxShape,
 
-  /// There was no replacement character found for the center character.
+  /// One or more fields of data were missing from the model file.
   ///
-  /// Models need a character to replace the center character in the string.
-  NoCenterReplacement,
+  /// Contains a list of everything that was missing.
+  MissingData(Vec<String>),
 
-  /// The model was given no name.
-  NoModelName,
-
-  /// There was no air character assigned to the model's appearance.
-  NoAirCharacter,
-
-  /// There were multiple centers found in the object's appearance and or hitbox.
+  /// Failed to find the model file with the given path.
   ///
-  /// Returns the list of indexes the center was found in.
-  MultipleCentersFound(Vec<usize>),
+  /// Contains the path that was passed in.
+  ModelFileDoesntExist(Option<OsString>),
+
+  /// The model file exists, but has no content inside of it.
+  ModelFileIsEmpty,
 }
 
 #[derive(Debug, PartialEq, Eq)]

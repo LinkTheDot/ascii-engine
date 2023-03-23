@@ -3,6 +3,7 @@ use ascii_engine::general_data::user_input::spawn_input_thread;
 use ascii_engine::prelude::*;
 // use ascii_engine::screen::models::Models;
 use crate::screen_config::*;
+use std::path::Path;
 use std::sync::{Arc, Mutex, RwLock};
 
 #[allow(unused)]
@@ -21,31 +22,16 @@ pub struct Wall {
 }
 
 impl Square {
-  fn new(position: (usize, usize)) -> Self {
-    let sprite = get_square_sprite();
-    let hitbox = get_square_hitbox();
-    let name = String::from("Square");
-    let square_model_data = ModelData::new(position, sprite, hitbox, Strata(0), name).unwrap();
+  fn from_file(path: &Path, position: (usize, usize)) -> Self {
+    let model_data = ModelData::from_file(path, position).unwrap();
 
-    Square {
-      model_data: Arc::new(Mutex::new(square_model_data)),
+    Self {
+      model_data: Arc::new(Mutex::new(model_data)),
     }
   }
 
   fn wrap_self(self) -> Arc<RwLock<Self>> {
     Arc::new(RwLock::new(self))
-  }
-
-  fn create_empty_square(position: (usize, usize)) -> Self {
-    let skin = Skin::new("%%%%%\n%-c-%\n%%%%%", 'c', '-', '-').unwrap();
-    let sprite = Sprite::new(skin).unwrap();
-    let hitbox = HitboxCreationData::new("", '-');
-    let name = String::from("Square");
-    let square_model_data = ModelData::new(position, sprite, hitbox, Strata(5), name).unwrap();
-
-    Square {
-      model_data: Arc::new(Mutex::new(square_model_data)),
-    }
   }
 
   fn pushed_square(
@@ -95,15 +81,9 @@ impl Square {
 }
 
 impl Wall {
-  fn new(position: (usize, usize)) -> Self {
-    let wall_string =
-      "|||||\n|||||\n|||||\n|||||\n|||||\n||c||\n|||||\n|||||\n|||||\n|||||\n|||||".to_string();
-    let skin = Skin::new(&wall_string, 'c', '|', '-').unwrap();
-    let sprite = Sprite::new(skin).unwrap();
-    let name = String::from("Wall");
-    let hitbox_data = HitboxCreationData::new(&wall_string, 'c');
+  fn from_file(path: &Path, position: (usize, usize)) -> Self {
+    let model_data = ModelData::from_file(path, position).unwrap();
 
-    let model_data = ModelData::new(position, sprite, hitbox_data, Strata(100), name).unwrap();
     Self {
       model_data: Arc::new(Mutex::new(model_data)),
     }
@@ -122,15 +102,18 @@ fn main() {
     .into_iter()
     .enumerate()
     .map(|(count, position)| {
-      if (count + 1) % 4 == 0 {
-        Square::create_empty_square(position)
+      let square_path = if (count + 1) % 4 == 0 {
+        Path::new("examples/models/air_square.model")
       } else {
-        Square::new(position)
-      }
+        Path::new("examples/models/square.model")
+      };
+
+      Square::from_file(square_path, position)
     })
     .collect();
 
-  let wall = Wall::new((30, 15));
+  let wall_path = Path::new("examples/models/wall.model");
+  let wall = Wall::from_file(wall_path, (30, 15));
 
   info!("{:#?}", square_list[0]);
 
@@ -249,17 +232,6 @@ fn user_move(screen_config: &mut ScreenConfig, square: Arc<RwLock<Square>>) {
     // info!("current_model_data: \n{:#?}", model);
     screen_config.screen.wait_for_x_ticks(1);
   }
-}
-
-fn get_square_sprite() -> Sprite {
-  let skin = Skin::new("xxxxx\nx-c-x\nxxxxx", 'c', '-', '-').unwrap();
-  // "--x--\n-xxx-\nxxxxx\nx-c-x"
-
-  Sprite::new(skin).unwrap()
-}
-
-fn get_square_hitbox() -> HitboxCreationData {
-  HitboxCreationData::new("xxxxx\nxxcxx\nxxxxx", 'c')
 }
 
 trait ResultTraits {
