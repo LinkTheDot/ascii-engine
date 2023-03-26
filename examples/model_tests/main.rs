@@ -1,8 +1,10 @@
 // use ascii_engine::general_data::coordinates::*;
 use ascii_engine::general_data::user_input::spawn_input_thread;
 use ascii_engine::prelude::*;
+use std::collections::VecDeque;
 // use ascii_engine::screen::models::Models;
 use crate::screen_config::*;
+use guard::guard;
 use std::path::Path;
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -10,6 +12,8 @@ use std::sync::{Arc, Mutex, RwLock};
 use log::{debug, error, info, warn};
 
 mod screen_config;
+
+// type CollisionList = VecDeque<((isize, isize), VecDeque<Arc<Mutex<ModelData>>>)>;
 
 #[derive(Debug, Model)]
 pub struct Square {
@@ -34,47 +38,51 @@ impl Square {
     Arc::new(RwLock::new(self))
   }
 
-  fn pushed_square(
-    screen_config: &mut ScreenConfig,
-    square: Arc<Mutex<ModelData>>,
-    move_by: (isize, isize),
-  ) {
-    let pushed_model_guard = square.lock().unwrap();
-    let pushed_model_hash = *pushed_model_guard.get_unique_hash();
-    drop(pushed_model_guard);
-
-    let pushed_model = screen_config.get_square(&pushed_model_hash);
-
-    let mut pushed_model_guard = pushed_model.write().unwrap();
-    let collisions = pushed_model_guard.move_by(move_by);
-    drop(pushed_model_guard);
-
-    Square::check_collisions(collisions, screen_config, move_by, &pushed_model);
-  }
-
   fn check_collisions(
-    collision_list: Vec<Arc<Mutex<ModelData>>>,
-    screen_config: &mut ScreenConfig,
+    initial_square: &Arc<RwLock<Self>>,
+    mut collision_list: VecDeque<Arc<Mutex<ModelData>>>,
     move_by: (isize, isize),
-    square: &Arc<RwLock<Self>>,
+    screen_config: &mut ScreenConfig,
   ) {
-    for collision in collision_list {
-      let collision_guard = collision.lock().unwrap();
-      let model_name = collision_guard.get_name().to_lowercase();
+    while !collision_list.is_empty() {
+      guard!( let Some(collided_model) = collision_list.pop_back() else { return; });
+
+      let collision_guard = collided_model.lock().unwrap();
+      let mut model_name = collision_guard.get_name().to_lowercase();
       drop(collision_guard);
 
+      if model_name.contains("square") {
+        model_name = "square".to_string();
+      }
+
       match model_name.trim() {
-        "square" => Square::pushed_square(screen_config, collision.clone(), move_by),
+        "square" => {
+          let pushed_model_guard = collided_model.lock().unwrap();
+          let pushed_model_hash = *pushed_model_guard.get_unique_hash();
+          drop(pushed_model_guard);
+
+          let pushed_model = screen_config.get_square(&pushed_model_hash);
+
+          let mut pushed_model_guard = pushed_model.write().unwrap();
+          let new_model_collisions = VecDeque::from(pushed_model_guard.move_by(move_by));
+          drop(pushed_model_guard);
+
+          let collisions = (move_by, new_model_collisions);
+
+          Self::check_collisions(&pushed_model, collisions.1, collisions.0, screen_config);
+        }
         "wall" => {
           let move_back = (-move_by.0, -move_by.1);
 
-          let mut square_guard = square.write().unwrap();
-          let new_collisions = square_guard.move_by(move_back);
+          let mut square_guard = initial_square.write().unwrap();
+          let collisions = square_guard.move_by(move_back);
           drop(square_guard);
 
-          Square::check_collisions(new_collisions, screen_config, move_back, square);
+          let collisions = (move_back, VecDeque::from(collisions));
+
+          Self::check_collisions(initial_square, collisions.1, collisions.0, screen_config);
         }
-        _ => continue,
+        _ => (),
       }
     }
   }
@@ -97,7 +105,7 @@ impl Wall {
 fn main() {
   let screen = ScreenData::new().unwrap();
 
-  let square_position_list = vec![(5, 5), (10, 10), (20, 20), (15, 5)];
+  let square_position_list = vec![(20, 10), (25, 10), (20, 20), (15, 5)];
   let square_list: Vec<Square> = square_position_list
     .into_iter()
     .enumerate()
@@ -115,7 +123,7 @@ fn main() {
   let wall_path = Path::new("examples/models/wall.model");
   let wall = Wall::from_file(wall_path, (30, 15));
 
-  info!("{:#?}", square_list[0]);
+  // info!("{:#?}", square_list[0]);
 
   let mut screen_config = ScreenConfig::new(screen);
 
@@ -127,51 +135,11 @@ fn main() {
 
   screen_config.screen.print_screen().log_if_err();
 
-  // spin_model(&mut screen, square); // for automatic movement
   user_move(&mut screen_config, square_list.remove(0)); // for user movement
 
   warn!("Program closed.");
 }
 
-#[allow(dead_code)]
-fn spin_model<O: Model>(screen: &mut ScreenData, mut model: O) {
-  for _ in 0..100 {
-    for _ in 0..26 {
-      screen.print_screen().log_if_err();
-
-      model.move_by((2, 0));
-
-      screen.wait_for_x_ticks(1);
-    }
-
-    for _ in 0..13 {
-      screen.print_screen().log_if_err();
-
-      model.move_by((0, 1));
-
-      screen.wait_for_x_ticks(2);
-    }
-
-    for _ in 0..26 {
-      screen.print_screen().log_if_err();
-
-      model.move_by((-1, 0));
-
-      screen.wait_for_x_ticks(1);
-    }
-
-    for _ in 0..13 {
-      screen.print_screen().log_if_err();
-
-      model.move_by((0, -1));
-
-      screen.wait_for_x_ticks(2);
-    }
-  }
-}
-
-#[allow(dead_code)]
-// fn user_move<O: Model + std::fmt::Debug>(screen: &mut ScreenData, mut model: O) {
 fn user_move(screen_config: &mut ScreenConfig, square: Arc<RwLock<Square>>) {
   let (user_input, input_kill_sender) = spawn_input_thread();
   let square_guard = square.read().unwrap();
@@ -208,13 +176,11 @@ fn user_move(screen_config: &mut ScreenConfig, square: Arc<RwLock<Square>>) {
       _ => continue,
     };
 
-    // info!("Position: ({}, {})", current_x, current_y);
-    // square.move_to((current_x, current_y)).unwrap();
     let mut square_guard = square.write().unwrap();
-    let collisions = square_guard.move_by(move_by);
+    let collisions = VecDeque::from(square_guard.move_by(move_by));
     drop(square_guard);
 
-    Square::check_collisions(collisions, screen_config, move_by, &square);
+    Square::check_collisions(&square, collisions, move_by, screen_config);
 
     let square_guard = square.read().unwrap();
     let new_position = square_guard.get_top_left_position();

@@ -4,7 +4,7 @@ center_replacement='|'
 air='-'
 name='Wall'
 strata='100'
---
+-=--=-
 Appearance
 |||||
 |||||
@@ -17,7 +17,7 @@ Appearance
 |||||
 |||||
 |||||
---
+-=--=-
 Hitbox_Dimensions
 |||||
 |||||
@@ -30,3 +30,4 @@ Hitbox_Dimensions
 |||||
 |||||
 |||||
+-=--=-

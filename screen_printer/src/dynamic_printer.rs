@@ -83,6 +83,7 @@ pub trait DynamicPrinter {
   fn clear_grid(&mut self) -> Result<(), PrintingError>;
 }
 
+// ari smells
 impl DynamicPrinter for Printer {
   fn dynamic_print(&mut self, grid: String) -> Result<(), PrintingError> {
     if self.grid_size_matches_previous_grid(&grid) {

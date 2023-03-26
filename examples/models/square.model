@@ -1,16 +1,18 @@
 SKIN
++- This line will not be run because it has "+- " in it
 center='c'
 center_replacement='-'
 air='-'
 name='Square'
 strata='0'
---
+-=--=-
 Appearance
 xxxxx
 x-c-x
 xxxxx
---
+-=--=-
 Hitbox_Dimensions
 xxxxx
 xxcxx
 xxxxx
+-=--=-
