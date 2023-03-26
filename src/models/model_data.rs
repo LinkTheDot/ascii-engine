@@ -7,7 +7,7 @@ use crate::screen::models::Models;
 use crate::CONFIG;
 use guard::guard;
 use std::sync::{Arc, RwLock};
-use std::{fs::OpenOptions, path::Path};
+use std::{fs::File, path::Path};
 
 #[allow(unused)]
 use log::debug;
@@ -84,14 +84,14 @@ impl ModelData {
     })
   }
 
-  pub fn from_file(model_file_path: &Path, position: (usize, usize)) -> Result<Self, ModelError> {
-    let model_file = OpenOptions::new()
-      .read(true)
-      .create_new(false)
-      .open(model_file_path);
+  pub fn from_file(
+    model_file_path: &Path,
+    frame_position: (usize, usize),
+  ) -> Result<Self, ModelError> {
+    let model_file = File::open(model_file_path);
 
     match model_file {
-      Ok(file) => ModelParser::parse(file, position),
+      Ok(file) => ModelParser::parse(file, frame_position),
       Err(_) => {
         let file_path = model_file_path
           .file_name()

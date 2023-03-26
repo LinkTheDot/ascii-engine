@@ -1,11 +1,12 @@
 use crate::models::errors::*;
 use crate::models::{hitboxes::*, model_data::*};
-use log::{debug, error};
+use guard::guard;
+use log::error;
 use std::io::Read;
 
 pub struct ModelParser;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct ModelDataBuilder {
   center: Option<char>,
   center_replacement: Option<char>,
@@ -26,7 +27,7 @@ enum Section {
 
 impl ModelDataBuilder {
   fn build(self, position: (usize, usize)) -> Result<ModelData, ModelError> {
-    if let Err(error) = self.check_if_all_data_is_exists() {
+    if let Err(error) = self.check_if_all_data_exists() {
       return Err(ModelError::ModelCreationError(error));
     }
 
@@ -68,8 +69,8 @@ impl ModelDataBuilder {
   /// Returns the ModelCreationError::MissingData() error.
   ///
   /// This will contain a list of every missing field as strings.
-  /// These strings will desribe everything that was missing.
-  fn check_if_all_data_is_exists(&self) -> Result<(), ModelCreationError> {
+  /// These strings will describe everything that was missing.
+  fn check_if_all_data_exists(&self) -> Result<(), ModelCreationError> {
     let mut error_list = vec![];
 
     if self.center.is_none() {
@@ -111,87 +112,100 @@ impl ModelDataBuilder {
 }
 
 impl ModelParser {
-  #[allow(clippy::wildcard_in_or_patterns)]
+  /// Comments: if "+- " is anywhere on a line, it'll be ignored
+  /// Spliters: Are -=--=-
   pub fn parse(
     mut model_file: std::fs::File,
-    position: (usize, usize),
+    frame_position: (usize, usize),
   ) -> Result<ModelData, ModelError> {
-    let mut file_string = String::new();
-    model_file.read_to_string(&mut file_string).unwrap();
+    let mut file_string_buffer = String::new();
+    model_file.read_to_string(&mut file_string_buffer).unwrap();
 
-    if file_string.is_empty() {
-      let error = ModelCreationError::ModelFileIsEmpty;
-
-      return Err(ModelError::ModelCreationError(error));
+    if file_string_buffer.is_empty() {
+      return Err(ModelError::ModelCreationError(
+        ModelCreationError::ModelFileIsEmpty,
+      ));
     }
 
-    let file_string_rows = file_string.split('\n');
+    let file_string_rows: Vec<&str> = file_string_buffer.split('\n').collect();
+    let model_data_builder = ModelParser::parse_rows(file_string_rows)?;
+
+    model_data_builder.build(frame_position)
+  }
+
+  fn parse_rows(model_file_lines: Vec<&str>) -> Result<ModelDataBuilder, ModelError> {
     let mut model_data_builder = ModelDataBuilder::default();
     let mut section = Section::Unknown;
     let mut appearance_rows: Vec<&str> = vec![];
     let mut hitbox_dimension_rows: Vec<&str> = vec![];
 
-    for (line_number, file_row) in file_string_rows.enumerate() {
-      // Accounts for the fact that lines start at 1 not 0.
-      let line_number = line_number + 1;
+    model_file_lines
+      .iter()
+      .enumerate()
+      .try_for_each(|(iteration, model_file_line)| {
+        // Accounts for the fact that lines start at 1 not 0.
+        let line_number = iteration + 1;
 
-      // Headers
-      // - SKIN
-      // - HitboxDimensions
-      // - Appearance
-      //
-      // Contents
-      // - center
-      // - center_replacement
-      // - air
-      // - name
-      // - strata
-      //
-      // Spacers
-      // - --
-      // - =
-      //
-      // Containers
-      // - ''
+        match model_file_line.to_lowercase().trim() {
+          // Spacers
+          // - --
+          // - =
+          "-=--=-" => section = Section::Unknown,
+          "" => section = Section::Unknown,
 
-      match file_row.to_lowercase().trim() {
-        "--" => section = Section::Unknown,
-        "" => section = Section::Unknown,
-        "skin" => {
-          section = Section::Skin;
+          // Headers
+          // - Skin
+          // - HitboxDimensions
+          // - Appearance
+          "skin" => {
+            section = Section::Skin;
 
-          continue;
-        }
-        "appearance" => {
-          section = Section::Appearance;
+            return Ok(());
+          }
+          "appearance" => {
+            section = Section::Appearance;
 
-          continue;
-        }
-        "hitbox_dimensions" => {
-          section = Section::HitboxDimensions;
+            return Ok(());
+          }
+          "hitbox_dimensions" => {
+            section = Section::HitboxDimensions;
 
-          continue;
-        }
-        _ => (),
-      }
-
-      match section {
-        Section::Skin => {
-          debug!("In Skin");
-          section = Section::Skin;
-
-          if let Err(error) =
-            ModelParser::skin_checks(&mut model_data_builder, file_row, line_number)
-          {
-            return Err(ModelError::ModelCreationError(error));
+            return Ok(());
+          }
+          _ => {
+            if model_file_line.contains("+- ") {
+              return Ok(());
+            }
           }
         }
 
-        Section::Appearance => appearance_rows.push(file_row),
-        Section::HitboxDimensions => hitbox_dimension_rows.push(file_row),
-        _ => continue,
-      }
-    }
+        match section {
+          Section::Skin => {
+            // Contents
+            // - center
+            // - center_replacement
+            // - air
+            // - name
+            // - strata
+
+            section = Section::Skin;
+
+            // Containers
+            // - ''
+            if let Err(error) =
+              ModelParser::skin_checks(&mut model_data_builder, model_file_line, line_number)
+            {
+              return Err(ModelError::ModelCreationError(error));
+            }
+          }
+
+          Section::Appearance => appearance_rows.push(model_file_line),
+          Section::HitboxDimensions => hitbox_dimension_rows.push(model_file_line),
+          Section::Unknown => return Ok(()),
+        }
+
+        Ok(())
+      })?;
 
     let appearance = appearance_rows.join("\n");
     let hitbox_dimensions = hitbox_dimension_rows.join("\n");
@@ -199,45 +213,29 @@ impl ModelParser {
     model_data_builder.appearance = Some(appearance);
     model_data_builder.hitbox_dimensions = Some(hitbox_dimensions);
 
-    model_data_builder.build(position)
+    Ok(model_data_builder)
   }
 
   fn skin_checks(
     model_data_builder: &mut ModelDataBuilder,
-    file_row: &str,
+    model_file_row: &str,
     line_number: usize,
   ) -> Result<(), ModelCreationError> {
-    let mut data_type = String::new();
-    let mut row_contents = String::new();
+    let split_row: Vec<&str> = model_file_row.split('=').collect();
 
-    let mut left_hand_side = true;
-    let mut in_string = false;
-
-    // file_row.chars().for_each(|character| {
-    for character in file_row.chars() {
-      match character {
-        '=' => {
-          left_hand_side = false;
-        }
-        '\'' => {
-          in_string = !in_string;
-
-          continue;
-        }
-        _ => (),
-      };
-
-      if left_hand_side {
-        data_type.push(character);
-      } else if in_string {
-        row_contents.push(character);
-      }
+    if split_row.len() != 2 {
+      return Err(ModelCreationError::InvalidSyntax(line_number));
     }
-    // );
+
+    let data_type = split_row[0];
+    let contained_row_contents = split_row[1];
+
+    guard!( let Some(row_contents) = contained_row_contents.split('\'').nth(1) else {
+      return Err(ModelCreationError::InvalidSyntax(line_number));
+    });
 
     match data_type.to_lowercase().trim() {
       "center" => {
-        debug!("Got to center: {}", row_contents);
         let center_character = Self::contents_to_char(row_contents, line_number)?;
 
         model_data_builder.center = Some(center_character);
@@ -262,7 +260,7 @@ impl ModelParser {
           return Err(ModelCreationError::InvalidStringSizeAtLine(line_number));
         }
 
-        model_data_builder.name = Some(row_contents);
+        model_data_builder.name = Some(row_contents.to_string());
       }
 
       "strata" => {
@@ -291,7 +289,7 @@ impl ModelParser {
     Ok(())
   }
 
-  fn contents_to_char(contents: String, line_number: usize) -> Result<char, ModelCreationError> {
+  fn contents_to_char(contents: &str, line_number: usize) -> Result<char, ModelCreationError> {
     if contents.len() != 1 {
       return Err(ModelCreationError::InvalidStringSizeAtLine(line_number));
     }
