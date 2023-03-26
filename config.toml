@@ -1,4 +1,5 @@
 log_level = "debug"
+log_file_message_size = "long"
 empty_pixel = " "
 tick_duration = 12
 grid_width = 175

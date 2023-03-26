@@ -1,10 +1,13 @@
 use crate::general_data::{coordinates::*, hasher};
+use crate::models::errors::*;
 use crate::models::hitboxes::*;
+use crate::models::model_file_parser::ModelParser;
 pub use crate::models::traits::*;
 use crate::screen::models::Models;
 use crate::CONFIG;
 use guard::guard;
 use std::sync::{Arc, RwLock};
+use std::{fs::File, path::Path};
 
 #[allow(unused)]
 use log::debug;
@@ -79,6 +82,26 @@ impl ModelData {
       hitbox,
       existing_models: None,
     })
+  }
+
+  pub fn from_file(
+    model_file_path: &Path,
+    frame_position: (usize, usize),
+  ) -> Result<Self, ModelError> {
+    let model_file = File::open(model_file_path);
+
+    match model_file {
+      Ok(file) => ModelParser::parse(file, frame_position),
+      Err(_) => {
+        let file_path = model_file_path
+          .file_name()
+          .map(|path_string| path_string.to_owned());
+
+        let error = ModelCreationError::ModelFileDoesntExist(file_path);
+
+        Err(ModelError::ModelCreationError(error))
+      }
+    }
   }
 
   /// Returns the index of the model from the top left position.

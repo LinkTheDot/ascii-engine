@@ -23,6 +23,7 @@ pub mod models {
   pub mod errors;
   pub mod hitboxes;
   pub mod model_data;
+  pub mod model_file_parser;
   pub mod sprites;
   pub mod traits;
 }

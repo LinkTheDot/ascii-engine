@@ -1,0 +1,14 @@
+SKIN
+center='c'
+center_replacement='-'
+air='-'
+name='Square'
+strata='100'
+-=--=-
+Appearance
+%%%%%
+%-c-%
+%%%%%
+-=--=-
+Hitbox_Dimensions
+-=--=-

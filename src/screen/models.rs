@@ -116,24 +116,33 @@ impl Models {
       let current_strata = Strata(strata_number);
 
       guard!( let Some(strata_keys) = self.get_strata_keys(&current_strata) else { continue; } );
-      let model_list: Vec<Arc<Mutex<ModelData>>> = strata_keys
+
+      let incorrect_strata_list: Vec<(Strata, u64)> = strata_keys
         .iter()
         .map(|key| self.get_model(key).unwrap())
+        .filter_map(|model| {
+          let model_guard = model.lock().unwrap();
+          let model_strata = model_guard.get_strata();
+          let model_hash = *model_guard.get_unique_hash();
+
+          if model_strata != &current_strata {
+            drop(model_guard);
+
+            Some((current_strata, model_hash))
+          } else {
+            drop(model_guard);
+            None
+          }
+        })
         .collect();
 
-      for model in model_list {
-        let model_guard = model.lock().unwrap();
-        let model_strata = model_guard.get_strata();
-
-        if model_strata != &current_strata {
-          let model_hash = *model_guard.get_unique_hash();
-          drop(model_guard);
-
+      incorrect_strata_list
+        .into_iter()
+        .try_for_each(|(strata, model_hash)| {
           info!("{model_hash} changed stratas to {current_strata:?}");
 
-          self.change_model_strata(&model_hash, current_strata)?;
-        }
-      }
+          self.change_model_strata(&model_hash, strata)
+        })?;
     }
 
     Ok(())
