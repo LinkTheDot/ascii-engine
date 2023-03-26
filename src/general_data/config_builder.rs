@@ -3,10 +3,13 @@ use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::{fs::OpenOptions, path::Path};
 
+// log_file_message_size = "Long"
+
 /// The list of options for the config.
 #[derive(Deserialize, Serialize)]
 pub struct ConfigData {
   pub log_level: String,
+  pub log_file_message_size: String,
   pub empty_pixel: String,
 
   /// In milliseconds
@@ -19,6 +22,7 @@ impl Default for ConfigData {
   fn default() -> Self {
     Self {
       log_level: "debug".to_string(),
+      log_file_message_size: "long".to_string(),
       empty_pixel: " ".to_string(),
       tick_duration: 24,
       grid_width: 175,
@@ -85,6 +89,7 @@ impl ConfigTraits for ConfigBuilder<DefaultState> {
   {
     self
       .set_default("log_level", default_data.log_level)?
+      .set_default("log_file_message_size", default_data.log_file_message_size)?
       .set_default("empty_pixel", default_data.empty_pixel)?
       .set_default("tick_duration", default_data.tick_duration)?
       .set_default("grid_width", default_data.grid_width)?

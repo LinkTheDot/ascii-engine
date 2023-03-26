@@ -7,16 +7,25 @@ use log4rs::{
   encode::pattern::PatternEncoder,
 };
 
-/// Setups up the file logger for the program
+/// Creates a new log file in "crate/logs/".
+/// The new log file will be named after the current time and date based on UTC.
+/// The name format is as such Y-M-D-H:M:S-UTC or Year-Month-Day-Hour:Minute:Second-TimeZone.
+///
+/// The format in the log file can be multiple options.
+/// The default is "Long".
+///
+/// long: "Day(Hour:Minute:Second)(TimeZone) | FilePath: Line | Level - Message".
+/// short: "FilePath: Line | Level - Message".
+/// shortest: Level - "Message"
 pub fn setup_file_logger() -> Result<log4rs::Handle, SetLoggerError> {
   let date = Utc::now();
   let log_file_path = format!("logs/{date}").replace(' ', "-");
-  let logging_format = "{d(%H:%M:%S %Z)(utc)} | {f}: {L} | {l} - {m}\n";
 
+  let logging_format = get_logging_format();
   let log_level = get_log_level();
 
   let logfile = FileAppender::builder()
-    .encoder(Box::new(PatternEncoder::new(logging_format)))
+    .encoder(Box::new(PatternEncoder::new(&logging_format)))
     .build(log_file_path)
     .unwrap();
 
@@ -37,4 +46,17 @@ fn get_log_level() -> LevelFilter {
     "debug" => LevelFilter::Debug,
     _ => LevelFilter::Off,
   }
+}
+
+/// To get the list of possible fields refer to the docs listed below:
+/// https://docs.rs/log4rs/1.2.0/log4rs/encode/pattern/index.html#formatters
+fn get_logging_format() -> String {
+  let logging_format = match CONFIG.log_file_message_size.to_lowercase().trim() {
+    "long" => "{d(%H:%M:%S %Z)(utc)} | {f}: {L} | {l} - {m}\n",
+    "short" => "{f}: {L} - {l} - {m}\n",
+    "shortest" => "{m}\n",
+    _ => "{d(%H:%M:%S %Z)(utc)} | {f}: {L} | {l} - {m}\n",
+  };
+
+  logging_format.to_string()
 }
