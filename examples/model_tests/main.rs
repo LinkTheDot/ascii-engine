@@ -44,12 +44,8 @@ impl Square {
       guard!( let Some(collided_model) = collision_list.pop_back() else { return; });
 
       let collision_guard = collided_model.lock().unwrap();
-      let mut model_name = collision_guard.get_name().to_lowercase();
+      let model_name = collision_guard.get_name().to_lowercase();
       drop(collision_guard);
-
-      if model_name.contains("square") {
-        model_name = "square".to_string();
-      }
 
       match model_name.trim() {
         "square" => {
@@ -67,6 +63,7 @@ impl Square {
 
           Self::check_collisions(&pushed_model, collisions.1, collisions.0, screen_config);
         }
+
         "wall" => {
           let move_back = (-move_by.0, -move_by.1);
 
@@ -78,6 +75,7 @@ impl Square {
 
           Self::check_collisions(initial_square, collisions.1, collisions.0, screen_config);
         }
+
         _ => (),
       }
     }

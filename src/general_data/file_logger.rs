@@ -14,7 +14,7 @@ use log4rs::{
 /// The format in the log file can be multiple options.
 /// The default is "Long".
 ///
-/// long: "Day(Hour:Minute:Second)(TimeZone) | FilePath: Line | Level - Message".
+/// long: "(Hour:Minute:Second)(TimeZone) | FilePath: Line | Level - Message".
 /// short: "FilePath: Line | Level - Message".
 /// shortest: Level - "Message"
 pub fn setup_file_logger() -> Result<log4rs::Handle, SetLoggerError> {

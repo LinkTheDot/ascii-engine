@@ -48,6 +48,7 @@ impl ScreenConfig {
     Ok(wrapped_wall)
   }
 
+  #[allow(dead_code)]
   pub fn get_wall(&self, key: &u64) -> Arc<RwLock<Wall>> {
     self.models.wall.get(key).unwrap().clone()
   }

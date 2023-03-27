@@ -26,7 +26,7 @@ enum Section {
 }
 
 impl ModelDataBuilder {
-  fn build(self, position: (usize, usize)) -> Result<ModelData, ModelError> {
+  fn build(self, frame_position: (usize, usize)) -> Result<ModelData, ModelError> {
     if let Err(error) = self.check_if_all_data_exists() {
       return Err(ModelError::ModelCreationError(error));
     }
@@ -35,7 +35,7 @@ impl ModelDataBuilder {
     let sprite = self.build_sprite()?;
 
     ModelData::new(
-      position,
+      frame_position,
       sprite,
       hitbox_data,
       self.strata.unwrap(),
@@ -188,8 +188,6 @@ impl ModelParser {
             // - name
             // - strata
 
-            section = Section::Skin;
-
             // Containers
             // - ''
             if let Err(error) =
@@ -266,6 +264,7 @@ impl ModelParser {
       "strata" => {
         if row_contents.is_empty() {
           error!("Attempted to build an object with an empty strata value");
+
           return Err(ModelCreationError::InvalidStringSizeAtLine(line_number));
         }
 
@@ -290,10 +289,13 @@ impl ModelParser {
   }
 
   fn contents_to_char(contents: &str, line_number: usize) -> Result<char, ModelCreationError> {
-    if contents.len() != 1 {
+    if contents.len() > 1 {
       return Err(ModelCreationError::InvalidStringSizeAtLine(line_number));
     }
 
-    Ok(contents.chars().next().unwrap())
+    contents
+      .chars()
+      .next()
+      .ok_or(ModelCreationError::InvalidStringSizeAtLine(line_number))
   }
 }
