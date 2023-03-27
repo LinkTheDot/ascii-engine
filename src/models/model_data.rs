@@ -14,14 +14,15 @@ use log::debug;
 
 /// This is the data that will be required for the Model derive macro.
 ///
-/// ModelData contains data such as, the model's unique hash, the position of the
-/// defined center point, the strata, and the Sprite.
+/// ModelData is a collection of all data required for the screen to display a model.
+///
+/// (Mention Creation Here)
 #[derive(Debug)]
 pub struct ModelData {
   unique_hash: u64,
   assigned_name: String,
-  /// Relative position of the center from the top left of the skin
-  relative_center: (isize, isize),
+  /// Relative position of the top left to the model's world placement
+  placement_anchor: (isize, isize),
   /// counts new lines
   top_left_position: usize,
   strata: Strata,
@@ -75,7 +76,7 @@ impl ModelData {
     Ok(Self {
       unique_hash,
       assigned_name,
-      relative_center: position_data.1,
+      placement_anchor: position_data.1,
       strata,
       sprite,
       top_left_position: position_data.0,
@@ -120,18 +121,19 @@ impl ModelData {
     (sprite_skin_width, sprite_skin_height)
   }
 
-  /// Changes the center and top left position of the model.
+  /// Changes the placement_anchor and top left position of the model.
   ///
   /// Input is based on the top left of the model
   pub fn change_position(&mut self, new_position: usize) {
-    let new_center_index = new_position as isize
-      + self.relative_center.0
-      + (self.relative_center.1 * (CONFIG.grid_width as isize + 1));
+    let new_frame_anchor_index = new_position as isize
+      + self.placement_anchor.0
+      + (self.placement_anchor.1 * (CONFIG.grid_width as isize + 1));
 
-    let position_data = get_position_data(new_center_index as usize, &self.sprite);
+    let (frame_index, new_anchor) =
+      get_position_data(new_frame_anchor_index as usize, &self.sprite);
 
-    self.top_left_position = position_data.0;
-    self.relative_center = position_data.1;
+    self.top_left_position = frame_index;
+    self.placement_anchor = new_anchor;
   }
 
   /// Returns what the sprite classifies as air.
@@ -147,8 +149,8 @@ impl ModelData {
   /// Returns a reference to the current position
   pub fn get_model_position(&self) -> usize {
     (self.top_left_position as isize
-      + self.relative_center.0
-      + (self.relative_center.1 * (CONFIG.grid_width as isize + 1))) as usize
+      + self.placement_anchor.0
+      + (self.placement_anchor.1 * (CONFIG.grid_width as isize + 1))) as usize
   }
 
   /// Returns a reference to the String for the model's appearance
@@ -240,38 +242,17 @@ impl ModelData {
 
     model_list_guard.fix_strata_list()
   }
-
-  // Not needed for now, if collision checks become an issue for compute times in the future then implement this.
-  //
-  // pub fn calculate_section(top_left_position: usize) -> u8 {
-  //   // section_x_divisor = grid_one_width / grid_two_width
-  //   let section_x_divisor = CONFIG.grid_width as f32 / CONFIG.grid_sections_width as f32;
-  //   // section_y_divisor = grid_one_height / grid_two_height
-  //   let section_y_divisor = CONFIG.grid_height as f32 / CONFIG.grid_sections_height as f32;
-  //
-  //   let (mut model_x, model_y) =
-  //     top_left_position.index_to_coordinates(CONFIG.grid_width as usize + 1);
-  //
-  //   // accounts for the fact that the position of models is based off of "grid_width + 1".
-  //   // This is needed because the calculation for the section is based off the true grid width.
-  //   model_x -= model_y;
-  //
-  //   // x_position_in_grid_two = floor(model_x / section_x_divisor)
-  //   let section_x = (model_x as f32 / section_x_divisor).floor();
-  //   // y_position_in_grid_two = floor(model_y / section_y_divisor)
-  //   let section_y = (model_y as f32 / section_y_divisor).floor();
-  //
-  //   // convert to an index
-  //   (section_x + (CONFIG.grid_sections_width as f32 * section_y)) as u8
-  // }
 }
 
 /// An model's position is an index of a frame.
 /// This index will account for any newlines.
 ///
-/// Returns (top_left_position, relative_position_of_model_center)
+/// Takes the world placement of a model and returns it's index in a frame and
+/// the relative distance of the FrameIndex to the WorldPlacement.
+///
+/// Returns (TopLeftFrameIndex, WorldPlacementAnchor)
 fn get_position_data(model_position: usize, sprite: &Sprite) -> (usize, (isize, isize)) {
-  let relative_coordinates = get_relative_position_of_center_to_top_left(sprite);
+  let relative_coordinates = get_frame_index_to_world_placement_anchor(sprite);
 
   let true_width = CONFIG.grid_width as isize + 1;
 
@@ -285,22 +266,23 @@ fn get_position_data(model_position: usize, sprite: &Sprite) -> (usize, (isize, 
   )
 }
 
-fn get_relative_position_of_center_to_top_left(sprite: &Sprite) -> (isize, isize) {
+///
+fn get_frame_index_to_world_placement_anchor(sprite: &Sprite) -> (isize, isize) {
   let sprite_rows: Vec<&str> = sprite.get_shape().split('\n').collect();
   let sprite_width = sprite_rows[0].chars().count() as isize;
 
-  let skin_center_index = sprite.get_center_character_index() as isize;
-  let skin_center_coordinates = (
-    skin_center_index % sprite_width,
-    skin_center_index / sprite_width,
+  let skin_anchor_index = sprite.get_anchor_character_index() as isize;
+  let skin_anchor_coordinates = (
+    skin_anchor_index % sprite_width,
+    skin_anchor_index / sprite_width,
   );
 
-  (-skin_center_coordinates.0, -skin_center_coordinates.1)
+  (-skin_anchor_coordinates.0, -skin_anchor_coordinates.1)
 }
 
 impl PartialEq for ModelData {
   fn eq(&self, other: &Self) -> bool {
-    self.relative_center == other.relative_center
+    self.placement_anchor == other.placement_anchor
       && self.top_left_position == other.top_left_position
       && self.strata == other.strata
       && self.sprite == other.sprite
@@ -312,8 +294,8 @@ mod tests {
   use super::*;
 
   const SHAPE: &str = "x-x\nxcx\nx-x";
-  const CENTER_CHAR: char = 'c';
-  const CENTER_REPLACEMENT_CHAR: char = '-';
+  const ANCHOR_CHAR: char = 'c';
+  const ANCHOR_REPLACEMENT_CHAR: char = '-';
   const AIR_CHAR: char = '-';
 
   #[test]
@@ -331,12 +313,12 @@ mod tests {
   }
 
   #[test]
-  fn get_0_0_relative_to_center_logic() {
+  fn get_frame_index_to_world_placement_anchor_logic() {
     let sprite = get_sprite();
 
     let expected_position = (-1, -1);
 
-    let relative_position = get_relative_position_of_center_to_top_left(&sprite);
+    let relative_position = get_frame_index_to_world_placement_anchor(&sprite);
 
     assert_eq!(relative_position, expected_position);
   }
@@ -351,6 +333,6 @@ mod tests {
   }
 
   fn get_skin() -> Skin {
-    Skin::new(SHAPE, CENTER_CHAR, CENTER_REPLACEMENT_CHAR, AIR_CHAR).unwrap()
+    Skin::new(SHAPE, ANCHOR_CHAR, ANCHOR_REPLACEMENT_CHAR, AIR_CHAR).unwrap()
   }
 }

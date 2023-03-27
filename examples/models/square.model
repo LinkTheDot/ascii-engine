@@ -1,7 +1,7 @@
 SKIN
 +- This line will not be run because it has "+- " in it
-center='c'
-center_replacement='-'
+anchor='c'
+anchor_replacement='-'
 air='-'
 name='Square'
 strata='0'

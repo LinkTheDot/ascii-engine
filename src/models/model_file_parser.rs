@@ -8,8 +8,8 @@ pub struct ModelParser;
 
 #[derive(Default, Debug)]
 struct ModelDataBuilder {
-  center: Option<char>,
-  center_replacement: Option<char>,
+  anchor: Option<char>,
+  anchor_replacement: Option<char>,
   air: Option<char>,
   name: Option<String>,
   strata: Option<Strata>,
@@ -46,8 +46,8 @@ impl ModelDataBuilder {
   fn build_sprite(&self) -> Result<Sprite, ModelError> {
     let skin = Skin::new(
       self.appearance.as_ref().unwrap(),
-      self.center.unwrap(),
-      self.center_replacement.unwrap(),
+      self.anchor.unwrap(),
+      self.anchor_replacement.unwrap(),
       self.air.unwrap(),
     )?;
 
@@ -56,9 +56,9 @@ impl ModelDataBuilder {
 
   fn build_hitbox_data(&self) -> HitboxCreationData {
     let hitbox_shape = &self.hitbox_dimensions.as_ref().unwrap();
-    let center_character = self.center.unwrap();
+    let anchor_character = self.anchor.unwrap();
 
-    HitboxCreationData::new(hitbox_shape, center_character)
+    HitboxCreationData::new(hitbox_shape, anchor_character)
   }
 
   /// Checks if every field in the given ModelDataBuilder exists.
@@ -73,12 +73,12 @@ impl ModelDataBuilder {
   fn check_if_all_data_exists(&self) -> Result<(), ModelCreationError> {
     let mut error_list = vec![];
 
-    if self.center.is_none() {
-      error_list.push("Center Character".to_string());
+    if self.anchor.is_none() {
+      error_list.push("Anchor Character".to_string());
     }
 
-    if self.center_replacement.is_none() {
-      error_list.push("Center Replacement Character".to_string());
+    if self.anchor_replacement.is_none() {
+      error_list.push("Anchor Replacement Character".to_string());
     }
 
     if self.air.is_none() {
@@ -182,8 +182,8 @@ impl ModelParser {
         match section {
           Section::Skin => {
             // Contents
-            // - center
-            // - center_replacement
+            // - anchor
+            // - anchor_replacement
             // - air
             // - name
             // - strata
@@ -233,16 +233,16 @@ impl ModelParser {
     });
 
     match data_type.to_lowercase().trim() {
-      "center" => {
-        let center_character = Self::contents_to_char(row_contents, line_number)?;
+      "anchor" => {
+        let anchor_character = Self::contents_to_char(row_contents, line_number)?;
 
-        model_data_builder.center = Some(center_character);
+        model_data_builder.anchor = Some(anchor_character);
       }
 
-      "center_replacement" => {
-        let center_replacement = Self::contents_to_char(row_contents, line_number)?;
+      "anchor_replacement" => {
+        let anchor_replacement = Self::contents_to_char(row_contents, line_number)?;
 
-        model_data_builder.center_replacement = Some(center_replacement);
+        model_data_builder.anchor_replacement = Some(anchor_replacement);
       }
 
       "air" => {

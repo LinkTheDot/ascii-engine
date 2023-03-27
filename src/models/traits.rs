@@ -8,7 +8,7 @@ pub use model_macros::Model;
 pub use std::sync::{Arc, Mutex, RwLock};
 
 pub trait Model {
-  /// Returns the center position of the model.
+  /// Returns the world placement of the model.
   fn get_position(&self) -> usize;
   /// Returns the very top left position of the model.
   fn get_top_left_position(&self) -> usize;
@@ -29,12 +29,6 @@ pub trait Model {
   fn get_sprite(&self) -> String;
   /// Changes the appearance of the model.
   fn change_sprite(&mut self, new_model: String);
-
-  // /// Returns the list of relative points around the model's center that act
-  // /// as the model's hitbox.
-  // fn get_hitbox(&self) -> Vec<(isize, isize)>;
-  // ///
-  // fn change_hitbox(&mut self, new_hitbox_model: HitboxCreationData) -> Result<(), ModelError>;
 
   /// Returns a copy of the model's unique hash.
   fn get_unique_hash(&self) -> u64;

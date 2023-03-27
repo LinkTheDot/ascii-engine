@@ -1,8 +1,8 @@
 use ascii_engine::prelude::*;
 
 const SHAPE: &str = "x-x\nxcx\nx-x";
-const CENTER_CHAR: char = 'c';
-const CENTER_REPLACEMENT_CHAR: char = '-';
+const ANCHOR_CHAR: char = 'c';
+const ANCHOR_REPLACEMENT_CHAR: char = '-';
 const AIR_CHAR: char = '-';
 const MODEL_NAME: &str = "rectangle";
 
@@ -11,20 +11,20 @@ mod skin_logic {
   use super::*;
 
   #[test]
-  fn center_character_index_check() {
+  fn anchor_character_index_check() {
     let skin = get_skin();
 
-    let expected_center_character_index = 4;
+    let expected_anchor_character_index = 4;
 
     assert_eq!(
-      expected_center_character_index,
-      skin.get_center_character_index()
+      expected_anchor_character_index,
+      skin.get_anchor_character_index()
     );
   }
 
   #[test]
-  fn no_center_on_shape() {
-    let skin_result = Skin::new("xxx\nxxx", CENTER_CHAR, CENTER_REPLACEMENT_CHAR, AIR_CHAR);
+  fn no_anchor_on_shape() {
+    let skin_result = Skin::new("xxx\nxxx", ANCHOR_CHAR, ANCHOR_REPLACEMENT_CHAR, AIR_CHAR);
 
     assert!(skin_result.is_err());
   }
@@ -35,14 +35,14 @@ mod sprite_logic {
   use super::*;
 
   #[test]
-  fn center_character_index_check() {
+  fn anchor_character_index_check() {
     let sprite = get_sprite();
 
     let expected_index = 4;
 
-    let center_skin_index = sprite.get_center_character_index();
+    let anchor_skin_index = sprite.get_anchor_character_index();
 
-    assert_eq!(center_skin_index, expected_index);
+    assert_eq!(anchor_skin_index, expected_index);
   }
 
   #[test]
@@ -50,8 +50,8 @@ mod sprite_logic {
     let sprite = get_sprite();
 
     let expected_skin = SHAPE.replace(
-      &CENTER_CHAR.to_string(),
-      &CENTER_REPLACEMENT_CHAR.to_string(),
+      &ANCHOR_CHAR.to_string(),
+      &ANCHOR_REPLACEMENT_CHAR.to_string(),
     );
 
     let sprite_skin = sprite.get_shape();
@@ -64,8 +64,8 @@ mod sprite_logic {
     let mut sprite = get_sprite();
 
     let mut expected_skin = SHAPE.replace(
-      &CENTER_CHAR.to_string(),
-      &CENTER_REPLACEMENT_CHAR.to_string(),
+      &ANCHOR_CHAR.to_string(),
+      &ANCHOR_REPLACEMENT_CHAR.to_string(),
     );
 
     let sprite_skin = sprite.get_mut_shape();
@@ -79,7 +79,7 @@ mod sprite_logic {
     // let sprite = get_sprite(true);
     //
     // // xxx
-    // //  x  < this x is the center character
+    // //  x  < this x is the anchor character
     // let expected_hitbox_data = vec![(-1, -1), (0, -1), (1, -1), (0, 0)];
     //
     // let hitbox_data = sprite.get_hitbox();
@@ -104,7 +104,7 @@ mod sprite_logic {
 
   #[test]
   #[ignore]
-  /// Has no center character.
+  /// Has no anchor character.
   fn change_hitbox_invalid_new_hitbox() {
     // let mut sprite = get_sprite(true);
     // let new_hitbox = HitboxCreationData::new("xxxxx\n-----", 'c', '-', false);
@@ -237,15 +237,15 @@ mod model_data_logic {
     }
 
     #[test]
-    fn get_center_frame_index() {
+    fn get_anchor_frame_index() {
       let (x, y) = (10, 10);
       let model_data = get_model_data((x, y));
 
-      let expected_current_center_frame_index = ((CONFIG.grid_width + 1) as usize * y) + x;
+      let expected_current_anchor_frame_index = ((CONFIG.grid_width + 1) as usize * y) + x;
 
       assert_eq!(
         model_data.get_model_position(),
-        expected_current_center_frame_index
+        expected_current_anchor_frame_index
       );
     }
 
@@ -363,7 +363,7 @@ mod model_data_logic {
 
     #[test]
     #[ignore]
-    /// Has no center character.
+    /// Has no anchor character.
     fn change_hitbox_invalid_new_hitbox() {
       // let mut model_data = get_model_data((5, 5), true);
       // let new_hitbox = HitboxCreationData::new("xxxxx\n-----", 'c', '-', false);
@@ -392,7 +392,7 @@ mod model_data_logic {
     //   let sprite = get_sprite();
     //   let model_position = model_data.get_model_position();
     //
-    //   let relative_coordinates = get_0_0_relative_to_center(&sprite);
+    //   let relative_coordinates = get_0_0_relative_to_anchor(&sprite);
     //
     //   let true_width = CONFIG.grid_width as isize + 1;
     //
@@ -400,17 +400,17 @@ mod model_data_logic {
     //     as usize
     // }
     //
-    // fn get_0_0_relative_to_center(sprite: &Sprite) -> (isize, isize) {
+    // fn get_0_0_relative_to_anchor(sprite: &Sprite) -> (isize, isize) {
     //   let sprite_rows: Vec<&str> = sprite.get_shape().split('\n').collect();
     //   let sprite_width = sprite_rows[0].chars().count() as isize;
     //
-    //   let skin_center_index = sprite.get_center_character_index() as isize;
-    //   let skin_center_coordinates = (
-    //     skin_center_index % sprite_width,
-    //     skin_center_index / sprite_width,
+    //   let skin_anchor_index = sprite.get_anchor_character_index() as isize;
+    //   let skin_anchor_coordinates = (
+    //     skin_anchor_index % sprite_width,
+    //     skin_anchor_index / sprite_width,
     //   );
     //
-    //   (-skin_center_coordinates.0, -skin_center_coordinates.1)
+    //   (-skin_anchor_coordinates.0, -skin_anchor_coordinates.1)
     // }
   }
 }
@@ -437,7 +437,7 @@ fn get_sprite() -> Sprite {
 }
 
 fn get_skin() -> Skin {
-  Skin::new(SHAPE, CENTER_CHAR, CENTER_REPLACEMENT_CHAR, AIR_CHAR).unwrap()
+  Skin::new(SHAPE, ANCHOR_CHAR, ANCHOR_REPLACEMENT_CHAR, AIR_CHAR).unwrap()
 }
 
 fn get_hitbox() -> HitboxCreationData {

@@ -5,9 +5,8 @@ use std::ffi::OsString;
 /// This is the list of possible errors that could occurr
 /// while handling models.
 pub enum ModelError {
-  /// While creating the model, no center point
-  /// was found.
-  NoCenter,
+  /// While creating the model, no anchor point was found.
+  NoAnchor,
 
   /// While creating the model, no every row
   /// contained the same amount of characters.
@@ -34,10 +33,10 @@ pub enum ModelError {
   /// When internal model data was attempted to be changed with an model hash that doesn't exist.
   ModelDoesntExist,
 
-  /// There were multiple centers found in the object's appearance and or hitbox.
+  /// There were multiple anchors found in the object's appearance and or hitbox.
   ///
-  /// Returns the list of indexes the center was found in.
-  MultipleCentersFound(Vec<usize>),
+  /// Returns the list of indexes the anchor was found in.
+  MultipleAnchorsFound(Vec<usize>),
 
   /// Contains the types of errors that can happen when parsing a model file.
   ModelCreationError(ModelCreationError),

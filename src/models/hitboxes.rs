@@ -15,15 +15,15 @@ pub struct Hitbox {
 #[derive(Debug)]
 pub struct HitboxCreationData {
   pub shape: String,
-  pub center_character: char,
+  pub anchor_character: char,
 }
 
 impl Hitbox {
   pub fn from(
     hitbox_data: HitboxCreationData,
-    skin_relative_center: (isize, isize),
+    skin_anchor: (isize, isize),
   ) -> Result<Self, ModelError> {
-    hitbox_data.get_hitbox_data(skin_relative_center)
+    hitbox_data.get_hitbox_data(skin_anchor)
   }
 
   fn create_empty() -> Self {
@@ -57,53 +57,52 @@ impl Hitbox {
 }
 
 impl HitboxCreationData {
-  // MODEL CREATION WILL CHANGE TO A FILE FORMAT
-  pub fn new(shape: &str, center_character: char) -> Self {
+  pub fn new(shape: &str, anchor_character: char) -> Self {
     Self {
       shape: shape.to_string(),
-      center_character,
+      anchor_character,
     }
   }
 
-  /// Converts the given data into a list of relative points from the center.
+  /// Converts the given data into a list of relative points from the anchor.
   ///
   /// Returns an error when an invalid hitbox is passed in, or when there's no
-  /// valid center character in the shape of the hitbox.
-  fn get_hitbox_data(self, skin_relative_center: (isize, isize)) -> Result<Hitbox, ModelError> {
+  /// valid anchor character in the shape of the hitbox.
+  fn get_hitbox_data(self, skin_relative_anchor: (isize, isize)) -> Result<Hitbox, ModelError> {
     if self.shape.trim() == "" {
       return Ok(Hitbox::create_empty());
     }
 
     let (hitbox_width, hitbox_height) = valid_rectangle_check(&self.shape)?;
     let hitbox = &self.shape.split('\n').collect::<String>();
-    let hitbox_center_indices: Vec<usize> = hitbox
+    let hitbox_anchor_indices: Vec<usize> = hitbox
       .chars()
       .enumerate()
-      .filter(|(_, character)| character == &self.center_character)
+      .filter(|(_, character)| character == &self.anchor_character)
       .map(|(index, _)| index)
       .collect();
 
-    let hitbox_center_index = match hitbox_center_indices.len().cmp(&1) {
-      Ordering::Equal => hitbox_center_indices[0],
+    let hitbox_anchor_index = match hitbox_anchor_indices.len().cmp(&1) {
+      Ordering::Equal => hitbox_anchor_indices[0],
       Ordering::Greater => {
-        error!("Multiple centers were found when attempting to make a hitbox.");
+        error!("Multiple anchors were found when attempting to make a hitbox.");
 
-        return Err(ModelError::MultipleCentersFound(hitbox_center_indices));
+        return Err(ModelError::MultipleAnchorsFound(hitbox_anchor_indices));
       }
       Ordering::Less => {
-        error!("No centers were found when attempting to make a hitbox.");
+        error!("No anchors were found when attempting to make a hitbox.");
 
-        return Err(ModelError::NoCenter);
+        return Err(ModelError::NoAnchor);
       }
     };
 
-    let hitbox_center_coordinates = (
-      (hitbox_center_index % hitbox_width) as isize,
-      (hitbox_center_index / hitbox_width) as isize,
+    let hitbox_anchor_coordinates = (
+      (hitbox_anchor_index % hitbox_width) as isize,
+      (hitbox_anchor_index / hitbox_width) as isize,
     );
 
-    let x_difference = skin_relative_center.0 - hitbox_center_coordinates.0;
-    let y_difference = skin_relative_center.1 - hitbox_center_coordinates.1;
+    let x_difference = skin_relative_anchor.0 - hitbox_anchor_coordinates.0;
+    let y_difference = skin_relative_anchor.1 - hitbox_anchor_coordinates.1;
 
     Ok(Hitbox {
       relative_position_to_skin: (x_difference, y_difference),
