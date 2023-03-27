@@ -150,7 +150,7 @@ impl ScreenData {
     model: MutexGuard<ModelData>,
     current_frame: &mut String,
   ) -> Result<(), ScreenError> {
-    let model_position = *model.top_left();
+    let model_frame_position = *model.top_left();
     let (model_width, _model_height) = model.get_sprite_dimensions();
     let air_character = model.get_air_char().to_owned();
 
@@ -167,7 +167,7 @@ impl ScreenData {
         let current_row_count = index / model_width;
 
         // (top_left_index + (row_adder + column_adder)) - column_correction
-        let character_index = (model_position
+        let character_index = (model_frame_position
           + (((CONFIG.grid_width as usize + 1) * current_row_count) + index))
           - (current_row_count * model_width);
 
@@ -194,7 +194,7 @@ impl ScreenData {
 
 #[allow(dead_code)]
 fn out_of_bounds_check(
-  model_position: usize,
+  model_frame_position: usize,
   model_width: usize,
   model_height: usize,
 ) -> Result<(), ScreenError> {
@@ -203,13 +203,13 @@ fn out_of_bounds_check(
   // for out of bounds left,
   //   if x == grid_width then say it went out of bounds left
 
-  if model_width + (model_position % (CONFIG.grid_width as usize + 1))
+  if model_width + (model_frame_position % (CONFIG.grid_width as usize + 1))
     >= CONFIG.grid_width as usize + 1
   {
     return Err(ScreenError::ModelError(ModelError::OutOfBounds(
       Direction::Right,
     )));
-  } else if model_height + (model_position / (CONFIG.grid_width as usize + 1))
+  } else if model_height + (model_frame_position / (CONFIG.grid_width as usize + 1))
     >= CONFIG.grid_height as usize
   {
     return Err(ScreenError::ModelError(ModelError::OutOfBounds(
@@ -233,30 +233,30 @@ mod tests {
 
   #[test]
   fn change_position_out_of_bounds_right() {
-    let position = ((CONFIG.grid_width - 1) as usize, 15);
-    let position = position.coordinates_to_index(CONFIG.grid_width as usize + 1);
+    let frame_position = ((CONFIG.grid_width - 1) as usize, 15);
+    let frame_position = frame_position.coordinates_to_index(CONFIG.grid_width as usize + 1);
     let (width, height) = (3, 3);
 
     let expected_result = Err(ScreenError::ModelError(ModelError::OutOfBounds(
       Direction::Right,
     )));
 
-    let check_result = out_of_bounds_check(position, width, height);
+    let check_result = out_of_bounds_check(frame_position, width, height);
 
     assert_eq!(check_result, expected_result);
   }
 
   #[test]
   fn change_position_out_of_bounds_down() {
-    let position = (15, CONFIG.grid_width as usize + 1);
-    let position = position.coordinates_to_index(CONFIG.grid_width as usize);
+    let frame_position = (15, CONFIG.grid_width as usize + 1);
+    let frame_position = frame_position.coordinates_to_index(CONFIG.grid_width as usize);
     let (width, height) = (3, 3);
 
     let expected_result = Err(ScreenError::ModelError(ModelError::OutOfBounds(
       Direction::Down,
     )));
 
-    let check_result = out_of_bounds_check(position, width, height);
+    let check_result = out_of_bounds_check(frame_position, width, height);
 
     assert_eq!(check_result, expected_result);
   }

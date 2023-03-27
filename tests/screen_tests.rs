@@ -88,13 +88,13 @@ impl Square {
   }
 }
 
-fn get_model_data(model_position: (usize, usize)) -> ModelData {
+fn get_model_data(world_position: (usize, usize)) -> ModelData {
   let sprite = get_sprite();
   let hitbox = get_hitbox();
   let strata = Strata(0);
 
   ModelData::new(
-    model_position,
+    world_position,
     sprite,
     hitbox,
     strata,

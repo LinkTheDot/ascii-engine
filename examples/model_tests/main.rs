@@ -22,8 +22,8 @@ pub struct Wall {
 }
 
 impl Square {
-  fn from_file(path: &Path, position: (usize, usize)) -> Self {
-    let model_data = ModelData::from_file(path, position).unwrap();
+  fn from_file(path: &Path, world_position: (usize, usize)) -> Self {
+    let model_data = ModelData::from_file(path, world_position).unwrap();
 
     Self {
       model_data: Arc::new(Mutex::new(model_data)),
@@ -83,8 +83,8 @@ impl Square {
 }
 
 impl Wall {
-  fn from_file(path: &Path, position: (usize, usize)) -> Self {
-    let model_data = ModelData::from_file(path, position).unwrap();
+  fn from_file(path: &Path, world_position: (usize, usize)) -> Self {
+    let model_data = ModelData::from_file(path, world_position).unwrap();
 
     Self {
       model_data: Arc::new(Mutex::new(model_data)),
@@ -99,18 +99,18 @@ impl Wall {
 fn main() {
   let screen = ScreenData::new().unwrap();
 
-  let square_position_list = vec![(20, 10), (25, 10), (20, 20), (15, 5)];
-  let square_list: Vec<Square> = square_position_list
+  let square_world_position_list = vec![(20, 10), (25, 10), (20, 20), (15, 5)];
+  let square_list: Vec<Square> = square_world_position_list
     .into_iter()
     .enumerate()
-    .map(|(count, position)| {
+    .map(|(count, world_position)| {
       let square_path = if (count + 1) % 4 == 0 {
         Path::new("examples/models/air_square.model")
       } else {
         Path::new("examples/models/square.model")
       };
 
-      Square::from_file(square_path, position)
+      Square::from_file(square_path, world_position)
     })
     .collect();
 
@@ -137,7 +137,7 @@ fn main() {
 fn user_move(screen_config: &mut ScreenConfig, square: Arc<RwLock<Square>>) {
   let (user_input, input_kill_sender) = spawn_input_thread();
   let square_guard = square.read().unwrap();
-  let mut previous_position = square_guard.get_top_left_position();
+  let mut previous_frame_index = square_guard.get_top_left_position();
   drop(square_guard);
 
   for input in user_input {
@@ -177,12 +177,15 @@ fn user_move(screen_config: &mut ScreenConfig, square: Arc<RwLock<Square>>) {
     Square::check_collisions(&square, collisions, move_by, screen_config);
 
     let square_guard = square.read().unwrap();
-    let new_position = square_guard.get_top_left_position();
+    let new_frame_index = square_guard.get_top_left_position();
     drop(square_guard);
 
-    info!("previous_position: {previous_position}, new_position: {new_position}",);
+    info!(
+      "previous_position: {}, new_position: {}",
+      previous_frame_index, new_frame_index
+    );
 
-    previous_position = new_position;
+    previous_frame_index = new_frame_index;
 
     screen_config
       .screen
