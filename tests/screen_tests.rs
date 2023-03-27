@@ -2,8 +2,8 @@ use ascii_engine::prelude::*;
 use std::sync::{Arc, Mutex};
 
 const SHAPE: &str = "x-x\nxcx\nx-x";
-const CENTER_CHAR: char = 'c';
-const CENTER_REPLACEMENT_CHAR: char = '-';
+const ANCHOR_CHAR: char = 'c';
+const ANCHOR_REPLACEMENT_CHAR: char = '-';
 const AIR_CHAR: char = '-';
 const MODEL_NAME: &str = "rectangle";
 
@@ -110,7 +110,7 @@ fn get_sprite() -> Sprite {
 }
 
 fn get_skin() -> Skin {
-  Skin::new(SHAPE, CENTER_CHAR, CENTER_REPLACEMENT_CHAR, AIR_CHAR).unwrap()
+  Skin::new(SHAPE, ANCHOR_CHAR, ANCHOR_REPLACEMENT_CHAR, AIR_CHAR).unwrap()
 }
 
 fn get_hitbox() -> HitboxCreationData {
