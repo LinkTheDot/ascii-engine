@@ -45,8 +45,7 @@ pub fn get_config() -> Result<ConfigData, ConfigError> {
   }
 
   Config::builder()
-    .set_defaults(default_config_data)?
-    .add_source(File::with_name(config_path_name))
+    .set_data(default_config_data, config_path_name)?
     .build()?
     .try_deserialize()
 }
@@ -69,6 +68,20 @@ fn create_missing_config_file(
 }
 
 trait ConfigTraits {
+  /// Assigns the default and config_file data.
+  ///
+  /// Any missing fields from "config.toml" will be replaced with their defaults.
+  ///
+  /// If the program is running off of a "test" build, then the config will
+  /// only be built with the default data.
+  ///
+  /// #Errors
+  ///
+  /// An error is returned when one of the default config names contains non-ascii characters.
+  fn set_data(self, default_data: ConfigData, path: &str) -> Result<Self, ConfigError>
+  where
+    Self: Sized;
+
   /// Assigns the default values given by "ConfigData::default()" to the config.
   ///
   /// Assigned defaults will correct any missing fields in the config file.
@@ -76,13 +89,26 @@ trait ConfigTraits {
   ///
   /// # Errors
   ///
-  /// An error is returned when one of the input names contains non-ascii characters.
+  /// An error is returned when one of the default config names contains non-ascii characters.
   fn set_defaults(self, default_data: ConfigData) -> Result<Self, ConfigError>
   where
     Self: Sized;
 }
 
 impl ConfigTraits for ConfigBuilder<DefaultState> {
+  fn set_data(self, default_data: ConfigData, path: &str) -> Result<Self, ConfigError>
+  where
+    Self: Sized,
+  {
+    let config_with_defaults = self.set_defaults(default_data);
+
+    if !running_on_test_build() {
+      Ok(config_with_defaults?.add_source(File::with_name(path)))
+    } else {
+      config_with_defaults
+    }
+  }
+
   fn set_defaults(self, default_data: ConfigData) -> Result<Self, ConfigError>
   where
     Self: Sized,
@@ -95,4 +121,8 @@ impl ConfigTraits for ConfigBuilder<DefaultState> {
       .set_default("grid_width", default_data.grid_width)?
       .set_default("grid_height", default_data.grid_height)
   }
+}
+
+fn running_on_test_build() -> bool {
+  cfg!(test)
 }

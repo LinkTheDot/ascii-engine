@@ -1,10 +1,8 @@
-// use ascii_engine::general_data::coordinates::*;
+use crate::screen_config::*;
 use ascii_engine::general_data::user_input::spawn_input_thread;
 use ascii_engine::prelude::*;
-use std::collections::VecDeque;
-// use ascii_engine::screen::models::Models;
-use crate::screen_config::*;
 use guard::guard;
+use std::collections::VecDeque;
 use std::path::Path;
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -12,8 +10,6 @@ use std::sync::{Arc, Mutex, RwLock};
 use log::{debug, error, info, warn};
 
 mod screen_config;
-
-// type CollisionList = VecDeque<((isize, isize), VecDeque<Arc<Mutex<ModelData>>>)>;
 
 #[derive(Debug, Model)]
 pub struct Square {
@@ -123,7 +119,7 @@ fn main() {
   let wall_path = Path::new("examples/models/wall.model");
   let wall = Wall::from_file(wall_path, (30, 15));
 
-  // info!("{:#?}", square_list[0]);
+  info!("{:#?}", square_list[0]);
 
   let mut screen_config = ScreenConfig::new(screen);
 
@@ -195,7 +191,6 @@ fn user_move(screen_config: &mut ScreenConfig, square: Arc<RwLock<Square>>) {
       .print_screen()
       .unwrap_or_else(|error| error!("{error:?}"));
 
-    // info!("current_model_data: \n{:#?}", model);
     screen_config.screen.wait_for_x_ticks(1);
   }
 }
