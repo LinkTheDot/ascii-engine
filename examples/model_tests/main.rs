@@ -11,12 +11,12 @@ use log::{debug, error, info, warn};
 
 mod screen_config;
 
-#[derive(Debug, Model)]
+#[derive(Debug, DisplayModel)]
 pub struct Square {
   model_data: Arc<Mutex<ModelData>>,
 }
 
-#[derive(Debug, Model)]
+#[derive(Debug, DisplayModel)]
 pub struct Wall {
   model_data: Arc<Mutex<ModelData>>,
 }
@@ -139,6 +139,8 @@ fn user_move(screen_config: &mut ScreenConfig, square: Arc<RwLock<Square>>) {
   let square_guard = square.read().unwrap();
   let mut previous_frame_index = square_guard.get_top_left_position();
   drop(square_guard);
+
+  // screen_config.screen.print_screen().log_if_err();
 
   for input in user_input {
     screen_config.screen.wait_for_x_ticks(1);

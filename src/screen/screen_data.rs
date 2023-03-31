@@ -73,7 +73,7 @@ impl ScreenData {
         .map(|key| self.model_data.read().unwrap().get_model(key))
       {
         guard!( let Some(model) = model else {
-          error!("An model in strata {strata_number} that doesn't exist was attempted to be run.");
+          error!("A model in strata {strata_number} that doesn't exist was attempted to be run.");
 
           continue;
         });
@@ -136,7 +136,7 @@ impl ScreenData {
     let _ = self.screen_clock.wait_for_x_ticks(x);
   }
 
-  pub fn add_model<O: Model>(&mut self, model: &mut O) -> Result<(), ModelError> {
+  pub fn add_model<O: DisplayModel>(&mut self, model: &mut O) -> Result<(), ModelError> {
     model.assign_model_list(self.model_data.clone());
 
     self
@@ -158,7 +158,7 @@ impl ScreenData {
     drop(model); // Drops the model lock early since it's no longer needed.
     let model_characters = model_shape.chars();
 
-    // Error returned here to prevent the program from crashing when an model is found to be out of bounds.
+    // Error returned here to prevent the program from crashing when a model is found to be out of bounds.
     // Uncomment when it's fully implemented.
     // out_of_bounds_check(model_position, model_width, model_height)?;
 

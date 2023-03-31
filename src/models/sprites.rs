@@ -3,16 +3,13 @@ use crate::models::errors::*;
 #[allow(unused)]
 use log::debug;
 
-/// The Sprite is data about the display and hitbox side of an model.
-///
-/// The Sprite will contain how an model will look, where it's Hitbox will be, and
-/// what character in the skin of the model should be classified as "air".
+/// The Sprite is the display data of a model.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Sprite {
   skin: Skin,
 }
 
-/// The Skin is how an model will appear on the screen.
+/// The Skin is how a model will appear on the screen.
 ///
 /// When creating a skin's shape, anchor and air characters will need to be designated.
 /// The anchor character will be replaced with the 'anchor_replacement_character' field when
@@ -28,7 +25,6 @@ pub struct Skin {
 }
 
 impl Sprite {
-  // MODEL CREATION WILL CHANGE TO A FILE FORMAT
   pub fn new(mut skin: Skin) -> Result<Self, ModelError> {
     skin.fix_skin();
 
@@ -107,66 +103,3 @@ mod skin_logic {
     assert_eq!(skin.shape, expected_shape)
   }
 }
-
-// #[cfg(test)]
-// mod get_hitbox_data_logic {
-//   use super::*;
-//
-//   #[test]
-//   fn valid_data_anchor_is_hitbox() {
-//     let hitbox = get_hitbox_data(true);
-//
-//     // xxx
-//     //  x  < this x is the anchor character
-//     let expected_hitbox_data = Ok(vec![(-1, -1), (0, -1), (1, -1), (0, 0)]);
-//
-//     let hitbox_data = hitbox.get_hitbox_data();
-//
-//     assert_eq!(hitbox_data, expected_hitbox_data);
-//   }
-//
-//   #[test]
-//   fn valid_data_anchor_is_not_hitbox() {
-//     let hitbox = get_hitbox_data(false);
-//
-//     // xxx
-//     //  c  < this anchor character is not apart of the hitbox
-//     let expected_hitbox_data = Ok(vec![(-1, -1), (0, -1), (1, -1)]);
-//
-//     let hitbox_data = hitbox.get_hitbox_data();
-//
-//     assert_eq!(hitbox_data, expected_hitbox_data);
-//   }
-//
-//   #[test]
-//   fn invalid_shape() {
-//     let mut hitbox = get_hitbox_data(true);
-//     hitbox.shape = "a-s-d-qwf-e-ff\n\n\nwe-gwe-w-vwea\nasd\n".to_string();
-//
-//     let expected_error = Err(ModelError::NonRectangularShape);
-//
-//     let hitbox_data = hitbox.get_hitbox_data();
-//
-//     assert_eq!(hitbox_data, expected_error);
-//   }
-//
-//   #[test]
-//   fn no_anchor_character() {
-//     let mut hitbox = get_hitbox_data(true);
-//     hitbox.shape = "".to_string();
-//
-//     let expected_error = Err(ModelError::EmptyHitboxString);
-//
-//     let hitbox_data = hitbox.get_hitbox_data();
-//
-//     assert_eq!(hitbox_data, expected_error);
-//   }
-
-// fn get_hitbox_data(anchor_is_hitbox: bool) -> HitboxCreationData {
-//   let shape = "xyz\n-c-";
-//   let anchor_character = 'c';
-//   let air_character = '-';
-//
-//   HitboxCreationData::new(shape, anchor_character, air_character, anchor_is_hitbox)
-// }
-// }

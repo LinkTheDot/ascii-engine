@@ -77,7 +77,7 @@ mod model_storage_tests {
 // -- Data for tests below --
 //
 
-#[derive(Model)]
+#[derive(DisplayModel)]
 struct Square {
   model_data: Arc<Mutex<ModelData>>,
 }

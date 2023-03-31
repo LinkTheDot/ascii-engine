@@ -47,14 +47,12 @@ impl Strata {
 }
 
 impl ModelData {
-  /// This will create the data for an model.
+  /// This will create the data for a model.
   /// The data will contain things such as what the model looks like, the hitbox,
   /// what layer the model sits on, the position, and more.
   ///
   /// To create ModelData you will need the Sprite.
   /// A Sprite contains the data for the model's Skin and Hitbox.
-  ///
-  /// MODEL CREATION WILL BE TURNED INTO A FILE FORMAT IN THE FUTURE.
   pub fn new(
     model_position: Coordinates,
     sprite: Sprite,
@@ -244,7 +242,7 @@ impl ModelData {
   }
 }
 
-/// An model's position is an index of a frame.
+/// A model's position is an index of a frame.
 /// This index will account for any newlines.
 ///
 /// Takes the world placement of a model and returns it's index in a frame and
