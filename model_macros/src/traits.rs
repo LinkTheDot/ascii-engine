@@ -5,7 +5,7 @@ pub fn generate_traits(ast: &syn::DeriveInput) -> TokenStream {
   let name = &ast.ident;
 
   quote! {
-    impl Model for #name {
+    impl DisplayModel for #name {
       fn get_position(&self) -> usize {
         let model_data_guard = self.model_data.lock().unwrap();
 

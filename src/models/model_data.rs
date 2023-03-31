@@ -24,7 +24,7 @@ pub struct ModelData {
   /// Relative position of the top left to the model's world placement
   placement_anchor: (isize, isize),
   /// counts new lines
-  top_left_position: usize,
+  position_in_frame: usize,
   strata: Strata,
   sprite: Sprite,
   hitbox: Hitbox,
@@ -47,14 +47,12 @@ impl Strata {
 }
 
 impl ModelData {
-  /// This will create the data for an model.
+  /// This will create the data for a model.
   /// The data will contain things such as what the model looks like, the hitbox,
   /// what layer the model sits on, the position, and more.
   ///
   /// To create ModelData you will need the Sprite.
   /// A Sprite contains the data for the model's Skin and Hitbox.
-  ///
-  /// MODEL CREATION WILL BE TURNED INTO A FILE FORMAT IN THE FUTURE.
   pub fn new(
     model_position: Coordinates,
     sprite: Sprite,
@@ -79,7 +77,7 @@ impl ModelData {
       placement_anchor: position_data.1,
       strata,
       sprite,
-      top_left_position: position_data.0,
+      position_in_frame: position_data.0,
       hitbox,
       existing_models: None,
     })
@@ -107,7 +105,7 @@ impl ModelData {
 
   /// Returns the index of the model from the top left position.
   pub fn top_left(&self) -> &usize {
-    &self.top_left_position
+    &self.position_in_frame
   }
 
   /// Returns the (width, height) of the current sprite shape.
@@ -123,7 +121,7 @@ impl ModelData {
 
   /// Changes the placement_anchor and top left position of the model.
   ///
-  /// Input is based on the top left of the model
+  /// Input is based on the frame_position aka top left position of the model.
   pub fn change_position(&mut self, new_position: usize) {
     let new_frame_anchor_index = new_position as isize
       + self.placement_anchor.0
@@ -132,7 +130,7 @@ impl ModelData {
     let (frame_index, new_anchor) =
       get_position_data(new_frame_anchor_index as usize, &self.sprite);
 
-    self.top_left_position = frame_index;
+    self.position_in_frame = frame_index;
     self.placement_anchor = new_anchor;
   }
 
@@ -148,7 +146,7 @@ impl ModelData {
 
   /// Returns a reference to the current position
   pub fn get_model_position(&self) -> usize {
-    (self.top_left_position as isize
+    (self.position_in_frame as isize
       + self.placement_anchor.0
       + (self.placement_anchor.1 * (CONFIG.grid_width as isize + 1))) as usize
   }
@@ -213,10 +211,10 @@ impl ModelData {
       return false;
     }
 
-    let (self_hitbox_x, self_hitbox_y) = self.hitbox.get_hitbox_position(self.top_left_position);
+    let (self_hitbox_x, self_hitbox_y) = self.hitbox.get_hitbox_position(self.position_in_frame);
     let (other_hitbox_x, other_hitbox_y) = other_model
       .hitbox
-      .get_hitbox_position(other_model.top_left_position);
+      .get_hitbox_position(other_model.position_in_frame);
 
     let (self_hitbox_width, self_hitbox_height) = self.hitbox.get_dimensions();
     let (other_hitbox_width, other_hitbox_height) = other_model.hitbox.get_dimensions();
@@ -244,7 +242,7 @@ impl ModelData {
   }
 }
 
-/// An model's position is an index of a frame.
+/// A model's position is an index of a frame.
 /// This index will account for any newlines.
 ///
 /// Takes the world placement of a model and returns it's index in a frame and
@@ -283,7 +281,7 @@ fn get_frame_index_to_world_placement_anchor(sprite: &Sprite) -> (isize, isize) 
 impl PartialEq for ModelData {
   fn eq(&self, other: &Self) -> bool {
     self.placement_anchor == other.placement_anchor
-      && self.top_left_position == other.top_left_position
+      && self.position_in_frame == other.position_in_frame
       && self.strata == other.strata
       && self.sprite == other.sprite
   }

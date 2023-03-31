@@ -21,7 +21,7 @@ impl Models {
     }
   }
 
-  pub fn insert<O: Model>(&mut self, key: &u64, model: &O) -> Result<(), ModelError> {
+  pub fn insert<O: DisplayModel>(&mut self, key: &u64, model: &O) -> Result<(), ModelError> {
     if self.models.get(key).is_none() {
       self.models.insert(*key, model.get_model_data());
 
@@ -155,7 +155,7 @@ mod tests {
   use crate::models::hitboxes::HitboxCreationData;
   use crate::CONFIG;
 
-  #[derive(Model)]
+  #[derive(DisplayModel)]
   struct TestModel {
     model_data: Arc<Mutex<ModelData>>,
   }

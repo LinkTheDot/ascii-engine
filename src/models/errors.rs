@@ -24,13 +24,13 @@ pub enum ModelError {
   /// The model has attempted to move out of bounds.
   OutOfBounds(Direction),
 
-  /// A thread holding a copy of an model panicked when trying to obtain the lock of said model.
+  /// A thread holding a copy of a model panicked when trying to obtain the lock of said model.
   FailedToGetLock,
 
-  /// When an model that already exists is attempted to be inserted into the screen.
+  /// When a model that already exists is attempted to be inserted into the screen.
   ModelAlreadyExists,
 
-  /// When internal model data was attempted to be changed with an model hash that doesn't exist.
+  /// When internal model data was attempted to be changed with a model hash that doesn't exist.
   ModelDoesntExist,
 
   /// There were multiple anchors found in the object's appearance and or hitbox.

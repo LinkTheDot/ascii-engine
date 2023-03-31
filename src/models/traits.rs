@@ -4,10 +4,10 @@ pub use crate::models::{
   sprites::*,
 };
 pub use crate::screen::models::Models;
-pub use model_macros::Model;
+pub use model_macros::DisplayModel;
 pub use std::sync::{Arc, Mutex, RwLock};
 
-pub trait Model {
+pub trait DisplayModel {
   /// Returns the world placement of the model.
   fn get_position(&self) -> usize;
   /// Returns the very top left position of the model.

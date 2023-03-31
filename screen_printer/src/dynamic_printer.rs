@@ -236,10 +236,12 @@ impl DynamicPrinterMethods for Printer {
   }
 
   fn get_current_cursor_position() -> Result<(usize, usize), PrintingError> {
-    let mut stdout = MouseTerminal::from(io::stdout().into_raw_mode().unwrap());
-    let cursor_position = stdout.cursor_pos();
+    let stdout = io::stdout();
+    let cursor_position = MouseTerminal::from(stdout.into_raw_mode().unwrap()).cursor_pos();
 
-    info!("Origin Position: {cursor_position:?}");
+    if cursor_position.is_ok() {
+      info!("Got printer cursor origin Position: {cursor_position:?}");
+    }
 
     match cursor_position {
       Ok(position) => Ok((position.0 as usize, position.1 as usize)),
