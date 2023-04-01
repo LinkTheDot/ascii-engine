@@ -97,7 +97,8 @@ impl Wall {
 }
 
 fn main() {
-  let screen = ScreenData::new().unwrap();
+  let mut screen = ScreenData::new().unwrap();
+  screen.start_printer().unwrap();
 
   let square_world_position_list = vec![(20, 10), (25, 10), (20, 20), (15, 5)];
   let square_list: Vec<Square> = square_world_position_list
@@ -135,12 +136,10 @@ fn main() {
 }
 
 fn user_move(screen_config: &mut ScreenConfig, square: Arc<RwLock<Square>>) {
-  let (user_input, input_kill_sender) = spawn_input_thread();
+  let (user_input, input_kill_sender) = spawn_input_thread(&screen_config.screen).unwrap();
   let square_guard = square.read().unwrap();
   let mut previous_frame_index = square_guard.get_top_left_position();
   drop(square_guard);
-
-  // screen_config.screen.print_screen().log_if_err();
 
   for input in user_input {
     screen_config.screen.wait_for_x_ticks(1);

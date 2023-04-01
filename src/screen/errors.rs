@@ -7,4 +7,6 @@ pub enum ScreenError {
   PrintingError(screen_printer::printer::PrintingError),
 
   NoExistingModels,
+
+  PrinterNotStarted,
 }
