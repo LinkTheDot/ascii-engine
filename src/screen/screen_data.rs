@@ -31,6 +31,7 @@ pub struct ScreenData {
   model_data: Arc<RwLock<Models>>,
   printer: Printer,
   first_print: bool,
+  printer_started: bool,
 
   /// Hides the cursor as long as this lives
   _cursor_hider: termion::cursor::HideCursor<std::io::Stdout>,
@@ -55,13 +56,13 @@ impl ScreenData {
       model_data,
       printer: Printer::new(CONFIG.grid_width as usize, CONFIG.grid_height as usize),
       first_print: true,
+      printer_started: false,
       _cursor_hider: cursor_hider,
     })
   }
 
-  /// Returns the screen as a string depending on what each pixel
-  /// is assigned
-  pub fn display(&self) -> Result<String, ScreenError> {
+  /// Creates a new frame of the world as it currently stands
+  pub fn display(&self) -> String {
     let mut frame = Self::create_blank_frame();
 
     for strata_number in 0..=100 {
@@ -80,28 +81,30 @@ impl ScreenData {
 
         let model_guard = model.lock().unwrap();
 
-        // Instead of returning any errors here just do nothing instead.
-        //
-        // Returning an error here would be a problem for models that aren't
-        // suppose to be on screen.
-        Self::apply_model_in_frame(model_guard, &mut frame)?;
+        Self::apply_model_in_frame(model_guard, &mut frame);
       }
     }
 
-    Ok(frame)
+    frame
   }
 
   /// Prints the screen as it currently is.
+  ///
+  /// # Errors
+  ///
+  /// Returns an error if;
+  /// - The printer hasn't been started yet.
+  /// - An object is overlapping on the edge of the grid.
   pub fn print_screen(&mut self) -> Result<(), ScreenError> {
-    if self.first_print {
+    if !self.printer_started {
+      return Err(ScreenError::PrinterNotStarted);
+    } else if self.first_print {
       println!("{}", "\n".repeat(CONFIG.grid_height as usize + 10));
 
       self.first_print = false;
     }
 
-    let screen = self.display()?;
-
-    if let Err(error) = self.printer.dynamic_print(screen) {
+    if let Err(error) = self.printer.dynamic_print(self.display()) {
       return Err(ScreenError::PrintingError(error));
     }
 
@@ -126,6 +129,20 @@ impl ScreenData {
     println!("{message}");
   }
 
+  pub fn start_printer(&mut self) -> Result<(), ScreenError> {
+    if let Err(printing_error) = self.printer.manual_set_origin() {
+      return Err(ScreenError::PrintingError(printing_error));
+    }
+
+    self.printer_started = true;
+
+    Ok(())
+  }
+
+  pub fn printer_started(&self) -> bool {
+    self.printer_started
+  }
+
   /// Waits for the input amount of ticks.
   /// The time between ticks is determined by the given value
   /// in the config file.
@@ -146,10 +163,8 @@ impl ScreenData {
       .insert(&model.get_unique_hash(), model)
   }
 
-  fn apply_model_in_frame(
-    model: MutexGuard<ModelData>,
-    current_frame: &mut String,
-  ) -> Result<(), ScreenError> {
+  /// Places the appearance of the model in the given frame.
+  fn apply_model_in_frame(model: MutexGuard<ModelData>, current_frame: &mut String) {
     let model_frame_position = *model.top_left();
     let (model_width, _model_height) = model.get_sprite_dimensions();
     let air_character = model.get_air_char().to_owned();
@@ -177,8 +192,6 @@ impl ScreenData {
         );
       }
     }
-
-    Ok(())
   }
 
   fn create_blank_frame() -> String {
@@ -286,7 +299,7 @@ mod tests {
       let expected_top_left_character = find_character;
       let expected_left_of_expected_character = CONFIG.empty_pixel.chars().next().unwrap();
 
-      ScreenData::apply_model_in_frame(model_data.lock().unwrap(), &mut current_frame).unwrap();
+      ScreenData::apply_model_in_frame(model_data.lock().unwrap(), &mut current_frame);
 
       let model_top_left_character_in_frame = current_frame.chars().nth(top_left_index);
       let left_of_index_in_frame = current_frame.chars().nth(top_left_index - 1);

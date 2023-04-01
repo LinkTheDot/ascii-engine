@@ -73,13 +73,30 @@ pub trait DynamicPrinter {
   /// The cursor's location marks the bottom right of the grid.
   /// If the x or y of origin are to go out of bounds, said axis will be set to 0.
   ///
-  /// An error is returned when the cursor can't be read or the passed in grid does not match the expected size.
+  /// # Errors
+  ///
+  /// An error is returned when;
+  /// - Origin is not set and stdin is blocked.
+  /// - The passed in grid does not match the expected size.
   fn dynamic_print(&mut self, grid: String) -> Result<(), PrintingError>;
 
-  /// Resets all data for the printer and assigns it a new size.
+  /// Manually assigns origin without having to print.
+  ///
+  /// # Errors
+  ///
+  /// An error is returned if stdin is being blocked.
+  fn manual_set_origin(&mut self) -> Result<(), PrintingError>;
+
+  /// Resets all data for the printer and optionally assigns it a new size.
+  ///
+  /// If None is passed in for the new_width or new_height, that value won't be reassigned.
+  /// Meaning if you don't plan onj changing the size of the grid being printed, just pass (None, None)
   fn reset(&mut self, new_width: Option<usize>, new_height: Option<usize>);
 
   /// Replaces every character in the grid with whitespace
+  ///
+  /// # Errors
+  /// - Origin is not set and stdin is blocked.
   fn clear_grid(&mut self) -> Result<(), PrintingError>;
 }
 
@@ -93,7 +110,10 @@ impl DynamicPrinter for Printer {
 
       print!("{printable_difference}");
     } else if self.previous_grid.is_empty() {
-      self.set_origin()?;
+      if self.origin_position.is_none() {
+        self.set_origin()?;
+      }
+
       self.move_to_origin();
 
       print!("{grid}");
@@ -113,8 +133,13 @@ impl DynamicPrinter for Printer {
     Ok(())
   }
 
+  fn manual_set_origin(&mut self) -> Result<(), PrintingError> {
+    self.set_origin()
+  }
+
   fn reset(&mut self, new_width: Option<usize>, new_height: Option<usize>) {
     self.previous_grid = String::new();
+    self.origin_position = None;
 
     if let Some(width) = new_width {
       self.grid_width = width;
@@ -140,7 +165,7 @@ trait DynamicPrinterMethods {
   /// length per row and amount of rows
   fn grid_size_matches_previous_grid(&self, grid: &str) -> bool;
 
-  /// Gets a list of the pixel indexes that were different from the previous grid
+  /// Gets a list of the pixel indices that were different from the previous grid
   fn get_grid_diff(&self, grid: &str) -> Vec<PixelDifference>;
 
   /// Moves the cursor to the assigned origin.
@@ -151,11 +176,22 @@ trait DynamicPrinterMethods {
   /// If the cursor is at (10, 10) and the grid is 5x5 then origin will be set to (5, 5).
   /// If the grid is larger than the cursor's current position, origin will be assigned 0 in it's place.
   /// This means that if the cursor is at (10, 10), and the grid is 20x5, origin will be assigned to (0, 5).
+  ///
+  /// # Errors
+  ///
+  /// An error is returned if stdin is being blocked.
   fn set_origin(&mut self) -> Result<(), PrintingError>;
 
   /// Returns the current position of the cursor
+  ///
+  /// # Errors
+  ///
+  /// An error is returned if stdin is being blocked.
   fn get_current_cursor_position() -> Result<(usize, usize), PrintingError>;
 
+  /// Converts a list of PixelDifference and pairs Escape Sequences for moving the cursor
+  /// and the different pixels.
+  /// Returns the string with the entire list of Escape Sequences and differences.
   fn get_printable_diff(&mut self, pixel_differences: Vec<PixelDifference>) -> String;
 }
 
@@ -208,10 +244,9 @@ impl DynamicPrinterMethods for Printer {
   }
 
   fn move_to_origin(&self) {
-    print!(
-      "\x1B[{};{}H",
-      self.origin_position.1, self.origin_position.0
-    );
+    if let Some((x, y)) = self.origin_position {
+      print!("\x1B[{};{}H", y, x);
+    }
   }
 
   fn set_origin(&mut self) -> Result<(), PrintingError> {
@@ -229,8 +264,7 @@ impl DynamicPrinterMethods for Printer {
       x = 0;
     }
 
-    self.origin_position.0 = x;
-    self.origin_position.1 = y;
+    self.origin_position = Some((x, y));
 
     Ok(())
   }
@@ -253,15 +287,17 @@ impl DynamicPrinterMethods for Printer {
     pixel_differences
       .iter()
       .fold(String::new(), |mut printable_diff, pixel_difference| {
-        let (mut x, mut y) = pixel_difference
+        let (mut placement_x, mut placement_y) = pixel_difference
           .index
           .index_as_coordinates(&self.grid_width);
 
         // adding 1 accounts for the non-zero based numbering of the terminal cursor
-        x += self.origin_position.0 + 1;
-        y += self.origin_position.1;
+        let (origin_x, origin_y) = self.origin_position.unwrap();
 
-        let cursor_movement = format!("\x1B[{y};{x}H");
+        placement_x += origin_x + 1;
+        placement_y += origin_y;
+
+        let cursor_movement = format!("\x1B[{placement_y};{placement_x}H");
         let movement_with_pixels = format!("{cursor_movement}{}", pixel_difference.pixels);
 
         printable_diff.push_str(&movement_with_pixels);

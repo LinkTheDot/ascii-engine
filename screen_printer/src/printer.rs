@@ -37,7 +37,7 @@ pub struct Printer {
   pub previous_grid: String,
 
   /// Creation will be on first print
-  pub origin_position: (usize, usize),
+  pub origin_position: Option<(usize, usize)>,
 
   pub grid_height: usize,
   pub grid_width: usize,
@@ -70,7 +70,7 @@ impl Printer {
   pub fn new(grid_width: usize, grid_height: usize) -> Self {
     Self {
       previous_grid: String::new(),
-      origin_position: (0, 0),
+      origin_position: None,
       grid_width,
       grid_height,
     }
