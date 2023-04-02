@@ -7,7 +7,7 @@ use guard::guard;
 use log::error;
 use screen_printer::printer::*;
 use std::error::Error;
-use std::sync::{Arc, MutexGuard, RwLock};
+use std::sync::{Arc, RwLock};
 use thread_clock::Clock;
 
 #[allow(unused)]
@@ -67,6 +67,7 @@ impl ScreenData {
 
     for strata_number in 0..=100 {
       let model_data = self.model_data.read().unwrap();
+
       guard!( let Some(strata_keys) = model_data.get_strata_keys(&Strata(strata_number)) else { continue } );
 
       for model in strata_keys
@@ -79,9 +80,7 @@ impl ScreenData {
           continue;
         });
 
-        let model_guard = model.lock().unwrap();
-
-        Self::apply_model_in_frame(model_guard, &mut frame);
+        Self::apply_model_in_frame(model, &mut frame);
       }
     }
 
@@ -104,7 +103,9 @@ impl ScreenData {
       self.first_print = false;
     }
 
-    if let Err(error) = self.printer.dynamic_print(self.display()) {
+    let frame = self.display();
+
+    if let Err(error) = self.printer.dynamic_print(frame) {
       return Err(ScreenError::PrintingError(error));
     }
 
@@ -153,23 +154,21 @@ impl ScreenData {
     let _ = self.screen_clock.wait_for_x_ticks(x);
   }
 
-  pub fn add_model<O: DisplayModel>(&mut self, model: &mut O) -> Result<(), ModelError> {
-    model.assign_model_list(self.model_data.clone());
+  pub fn add_model<O: DisplayModel>(&mut self, model: &O) -> Result<(), ModelError> {
+    let mut model_data = model.get_model_data();
 
-    self
-      .model_data
-      .write()
-      .unwrap()
-      .insert(&model.get_unique_hash(), model)
+    model_data.assign_model_list(self.model_data.clone());
+
+    self.model_data.write().unwrap().insert(model_data)
   }
 
   /// Places the appearance of the model in the given frame.
-  fn apply_model_in_frame(model: MutexGuard<ModelData>, current_frame: &mut String) {
-    let model_frame_position = *model.top_left();
+  fn apply_model_in_frame(model: ModelData, current_frame: &mut String) {
+    let model_frame_position = model.top_left();
     let (model_width, _model_height) = model.get_sprite_dimensions();
-    let air_character = model.get_air_char().to_owned();
+    let air_character = model.get_air_char();
 
-    let model_shape = model.get_sprite().to_string().replace('\n', "");
+    let model_shape = model.get_sprite().replace('\n', "");
     drop(model); // Drops the model lock early since it's no longer needed.
     let model_characters = model_shape.chars();
 
@@ -292,14 +291,13 @@ mod tests {
     fn correct_input() {
       let model_data = get_model_data((10, 10));
       let find_character = SHAPE.chars().next().unwrap();
-      let top_left_index = *model_data.top_left();
-      let model_data = Mutex::new(model_data);
+      let top_left_index = model_data.top_left();
       let mut current_frame = ScreenData::create_blank_frame();
 
       let expected_top_left_character = find_character;
       let expected_left_of_expected_character = CONFIG.empty_pixel.chars().next().unwrap();
 
-      ScreenData::apply_model_in_frame(model_data.lock().unwrap(), &mut current_frame);
+      ScreenData::apply_model_in_frame(model_data, &mut current_frame);
 
       let model_top_left_character_in_frame = current_frame.chars().nth(top_left_index);
       let left_of_index_in_frame = current_frame.chars().nth(top_left_index - 1);

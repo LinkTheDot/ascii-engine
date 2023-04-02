@@ -4,7 +4,7 @@ use ascii_engine::prelude::*;
 use guard::guard;
 use std::collections::VecDeque;
 use std::path::Path;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 
 #[allow(unused)]
 use log::{debug, error, info, warn};
@@ -12,21 +12,20 @@ use log::{debug, error, info, warn};
 mod screen_config;
 
 #[derive(Debug, DisplayModel)]
+// #[derive(Debug)]
 pub struct Square {
-  model_data: Arc<Mutex<ModelData>>,
+  model_data: ModelData,
 }
 
 #[derive(Debug, DisplayModel)]
 pub struct Wall {
-  model_data: Arc<Mutex<ModelData>>,
+  model_data: ModelData,
 }
 
 impl Square {
   fn from_file(path: &Path, world_position: (usize, usize)) -> Self {
-    let model_data = ModelData::from_file(path, world_position).unwrap();
-
     Self {
-      model_data: Arc::new(Mutex::new(model_data)),
+      model_data: ModelData::from_file(path, world_position).unwrap(),
     }
   }
 
@@ -36,23 +35,18 @@ impl Square {
 
   fn check_collisions(
     initial_square: &Arc<RwLock<Self>>,
-    mut collision_list: VecDeque<Arc<Mutex<ModelData>>>,
+    mut collision_list: VecDeque<ModelData>,
     move_by: (isize, isize),
     screen_config: &mut ScreenConfig,
   ) {
     while !collision_list.is_empty() {
       guard!( let Some(collided_model) = collision_list.pop_back() else { return; });
 
-      let collision_guard = collided_model.lock().unwrap();
-      let model_name = collision_guard.get_name().to_lowercase();
-      drop(collision_guard);
+      let model_name = collided_model.get_name().to_lowercase();
 
       match model_name.trim() {
         "square" => {
-          let pushed_model_guard = collided_model.lock().unwrap();
-          let pushed_model_hash = *pushed_model_guard.get_unique_hash();
-          drop(pushed_model_guard);
-
+          let pushed_model_hash = collided_model.get_unique_hash();
           let pushed_model = screen_config.get_square(&pushed_model_hash);
 
           let mut pushed_model_guard = pushed_model.write().unwrap();
@@ -84,10 +78,8 @@ impl Square {
 
 impl Wall {
   fn from_file(path: &Path, world_position: (usize, usize)) -> Self {
-    let model_data = ModelData::from_file(path, world_position).unwrap();
-
     Self {
-      model_data: Arc::new(Mutex::new(model_data)),
+      model_data: ModelData::from_file(path, world_position).unwrap(),
     }
   }
 
@@ -121,7 +113,6 @@ fn main() {
   info!("{:#?}", square_list[0]);
 
   let mut screen_config = ScreenConfig::new(screen);
-
   screen_config.add_wall(wall).log_if_err();
   let mut square_list: Vec<Arc<RwLock<Square>>> = square_list
     .into_iter()

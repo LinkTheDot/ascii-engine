@@ -6,7 +6,7 @@ pub use crate::models::traits::*;
 use crate::screen::models::Models;
 use crate::CONFIG;
 use guard::guard;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, MutexGuard, RwLock};
 use std::{fs::File, path::Path};
 
 #[allow(unused)]
@@ -15,10 +15,13 @@ use log::debug;
 /// This is the data that will be required for the Model derive macro.
 ///
 /// ModelData is a collection of all data required for the screen to display a model.
-///
-/// (Mention Creation Here)
 #[derive(Debug)]
 pub struct ModelData {
+  internal_data: Arc<Mutex<InternalModelData>>,
+}
+
+#[derive(Debug)]
+struct InternalModelData {
   unique_hash: u64,
   assigned_name: String,
   /// Relative position of the top left to the model's world placement
@@ -46,7 +49,19 @@ impl Strata {
   }
 }
 
+impl Clone for ModelData {
+  fn clone(&self) -> Self {
+    Self {
+      internal_data: Arc::clone(&self.internal_data),
+    }
+  }
+}
+
 impl ModelData {
+  fn get_internal_data(&self) -> MutexGuard<InternalModelData> {
+    self.internal_data.lock().unwrap()
+  }
+
   /// This will create the data for a model.
   /// The data will contain things such as what the model looks like, the hitbox,
   /// what layer the model sits on, the position, and more.
@@ -54,6 +69,183 @@ impl ModelData {
   /// To create ModelData you will need the Sprite.
   /// A Sprite contains the data for the model's Skin and Hitbox.
   pub fn new(
+    model_position: Coordinates,
+    sprite: Sprite,
+    hitbox_data: HitboxCreationData,
+    strata: Strata,
+    assigned_name: String,
+  ) -> Result<Self, ModelError> {
+    let internal_data =
+      InternalModelData::new(model_position, sprite, hitbox_data, strata, assigned_name)?;
+
+    Ok(Self {
+      internal_data: Arc::new(Mutex::new(internal_data)),
+    })
+  }
+
+  pub fn from_file(
+    model_file_path: &Path,
+    frame_position: (usize, usize),
+  ) -> Result<Self, ModelError> {
+    let model_file = File::open(model_file_path);
+
+    match model_file {
+      Ok(file) => ModelParser::parse(file, frame_position),
+      Err(_) => {
+        let file_path = model_file_path
+          .file_name()
+          .map(|path_string| path_string.to_owned());
+
+        let error = ModelCreationError::ModelFileDoesntExist(file_path);
+
+        Err(ModelError::ModelCreationError(error))
+      }
+    }
+  }
+
+  pub fn top_left(&self) -> usize {
+    let internal_data = self.get_internal_data();
+
+    internal_data.position_in_frame
+  }
+
+  /// Returns the (width, height) of the current sprite shape.
+  pub fn get_sprite_dimensions(&self) -> (usize, usize) {
+    let internal_data = self.get_internal_data();
+
+    let model_skin_shape = internal_data.sprite.get_shape();
+    let sprite_skin_rows: Vec<&str> = model_skin_shape.split('\n').collect();
+
+    let sprite_skin_width = sprite_skin_rows[0].chars().count();
+    let sprite_skin_height = sprite_skin_rows.len();
+
+    (sprite_skin_width, sprite_skin_height)
+  }
+
+  /// Changes the placement_anchor and top left position of the model.
+  ///
+  /// Input is based on the frame_position aka top left position of the model.
+  pub fn change_position(&mut self, new_position: usize) {
+    let mut internal_data = self.get_internal_data();
+
+    let new_frame_anchor_index = new_position as isize
+      + internal_data.placement_anchor.0
+      + (internal_data.placement_anchor.1 * (CONFIG.grid_width as isize + 1));
+
+    let (frame_index, new_anchor) =
+      get_position_data(new_frame_anchor_index as usize, &internal_data.sprite);
+
+    internal_data.position_in_frame = frame_index;
+    internal_data.placement_anchor = new_anchor;
+  }
+
+  /// Returns what the sprite classifies as air.
+  pub fn get_air_char(&self) -> char {
+    let internal_data = self.get_internal_data();
+
+    internal_data.sprite.air_character()
+  }
+
+  /// Returns a reference to the unique hash
+  pub fn get_unique_hash(&self) -> u64 {
+    let internal_data = self.get_internal_data();
+
+    internal_data.unique_hash
+  }
+
+  /// Returns a reference to the current position
+  pub fn get_model_position(&self) -> usize {
+    let internal_data = self.get_internal_data();
+
+    (internal_data.position_in_frame as isize
+      + internal_data.placement_anchor.0
+      + (internal_data.placement_anchor.1 * (CONFIG.grid_width as isize + 1))) as usize
+  }
+
+  /// Returns a reference to the String for the model's appearance
+  pub fn get_sprite(&self) -> String {
+    let internal_data = self.get_internal_data();
+
+    internal_data.sprite.get_shape().to_string()
+  }
+
+  /// Replaces the String for the model's appearance
+  pub fn change_sprite(&mut self, new_model: String) {
+    let mut internal_data = self.get_internal_data();
+
+    *internal_data.sprite.get_mut_shape() = new_model;
+  }
+
+  /// Returns a reference to the Strata
+  pub fn get_strata(&self) -> Strata {
+    let internal_data = self.get_internal_data();
+
+    internal_data.strata
+  }
+
+  /// Changes the model's Strata with the given one.
+  pub fn change_strata(&mut self, new_strata: Strata) {
+    let mut internal_data = self.get_internal_data();
+
+    internal_data.strata = new_strata
+  }
+
+  pub fn change_name(&mut self, new_name: String) {
+    let mut internal_data = self.get_internal_data();
+
+    internal_data.assigned_name = new_name
+  }
+
+  pub fn get_name(&self) -> String {
+    let internal_data = self.get_internal_data();
+
+    internal_data.assigned_name.clone()
+  }
+
+  pub fn check_collisions_against_all_models(&self) -> Vec<ModelData> {
+    let internal_data = self.get_internal_data();
+
+    let mut collision_list = vec![];
+
+    if let Some(existing_models) = &internal_data.existing_models {
+      let existing_models_read_lock = existing_models.read().unwrap();
+
+      for (hash, model_data) in existing_models_read_lock.get_model_list() {
+        if hash == &internal_data.unique_hash {
+          continue;
+        }
+
+        let other_model_internal_data = model_data.get_internal_data();
+
+        if internal_data.check_model_collision(&other_model_internal_data) {
+          drop(other_model_internal_data);
+
+          collision_list.push(model_data.clone());
+        }
+      }
+    }
+
+    collision_list
+  }
+
+  pub fn assign_model_list(&mut self, model_list: Arc<RwLock<Models>>) {
+    let mut internal_data = self.get_internal_data();
+
+    internal_data.existing_models = Some(model_list);
+  }
+
+  pub fn fix_model_strata(&self) -> Result<(), ModelError> {
+    let internal_data = self.get_internal_data();
+    guard!( let Some(model_list) = internal_data.existing_models.as_ref() else { return Err(ModelError::ModelDoesntExist) } );
+
+    let mut model_list_guard = model_list.write().unwrap();
+
+    model_list_guard.fix_strata_list()
+  }
+}
+
+impl InternalModelData {
+  fn new(
     model_position: Coordinates,
     sprite: Sprite,
     hitbox_data: HitboxCreationData,
@@ -83,126 +275,6 @@ impl ModelData {
     })
   }
 
-  pub fn from_file(
-    model_file_path: &Path,
-    frame_position: (usize, usize),
-  ) -> Result<Self, ModelError> {
-    let model_file = File::open(model_file_path);
-
-    match model_file {
-      Ok(file) => ModelParser::parse(file, frame_position),
-      Err(_) => {
-        let file_path = model_file_path
-          .file_name()
-          .map(|path_string| path_string.to_owned());
-
-        let error = ModelCreationError::ModelFileDoesntExist(file_path);
-
-        Err(ModelError::ModelCreationError(error))
-      }
-    }
-  }
-
-  /// Returns the index of the model from the top left position.
-  pub fn top_left(&self) -> &usize {
-    &self.position_in_frame
-  }
-
-  /// Returns the (width, height) of the current sprite shape.
-  pub fn get_sprite_dimensions(&self) -> (usize, usize) {
-    let model_skin_shape = self.sprite.get_shape();
-    let sprite_skin_rows: Vec<&str> = model_skin_shape.split('\n').collect();
-
-    let sprite_skin_width = sprite_skin_rows[0].chars().count();
-    let sprite_skin_height = sprite_skin_rows.len();
-
-    (sprite_skin_width, sprite_skin_height)
-  }
-
-  /// Changes the placement_anchor and top left position of the model.
-  ///
-  /// Input is based on the frame_position aka top left position of the model.
-  pub fn change_position(&mut self, new_position: usize) {
-    let new_frame_anchor_index = new_position as isize
-      + self.placement_anchor.0
-      + (self.placement_anchor.1 * (CONFIG.grid_width as isize + 1));
-
-    let (frame_index, new_anchor) =
-      get_position_data(new_frame_anchor_index as usize, &self.sprite);
-
-    self.position_in_frame = frame_index;
-    self.placement_anchor = new_anchor;
-  }
-
-  /// Returns what the sprite classifies as air.
-  pub fn get_air_char(&self) -> char {
-    self.sprite.air_character()
-  }
-
-  /// Returns a reference to the unique hash
-  pub fn get_unique_hash(&self) -> &u64 {
-    &self.unique_hash
-  }
-
-  /// Returns a reference to the current position
-  pub fn get_model_position(&self) -> usize {
-    (self.position_in_frame as isize
-      + self.placement_anchor.0
-      + (self.placement_anchor.1 * (CONFIG.grid_width as isize + 1))) as usize
-  }
-
-  /// Returns a reference to the String for the model's appearance
-  pub fn get_sprite(&self) -> &str {
-    self.sprite.get_shape()
-  }
-
-  /// Replaces the String for the model's appearance
-  pub fn change_sprite(&mut self, new_model: String) {
-    *self.sprite.get_mut_shape() = new_model;
-  }
-
-  /// Returns a reference to the Strata
-  pub fn get_strata(&self) -> &Strata {
-    &self.strata
-  }
-
-  /// Changes the model's Strata with the given one.
-  pub fn change_strata(&mut self, new_strata: Strata) {
-    self.strata = new_strata
-  }
-
-  pub fn change_name(&mut self, new_name: String) {
-    self.assigned_name = new_name
-  }
-
-  pub fn get_name(&self) -> &str {
-    &self.assigned_name
-  }
-
-  pub fn check_collisions_against_all_models(&self) -> Vec<Arc<Mutex<ModelData>>> {
-    let mut collision_list = vec![];
-
-    if let Some(existing_models) = &self.existing_models {
-      let existing_models_read_lock = existing_models.read().unwrap();
-
-      for (hash, model_data) in existing_models_read_lock.get_model_list() {
-        if hash == &self.unique_hash {
-          continue;
-        }
-
-        let model_data_guard = model_data.lock().unwrap();
-
-        if self.check_model_collision(&model_data_guard) {
-          drop(model_data_guard);
-
-          collision_list.push(Arc::clone(model_data));
-        }
-      }
-    }
-
-    collision_list
-  }
-
   /// Checks if any point in the model collides with another model.
   /// If a collision is detection the point of the collision will be returned.
   /// Otherwise if there was no collision None will be returned.
@@ -227,18 +299,6 @@ impl ModelData {
       && other_hitbox_x < self_hitbox_x + self_hitbox_width
       && self_hitbox_y < other_hitbox_y + other_hitbox_height
       && other_hitbox_y < self_hitbox_y + self_hitbox_height
-  }
-
-  pub fn assign_model_list(&mut self, model_list: Arc<RwLock<Models>>) {
-    self.existing_models = Some(model_list);
-  }
-
-  pub fn fix_model_strata(&self) -> Result<(), ModelError> {
-    guard!( let Some(model_list) = self.existing_models.as_ref() else { return Err(ModelError::ModelDoesntExist) } );
-
-    let mut model_list_guard = model_list.write().unwrap();
-
-    model_list_guard.fix_strata_list()
   }
 }
 
@@ -278,7 +338,7 @@ fn get_frame_index_to_world_placement_anchor(sprite: &Sprite) -> (isize, isize) 
   (-skin_anchor_coordinates.0, -skin_anchor_coordinates.1)
 }
 
-impl PartialEq for ModelData {
+impl PartialEq for InternalModelData {
   fn eq(&self, other: &Self) -> bool {
     self.placement_anchor == other.placement_anchor
       && self.position_in_frame == other.position_in_frame

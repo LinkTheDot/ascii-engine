@@ -3,6 +3,9 @@ use ascii_engine::prelude::*;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
+#[allow(unused)]
+use log::debug;
+
 pub struct ScreenConfig {
   pub screen: ScreenData,
   models: ModelTypes,
@@ -21,9 +24,9 @@ impl ScreenConfig {
     }
   }
 
-  pub fn add_square(&mut self, mut square: Square) -> Result<Arc<RwLock<Square>>, ModelError> {
+  pub fn add_square(&mut self, square: Square) -> Result<Arc<RwLock<Square>>, ModelError> {
     let square_hash = square.get_unique_hash();
-    self.screen.add_model(&mut square)?;
+    self.screen.add_model(&square)?;
 
     let square = square.wrap_self();
     self.models.square.insert(square_hash, square.clone());
@@ -38,9 +41,9 @@ impl ScreenConfig {
     }
   }
 
-  pub fn add_wall(&mut self, mut wall: Wall) -> Result<Arc<RwLock<Wall>>, ModelError> {
+  pub fn add_wall(&mut self, wall: Wall) -> Result<Arc<RwLock<Wall>>, ModelError> {
     let wall_hash = wall.get_unique_hash();
-    self.screen.add_model(&mut wall)?;
+    self.screen.add_model(&wall)?;
 
     let wrapped_wall = wall.wrap_self();
     self.models.wall.insert(wall_hash, wrapped_wall.clone());

@@ -1,5 +1,4 @@
 use ascii_engine::prelude::*;
-use std::sync::{Arc, Mutex};
 
 const SHAPE: &str = "x-x\nxcx\nx-x";
 const ANCHOR_CHAR: char = 'c';
@@ -13,7 +12,7 @@ fn display_logic() {
   // adding the height - 1 is accounting for new lines
   let expected_pixel_count =
     ((CONFIG.grid_width * CONFIG.grid_height) + CONFIG.grid_height - 1) as usize;
-  let display = screen.display().unwrap();
+  let display = screen.display();
 
   assert_eq!(display.chars().count(), expected_pixel_count);
 }
@@ -24,25 +23,25 @@ mod model_storage_tests {
 
   #[test]
   fn insert_valid_model_data() {
-    let model_data = Arc::new(Mutex::new(get_model_data((5, 5))));
+    let model_data = get_model_data((5, 5));
     let model = Square::new(model_data);
     let mut model_storage = Models::new();
 
-    let insert_result = model_storage.insert(&model.get_unique_hash(), &model);
+    let insert_result = model_storage.insert(model.get_model_data());
 
     assert!(insert_result.is_ok());
   }
 
   #[test]
   fn insert_invalid_model_data() {
-    let model_data = Arc::new(Mutex::new(get_model_data((5, 5))));
-    model_data.lock().unwrap().change_strata(Strata(101));
+    let mut model_data = get_model_data((5, 5));
+    model_data.change_strata(Strata(101));
     let model = Square::new(model_data);
     let mut model_storage = Models::new();
 
     let expected_result = Err(ModelError::IncorrectStrataRange(Strata(101)));
 
-    let insert_result = model_storage.insert(&model.get_unique_hash(), &model);
+    let insert_result = model_storage.insert(model.get_model_data());
 
     assert_eq!(insert_result, expected_result);
   }
@@ -79,11 +78,11 @@ mod model_storage_tests {
 
 #[derive(DisplayModel)]
 struct Square {
-  model_data: Arc<Mutex<ModelData>>,
+  model_data: ModelData,
 }
 
 impl Square {
-  pub fn new(model_data: Arc<Mutex<ModelData>>) -> Self {
+  pub fn new(model_data: ModelData) -> Self {
     Self { model_data }
   }
 }

@@ -233,7 +233,7 @@ mod model_data_logic {
       let (x, y) = (10, 10);
       let model_data = get_model_data((x, y));
 
-      assert!(*model_data.get_unique_hash() != 0);
+      assert!(model_data.get_unique_hash() != 0);
     }
 
     #[test]
@@ -277,7 +277,7 @@ mod model_data_logic {
 
       let expected_strata = Strata(0);
 
-      assert_eq!(model_data.get_strata(), &expected_strata);
+      assert_eq!(model_data.get_strata(), expected_strata);
     }
   }
 
@@ -343,7 +343,7 @@ mod model_data_logic {
 
       model_data.change_strata(Strata(5));
 
-      assert_eq!(model_data.get_strata(), &expected_new_strata);
+      assert_eq!(model_data.get_strata(), expected_new_strata);
     }
 
     #[test]
