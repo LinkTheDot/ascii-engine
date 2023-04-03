@@ -122,10 +122,37 @@ impl ModelData {
     (sprite_skin_width, sprite_skin_height)
   }
 
+  pub fn move_to(&mut self, new_position: (usize, usize)) -> Vec<ModelData> {
+    let internal_data = self.get_internal_data();
+
+    let anchored_placement = new_position.0 + ((CONFIG.grid_width as usize + 1) * new_position.1);
+    let top_left_difference = (internal_data.placement_anchor.0
+      + (internal_data.placement_anchor.1 * (CONFIG.grid_width as isize + 1)))
+      as usize;
+
+    drop(internal_data);
+
+    let new_index = anchored_placement - top_left_difference;
+
+    self.change_position(new_index);
+
+    self.check_collisions_against_all_models()
+  }
+
+  pub fn move_by(&mut self, added_position: (isize, isize)) -> Vec<ModelData> {
+    let true_width = CONFIG.grid_width as isize + 1;
+
+    let new_index = added_position.0 + (true_width * added_position.1) + self.top_left() as isize;
+
+    self.change_position(new_index as usize);
+
+    self.check_collisions_against_all_models()
+  }
+
   /// Changes the placement_anchor and top left position of the model.
   ///
   /// Input is based on the frame_position aka top left position of the model.
-  pub fn change_position(&mut self, new_position: usize) {
+  fn change_position(&mut self, new_position: usize) {
     let mut internal_data = self.get_internal_data();
 
     let new_frame_anchor_index = new_position as isize
@@ -184,10 +211,19 @@ impl ModelData {
   }
 
   /// Changes the model's Strata with the given one.
-  pub fn change_strata(&mut self, new_strata: Strata) {
+  pub fn change_strata(&mut self, new_strata: Strata) -> Result<(), ModelError> {
     let mut internal_data = self.get_internal_data();
 
-    internal_data.strata = new_strata
+    if new_strata.correct_range() {
+      internal_data.strata = new_strata;
+      drop(internal_data);
+
+      self.fix_model_strata()?;
+    } else {
+      return Err(ModelError::IncorrectStrataRange(new_strata));
+    }
+
+    Ok(())
   }
 
   pub fn change_name(&mut self, new_name: String) {
@@ -236,6 +272,7 @@ impl ModelData {
 
   pub fn fix_model_strata(&self) -> Result<(), ModelError> {
     let internal_data = self.get_internal_data();
+
     guard!( let Some(model_list) = internal_data.existing_models.as_ref() else { return Err(ModelError::ModelDoesntExist) } );
 
     let mut model_list_guard = model_list.write().unwrap();

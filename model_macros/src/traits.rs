@@ -19,22 +19,11 @@ pub fn generate_traits(ast: &syn::DeriveInput) -> TokenStream {
       }
 
       fn move_to(&mut self, new_position: (usize, usize)) -> Vec<ModelData> {
-        let new_index = new_position.0 + (CONFIG.grid_width as usize * new_position.1);
-
-        self.model_data.change_position(new_index);
-
-        self.model_data.check_collisions_against_all_models()
+        self.model_data.move_to(new_position)
       }
 
       fn move_by(&mut self, added_position: (isize, isize)) -> Vec<ModelData> {
-        let true_width = CONFIG.grid_width as isize + 1;
-
-        let new_index =
-          added_position.0 + (true_width * added_position.1) + self.get_top_left_position() as isize;
-
-        self.model_data.change_position(new_index as usize);
-
-        self.model_data.check_collisions_against_all_models()
+        self.model_data.move_by(added_position)
       }
 
       fn get_air_char(&self) -> char {
@@ -58,14 +47,7 @@ pub fn generate_traits(ast: &syn::DeriveInput) -> TokenStream {
       }
 
       fn change_strata(&mut self, new_strata: Strata) -> Result<(), ModelError> {
-        if new_strata.correct_range() {
-          self.change_strata(new_strata)?;
-          self.model_data.fix_model_strata()?;
-        } else {
-          return Err(ModelError::IncorrectStrataRange(new_strata));
-        }
-
-        Ok(())
+        self.model_data.change_strata(new_strata)
       }
 
       fn get_name(&self) -> String {

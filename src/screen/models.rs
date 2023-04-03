@@ -145,7 +145,6 @@ impl Models {
 mod tests {
   use super::*;
   use crate::models::hitboxes::HitboxCreationData;
-  use crate::CONFIG;
 
   #[derive(DisplayModel)]
   struct TestModel {

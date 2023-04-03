@@ -1,0 +1,17 @@
+SKIN
+anchor='a'
+anchor_replacement='-'
+air='+'
+name='Teleport Pad'
+Strata = '0'
+-=--=-
+Appearance
+/---\
+|(a)|
+\---/
+-=--=-
+Hitbox_Dimensions
+xxxxx
+xxaxx
+xxxxx
+-=--=-
