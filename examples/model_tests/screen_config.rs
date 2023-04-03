@@ -80,7 +80,9 @@ impl ScreenConfig {
       Ok((pad_1_hash, pad_2_hash))
     } else {
       // maybe make an error called "ModelError::Other("What went wrong")"
-      Err(ModelError::ModelDoesntExist)
+      Err(ModelError::Other(
+        "Attempted to add teleport pads that weren't connected".to_string(),
+      ))
     }
   }
 

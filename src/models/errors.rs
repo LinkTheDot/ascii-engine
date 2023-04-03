@@ -38,6 +38,11 @@ pub enum ModelError {
   /// Returns the list of indexes the anchor was found in.
   MultipleAnchorsFound(Vec<usize>),
 
+  /// When something went wrong but it wasn't enough to warrent it's own type.
+  ///
+  /// Contains a description of what went wrong.
+  Other(String),
+
   /// Contains the types of errors that can happen when parsing a model file.
   ModelCreationError(ModelCreationError),
 }

@@ -9,4 +9,6 @@ pub enum ScreenError {
   NoExistingModels,
 
   PrinterNotStarted,
+
+  PrinterAlreadyStarted,
 }

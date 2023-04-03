@@ -98,8 +98,6 @@ impl ScreenData {
     if !self.printer_started {
       return Err(ScreenError::PrinterNotStarted);
     } else if self.first_print {
-      println!("{}", "\n".repeat(CONFIG.grid_height as usize + 10));
-
       self.first_print = false;
     }
 
@@ -126,11 +124,18 @@ impl ScreenData {
   where
     T: std::fmt::Display + std::ops::Deref,
   {
-    print!("\x1B[0;0H");
+    print!("\x1B[1;1H");
     println!("{message}");
   }
 
   pub fn start_printer(&mut self) -> Result<(), ScreenError> {
+    if self.printer_started {
+      return Err(ScreenError::PrinterAlreadyStarted);
+    }
+
+    println!("{}", termion::clear::All);
+    println!("{}", "\n".repeat(CONFIG.grid_height as usize + 10));
+
     if let Err(printing_error) = self.printer.manual_set_origin() {
       return Err(ScreenError::PrintingError(printing_error));
     }
