@@ -3,13 +3,12 @@ use crate::models::model_data::*;
 use guard::guard;
 use log::{error, info, warn};
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
 
 /// Model data will contain all model hashes and their corresponding model types.
 #[derive(Debug)]
 pub struct Models {
   model_stratas: HashMap<Strata, HashSet<u64>>,
-  models: HashMap<u64, Arc<Mutex<ModelData>>>,
+  models: HashMap<u64, ModelData>,
 }
 
 impl Models {
@@ -21,11 +20,13 @@ impl Models {
     }
   }
 
-  pub fn insert<O: DisplayModel>(&mut self, key: &u64, model: &O) -> Result<(), ModelError> {
-    if self.models.get(key).is_none() {
-      self.models.insert(*key, model.get_model_data());
+  pub fn insert(&mut self, model: ModelData) -> Result<(), ModelError> {
+    let key = model.get_unique_hash();
 
-      self.insert_strata(key)?;
+    if self.models.get(&key).is_none() {
+      self.models.insert(key, model);
+
+      self.insert_strata(&key)?;
     } else {
       warn!(
         "Attempted insert of model {}, which already exists.",
@@ -48,7 +49,7 @@ impl Models {
   /// Returns a copy of the requested ModelData.
   ///
   /// Returns None when the model doesn't exist.
-  pub fn get_model(&self, key: &u64) -> Option<Arc<Mutex<ModelData>>> {
+  pub fn get_model(&self, key: &u64) -> Option<ModelData> {
     self.models.get(key).cloned()
   }
 
@@ -56,7 +57,7 @@ impl Models {
     self.models.keys().collect()
   }
 
-  pub fn get_model_list(&self) -> &HashMap<u64, Arc<Mutex<ModelData>>> {
+  pub fn get_model_list(&self) -> &HashMap<u64, ModelData> {
     &self.models
   }
 
@@ -65,10 +66,8 @@ impl Models {
       return Err(ModelError::IncorrectStrataRange(new_strata));
     }
 
-    if let Some(model_lock) = self.models.get_mut(key) {
-      let model_guard = model_lock.lock().unwrap();
-      let old_strata = *model_guard.get_strata();
-      drop(model_guard);
+    if let Some(model) = self.models.get_mut(key) {
+      let old_strata = model.get_strata();
 
       if let Some(strata_keys) = self.model_stratas.get_mut(&old_strata) {
         let model_existed = strata_keys.remove(key);
@@ -86,11 +85,8 @@ impl Models {
     guard!( let Some(model) = self.get_model(model_key) else {
       return Err(ModelError::ModelDoesntExist)
     });
-    let model = model.lock().unwrap();
-
-    let model_strata = *model.get_strata();
-    let model_hash = *model.get_unique_hash();
-    drop(model);
+    let model_strata = model.get_strata();
+    let model_hash = model.get_unique_hash();
 
     if let Some(strata_keys) = self.model_stratas.get_mut(&model_strata) {
       strata_keys.insert(model_hash);
@@ -121,16 +117,12 @@ impl Models {
         .iter()
         .map(|key| self.get_model(key).unwrap())
         .filter_map(|model| {
-          let model_guard = model.lock().unwrap();
-          let model_strata = model_guard.get_strata();
-          let model_hash = *model_guard.get_unique_hash();
+          let model_strata = model.get_strata();
+          let model_hash = model.get_unique_hash();
 
-          if model_strata != &current_strata {
-            drop(model_guard);
-
+          if model_strata != current_strata {
             Some((current_strata, model_hash))
           } else {
-            drop(model_guard);
             None
           }
         })
@@ -153,11 +145,10 @@ impl Models {
 mod tests {
   use super::*;
   use crate::models::hitboxes::HitboxCreationData;
-  use crate::CONFIG;
 
   #[derive(DisplayModel)]
   struct TestModel {
-    model_data: Arc<Mutex<ModelData>>,
+    model_data: ModelData,
   }
 
   impl TestModel {
@@ -169,9 +160,7 @@ mod tests {
       let sprite = Sprite::new(skin).unwrap();
       let model_data = ModelData::new((0, 0), sprite, hitbox_data, strata, name).unwrap();
 
-      Self {
-        model_data: Arc::new(Mutex::new(model_data)),
-      }
+      Self { model_data }
     }
   }
 
@@ -197,9 +186,7 @@ mod tests {
     let mut models = Models::new();
     let test_model = TestModel::new();
 
-    models
-      .insert(&test_model.get_unique_hash(), &test_model)
-      .unwrap();
+    models.insert(test_model.get_model_data()).unwrap();
 
     (models, test_model)
   }

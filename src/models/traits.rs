@@ -18,9 +18,9 @@ pub trait DisplayModel {
   fn get_sprite_dimensions(&self) -> (usize, usize);
 
   /// Moves the model to the given position.
-  fn move_to(&mut self, new_position: (usize, usize)) -> Vec<Arc<Mutex<ModelData>>>;
+  fn move_to(&mut self, new_position: (usize, usize)) -> Vec<ModelData>;
   /// Moves the model a relative amount from it's current position.
-  fn move_by(&mut self, added_position: (isize, isize)) -> Vec<Arc<Mutex<ModelData>>>;
+  fn move_by(&mut self, added_position: (isize, isize)) -> Vec<ModelData>;
 
   /// Returns the value the model uses to classify air in it's appearance.
   fn get_air_char(&self) -> char;
@@ -48,7 +48,5 @@ pub trait DisplayModel {
   fn change_name(&mut self, new_name: String);
 
   /// Returns a copy of the ModelData.
-  fn get_model_data(&self) -> Arc<Mutex<ModelData>>;
-
-  fn assign_model_list(&mut self, model_list: Arc<RwLock<Models>>);
+  fn get_model_data(&self) -> ModelData;
 }
