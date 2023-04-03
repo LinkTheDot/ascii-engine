@@ -84,10 +84,8 @@ impl Square {
               .unwrap();
 
             let connected_pad_position = connected_teleport_pad.get_position();
-            let mut connected_pad_position =
+            let connected_pad_position =
               connected_pad_position.index_to_coordinates((CONFIG.grid_width + 1) as usize);
-            // // Move 1 down to prevent infinite teleportation.
-            // connected_pad_position.1 += 1;
 
             let collision_list = initial_square.move_to(connected_pad_position);
 
