@@ -44,10 +44,7 @@ impl InternalModels {
 
       self.insert_strata(&key)?;
     } else {
-      warn!(
-        "Attempted insert of model {}, which already exists.",
-        model.get_unique_hash()
-      );
+      warn!("Attempted insert of model {key}, which already exists.",);
 
       return Err(ModelError::ModelAlreadyExists);
     }
@@ -226,10 +223,292 @@ impl InternalModels {
       let model_existed = strata_keys.remove(key);
 
       if model_existed {
+        if strata_keys.is_empty() {
+          self.model_stratas.remove(&old_strata);
+        }
+
         return self.insert_strata(key);
       }
     }
 
     Err(ModelError::ModelDoesntExist)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  #![allow(unused)]
+
+  use super::*;
+
+  const WORLD_POSITION: (usize, usize) = (10, 10);
+  const SHAPE: &str = "xxxxx\nxxaxx\nxxxxx";
+  const ANCHOR_CHAR: char = 'a';
+  const ANCHOR_REPLACEMENT_CHAR: char = 'x';
+  const AIR_CHAR: char = '-';
+  const MODEL_NAME: &str = "Test_Model";
+
+  #[cfg(test)]
+  mod insert_and_remove_logic {
+    use super::*;
+
+    #[test]
+    fn insert_once() {
+      let mut model_list = InternalModels::new();
+      let test_model = TestModel::new();
+      let model_data = test_model.get_model_data();
+
+      let result = model_list.insert(model_data);
+
+      assert!(result.is_ok());
+    }
+
+    #[test]
+    fn insert_twice() {
+      let mut model_list = InternalModels::new();
+      let test_model = TestModel::new();
+      let model_data = test_model.get_model_data();
+
+      let expected_result = Err(ModelError::ModelAlreadyExists);
+
+      let result = model_list.insert(model_data.clone());
+      assert!(result.is_ok());
+
+      let result = model_list.insert(model_data);
+      assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn insert_then_remove() {
+      let mut model_list = InternalModels::new();
+      let test_model = TestModel::new();
+      let model_data = test_model.get_model_data();
+
+      model_list.insert(model_data).unwrap();
+
+      let model_hash = test_model.get_unique_hash();
+      let removed_data = model_list.remove(&model_hash).unwrap();
+
+      assert_eq!(removed_data.get_unique_hash(), model_hash);
+    }
+
+    #[test]
+    fn remove_model_that_doesnt_exist() {
+      let mut model_list = InternalModels::new();
+      let fake_key: u64 = 0;
+
+      let result = model_list.remove(&fake_key);
+
+      assert!(result.is_none());
+    }
+  }
+
+  #[cfg(test)]
+  mod get_logic {
+    use super::*;
+
+    #[test]
+    fn get_strata_keys_invalid_strata() {
+      let model_list = InternalModels::new();
+
+      let result = model_list.get_strata_keys(&Strata(0));
+
+      assert!(result.is_none());
+    }
+
+    #[test]
+    fn get_strata_keys_valid_strata() {
+      let mut model_list = InternalModels::new();
+      let test_model = TestModel::new();
+      let model_hash = test_model.get_unique_hash();
+      let model_strata = test_model.get_strata();
+
+      model_list.insert(test_model.get_model_data());
+
+      let strata_keys = model_list.get_strata_keys(&model_strata).unwrap();
+
+      assert!(strata_keys.contains(&model_hash));
+    }
+
+    #[test]
+    fn get_existing_model() {
+      let mut model_list = InternalModels::new();
+      let test_model = TestModel::new();
+      let model_hash = test_model.get_unique_hash();
+
+      model_list.insert(test_model.get_model_data());
+
+      let result = model_list.get_model(&model_hash).unwrap();
+
+      assert_eq!(result.get_unique_hash(), model_hash);
+    }
+
+    #[test]
+    fn get_model_doesnt_exist() {
+      let model_list = InternalModels::new();
+      let fake_hash: u64 = 0;
+
+      let result = model_list.get_model(&fake_hash);
+
+      assert!(result.is_none());
+    }
+
+    #[test]
+    fn get_model_keys() {
+      let mut model_list = InternalModels::new();
+      let test_model = TestModel::new();
+      let model_hash = test_model.get_unique_hash();
+
+      model_list.insert(test_model.get_model_data());
+
+      let model_keys = model_list.get_model_keys();
+
+      assert!(model_keys.contains(&model_hash));
+    }
+
+    #[test]
+    fn get_model_list() {
+      let mut model_list = InternalModels::new();
+      let test_model = TestModel::new();
+      let model_hash = test_model.get_unique_hash();
+
+      model_list.insert(test_model.get_model_data());
+
+      let model_keys = model_list.get_model_list();
+
+      assert!(model_keys.contains_key(&model_hash));
+    }
+  }
+
+  #[cfg(test)]
+  mod insert_strata_logic {
+    use super::*;
+
+    #[test]
+    fn model_exists() {
+      let mut model_list = InternalModels::new();
+      let test_model = TestModel::new();
+
+      let model_data = test_model.get_model_data();
+      let model_hash = test_model.get_unique_hash();
+      let model_strata = test_model.get_strata();
+
+      model_list.models.insert(model_hash, model_data);
+
+      let insert_result = model_list.insert_strata(&model_hash);
+      let strata_keys = model_list.get_strata_keys(&model_strata).unwrap();
+
+      assert!(insert_result.is_ok());
+      assert!(strata_keys.contains(&model_hash));
+    }
+
+    #[test]
+    fn list_already_exists() {
+      let mut model_list = InternalModels::new();
+      let test_model = TestModel::new();
+      let other_test_model = TestModel::new();
+
+      model_list
+        .insert(other_test_model.get_model_data())
+        .unwrap();
+
+      let model_data = test_model.get_model_data();
+      let model_hash = test_model.get_unique_hash();
+      let model_strata = test_model.get_strata();
+
+      model_list.models.insert(model_hash, model_data);
+
+      let insert_result = model_list.insert_strata(&model_hash);
+      let strata_keys = model_list.get_strata_keys(&model_strata).unwrap();
+
+      assert!(insert_result.is_ok());
+      assert!(strata_keys.contains(&model_hash));
+    }
+
+    #[test]
+    fn model_doesnt_exist() {
+      let mut model_list = InternalModels::new();
+      let test_model = TestModel::new();
+
+      let fake_hash: u64 = 0;
+      let model_strata = test_model.get_strata();
+
+      let insert_result = model_list.insert_strata(&fake_hash);
+
+      assert!(insert_result.is_err());
+    }
+  }
+
+  #[cfg(test)]
+  mod fix_strata_list_logic {
+    use super::*;
+
+    #[test]
+    fn misplaced_strata() {
+      let mut model_list = InternalModels::new();
+      let test_model = TestModel::new();
+      let model_hash = test_model.get_unique_hash();
+      let model_strata = test_model.get_strata();
+
+      let fake_strata = Strata(0);
+      let fake_strata_list = HashSet::from([(model_hash)]);
+
+      model_list
+        .models
+        .insert(model_hash, test_model.get_model_data());
+      model_list
+        .model_stratas
+        .insert(fake_strata, fake_strata_list);
+
+      let fix_result = model_list.fix_strata_list();
+      let real_strata_list = model_list.get_strata_keys(&model_strata).unwrap();
+      let fake_strata_list = model_list.get_strata_keys(&fake_strata);
+
+      assert!(fix_result.is_ok());
+      assert!(fake_strata_list.is_none());
+      assert!(real_strata_list.contains(&model_hash));
+    }
+
+    #[test]
+    fn model_list_is_empty() {
+      let mut model_list = InternalModels::new();
+
+      let result = model_list.fix_strata_list();
+
+      assert!(result.is_ok())
+    }
+
+    #[test]
+    fn fix_model_strata_fake_old_strata() {
+      let mut model_list = InternalModels::new();
+
+      let expected_result = Err(ModelError::ModelDoesntExist);
+
+      let fake_hash: u64 = 0;
+      let fake_old_strata = Strata(0);
+      let fake_new_strata = Strata(10);
+
+      let result = model_list.fix_model_strata(&fake_hash, fake_old_strata, fake_new_strata);
+
+      assert_eq!(result, expected_result);
+    }
+  }
+
+  //
+  // -- Data for tests below --
+  //
+
+  #[derive(DisplayModel)]
+  struct TestModel {
+    model_data: ModelData,
+  }
+
+  impl TestModel {
+    fn new() -> Self {
+      let test_model_path = std::path::Path::new("tests/models/test_square.model");
+      let model_data = ModelData::from_file(test_model_path, WORLD_POSITION).unwrap();
+
+      Self { model_data }
+    }
   }
 }

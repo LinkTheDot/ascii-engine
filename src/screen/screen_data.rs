@@ -122,6 +122,7 @@ impl ScreenData {
         .map(|key| self.model_data.read().unwrap().get_model(key))
       {
         guard!( let Some(model) = model else {
+          // This is left here just incase something comes up that allows it to happen.
           error!("A model in strata {strata_number} that doesn't exist was attempted to be run.");
 
           continue;
@@ -451,6 +452,10 @@ mod tests {
     use super::*;
 
     #[test]
+    // Places the model on the screen.
+    //
+    // Checks if the first character in the model is equal to the first character
+    // of where the model was expected to be in the frame.
     fn correct_input() {
       let model = TestModel::new();
       let model_data = model.get_model_data();
@@ -465,9 +470,6 @@ mod tests {
 
       let model_top_left_character_in_frame = current_frame.chars().nth(top_left_index);
       let left_of_index_in_frame = current_frame.chars().nth(top_left_index - 1);
-
-      println!("\n\n{current_frame:?}\n\n");
-      println!("top_left: {top_left_index}");
 
       assert_eq!(
         model_top_left_character_in_frame.unwrap(),
