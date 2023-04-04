@@ -48,6 +48,8 @@ use log::debug;
 /// The data can differ from header to header.
 ///
 /// ## Skin Data
+/// NONE of these fields can be ``=``.
+/// The ``name`` field can NOT contain ``'``.
 ///
 /// The required fields under the "Skin" header are as such:
 ///
@@ -79,7 +81,8 @@ use log::debug;
 ///
 /// ## Appearance
 ///
-/// The appearance must be a rectangular shape that will be how your model looks on the screen.
+/// This will be how your model looks on the screen.
+/// The appearance must be rectangular in shape.
 ///
 /// To build a non-rectangular shape, you can use the air character defined under the "Skin" header to have a transparent pixel.
 ///
