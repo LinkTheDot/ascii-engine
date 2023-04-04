@@ -394,14 +394,17 @@ fn out_of_bounds_check(
 
 #[cfg(test)]
 mod tests {
+  #![allow(unused)]
+
   use super::*;
   use crate::general_data::coordinates::*;
-  use crate::models::hitboxes::HitboxCreationData;
 
-  const SHAPE: &str = "x-x\nxcx\nx-x";
-  const ANCHOR_CHAR: char = 'c';
-  const ANCHOR_REPLACEMENT_CHAR: char = '-';
+  const WORLD_POSITION: (usize, usize) = (10, 10);
+  const SHAPE: &str = "xxxxx\nxxaxx\nxxxxx";
+  const ANCHOR_CHAR: char = 'a';
+  const ANCHOR_REPLACEMENT_CHAR: char = 'x';
   const AIR_CHAR: char = '-';
+  const MODEL_NAME: &str = "Test_Model";
 
   #[test]
   fn change_position_out_of_bounds_right() {
@@ -449,7 +452,8 @@ mod tests {
 
     #[test]
     fn correct_input() {
-      let model_data = get_model_data((10, 10));
+      let model = TestModel::new();
+      let model_data = model.get_model_data();
       let find_character = SHAPE.chars().next().unwrap();
       let top_left_index = model_data.top_left();
       let mut current_frame = ScreenData::create_blank_frame();
@@ -480,28 +484,17 @@ mod tests {
   // -- Data for tests below --
   //
 
-  fn get_model_data(model_position: (usize, usize)) -> ModelData {
-    let sprite = get_sprite();
-    let strata = Strata(0);
-    let hitbox = get_hitbox();
-    let model_name = String::from("model");
-
-    ModelData::new(model_position, sprite, hitbox, strata, model_name).unwrap()
+  #[derive(DisplayModel)]
+  struct TestModel {
+    model_data: ModelData,
   }
 
-  fn get_sprite() -> Sprite {
-    let skin = get_skin();
+  impl TestModel {
+    fn new() -> Self {
+      let test_model_path = std::path::Path::new("tests/models/test_square.model");
+      let model_data = ModelData::from_file(test_model_path, WORLD_POSITION).unwrap();
 
-    Sprite::new(skin).unwrap()
-  }
-
-  fn get_skin() -> Skin {
-    Skin::new(SHAPE, ANCHOR_CHAR, ANCHOR_REPLACEMENT_CHAR, AIR_CHAR).unwrap()
-  }
-
-  fn get_hitbox() -> HitboxCreationData {
-    let shape = "xxx\n-c-";
-
-    HitboxCreationData::new(shape, 'c')
+      Self { model_data }
+    }
   }
 }

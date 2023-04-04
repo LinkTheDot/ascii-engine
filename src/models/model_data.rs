@@ -575,6 +575,7 @@ impl PartialEq for InternalModelData {
 mod tests {
   use super::*;
 
+  const WORLD_POSITION: (usize, usize) = (10, 10);
   const SHAPE: &str = "x-x\nxcx\nx-x";
   const ANCHOR_CHAR: char = 'c';
   const ANCHOR_REPLACEMENT_CHAR: char = '-';
@@ -596,7 +597,7 @@ mod tests {
 
   #[test]
   fn get_frame_index_to_world_placement_anchor_logic() {
-    let sprite = get_sprite();
+    let sprite = TestModel::get_sprite();
 
     let expected_position = (-1, -1);
 
@@ -608,13 +609,22 @@ mod tests {
   //
   // Functions used for tests
 
-  fn get_sprite() -> Sprite {
-    let skin = get_skin();
-
-    Sprite::new(skin).unwrap()
+  #[derive(DisplayModel)]
+  struct TestModel {
+    model_data: ModelData,
   }
 
-  fn get_skin() -> Skin {
-    Skin::new(SHAPE, ANCHOR_CHAR, ANCHOR_REPLACEMENT_CHAR, AIR_CHAR).unwrap()
+  impl TestModel {
+    #[allow(unused)]
+    fn new() -> Self {
+      let test_model_path = std::path::Path::new("tests/models/test_square.model");
+      let model_data = ModelData::from_file(test_model_path, WORLD_POSITION).unwrap();
+
+      Self { model_data }
+    }
+
+    fn get_sprite() -> Sprite {
+      Sprite::new(SHAPE, ANCHOR_CHAR, ANCHOR_REPLACEMENT_CHAR, AIR_CHAR).unwrap()
+    }
   }
 }

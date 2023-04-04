@@ -1,6 +1,13 @@
+#![allow(unused)]
 use ascii_engine::prelude::*;
 
 const WORLD_POSITION: (usize, usize) = (10, 10);
+const SHAPE: &str = "xxxxx\nxxaxx\nxxxxx";
+const ANCHOR_CHAR: char = 'a';
+const ANCHOR_REPLACEMENT_CHAR: char = 'x';
+const AIR_CHAR: char = '-';
+const MODEL_NAME: &str = "Test_Model";
+
 #[test]
 fn move_to_logic() {
   let mut screen = ScreenData::new();
