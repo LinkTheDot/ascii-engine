@@ -3,17 +3,20 @@ use crate::models::errors::*;
 #[allow(unused)]
 use log::debug;
 
-/// The Sprite is the display data of a model.
+//
+// Remove the Skin and just have the sprite contain all the internal data.
+// There's no use for the skin anymore now that hitboxes are stored somewhere else.
+//
+
+/// The ``Sprite`` contains the data for how a model looks on the screen.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Sprite {
   skin: Skin,
 }
 
-/// The Skin is how a model will appear on the screen.
+/// The ``Skin`` is the internal data for the Sprite.
 ///
-/// When creating a skin's shape, anchor and air characters will need to be designated.
-/// The anchor character will be replaced with the 'anchor_replacement_character' field when
-/// building the shape of the Skin.
+/// The skin contains the shape, anchor, anchor replacement, air, and the index of the anchor character in the shape.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Skin {
   pub shape: String,
@@ -25,32 +28,37 @@ pub struct Skin {
 }
 
 impl Sprite {
+  /// Converts a Skin into a Sprite
   pub fn new(mut skin: Skin) -> Result<Self, ModelError> {
     skin.fix_skin();
 
     Ok(Self { skin })
   }
 
+  /// Returns the index of the anchor character in the sprite's appearance.
   pub fn get_anchor_character_index(&self) -> usize {
     self.skin.anchor_character_index
   }
 
-  /// Returns a reference to the skin's shape
+  /// Returns a reference to the skin's appearance
   pub fn get_shape(&self) -> &str {
     &self.skin.shape
   }
 
-  /// Returns a mutable reference to the skin's shape
+  /// Returns a mutable reference to the skin's appearance
+  // This should be removed
   pub fn get_mut_shape(&mut self) -> &mut String {
     &mut self.skin.shape
   }
 
+  /// Returns the character labeled as air in the sprite's appearance.
   pub fn air_character(&self) -> char {
     self.skin.air_character
   }
 }
 
 impl Skin {
+  // The skin will be removed in the future with all the internal data moved into the sprite.
   pub fn new(
     shape: &str,
     anchor_character: char,
@@ -74,8 +82,7 @@ impl Skin {
     }
   }
 
-  /// Replaces the anchor character in the skin's shape with the given
-  /// replacement character.
+  /// Replaces the anchor character in the skin's shape with the given replacement character.
   fn fix_skin(&mut self) {
     self.shape = self.shape.replace(
       &self.anchor_character.to_string(),
@@ -83,6 +90,7 @@ impl Skin {
     );
   }
 
+  /// Returns the index of the anchor character in the shape.
   pub fn get_anchor_character_index(&self) -> usize {
     self.anchor_character_index
   }

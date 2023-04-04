@@ -4,6 +4,31 @@ use crate::CONFIG;
 use log::error;
 use std::cmp::Ordering;
 
+/// The hitbox will be how objects know the space they take up in the world.
+///
+/// You will not need to manually create a hitbox, rather, you will add a field called "Hitbox_Dimensions"
+/// to your model file.
+///
+/// # Example
+///
+/// The "a" character represents the assigned "anchor_character" under the "Skin" Header.
+/// ```no_run,bash,ignore
+/// * other data above *
+/// -=--=-
+/// HitboxDimensions
+/// xxxxx
+/// xxaxx
+/// xxxxx
+/// ```
+///
+/// Refer to [`ModelData`](crate::models::model_data::ModelData) for more information on model creation.
+///
+/// # Manual Creation
+///
+/// If for some reason you still want to manually create a hitbox through code (which is not recommended and you should make your own model file).
+///
+/// First you much create [`HitboxCreationData`](HitboxCreationData).
+/// From there, you can create a hitbox with that and the relative anchor to the skin using the [`Hitbox::from()`](Hitbox::from) method.
 #[derive(Debug)]
 pub struct Hitbox {
   relative_position_to_skin: (isize, isize),
@@ -12,6 +37,24 @@ pub struct Hitbox {
   empty_hitbox: bool,
 }
 
+/// The required data to create a hitbox.
+///
+/// Takes the shape of the hitbox and the anchor.
+///
+/// The shape must be a rectangular shape, nothing else will be accepted.
+///
+/// # Example
+/// ```no_run,bash,ignore
+/// xxxxx
+/// xxaxx
+/// xxxxx
+/// ```
+///
+/// The anchor will be the relative placement of the hitbox to the appearance of a model.
+/// When creating a model, both the appearance and hitbox are required to have anchors.
+///
+/// When placed in the world, a hitbox will be placed on it's anchor, and the hitbox's anchor
+/// will be placed over that.
 #[derive(Debug)]
 pub struct HitboxCreationData {
   pub shape: String,
@@ -19,6 +62,12 @@ pub struct HitboxCreationData {
 }
 
 impl Hitbox {
+  /// Creates a new hitbox from the passed in data and anchor to the skin.
+  ///
+  /// # Errors
+  ///
+  /// - Returns an error when no anchor was found on the shape of the hitbox.
+  /// - Returns an error if multiple anchors were found on the shape of the hitbox.
   pub fn from(
     hitbox_data: HitboxCreationData,
     skin_anchor: (isize, isize),
@@ -26,6 +75,12 @@ impl Hitbox {
     hitbox_data.get_hitbox_data(skin_anchor)
   }
 
+  /// Returns an empty hitbox.
+  ///
+  /// An empty hitbox will have the 'empty_hitbox' field labeled as true.
+  /// This will stop any checks from being run on this hitbox instance.
+  ///
+  /// This means an object with an "empty hitbox" will never interact with the world.
   fn create_empty() -> Self {
     Self {
       relative_position_to_skin: (0, 0),
@@ -35,8 +90,9 @@ impl Hitbox {
     }
   }
 
-  /// Gives the coordinates of the top left of the hitbox.
-  /// Returns (x, y).
+  /// Returns the top left position of the hitbox in a frame.
+  ///
+  /// Returned as (x, y)
   pub fn get_hitbox_position(&self, model_position: usize) -> (isize, isize) {
     let (model_x, model_y) = model_position.index_to_coordinates(CONFIG.grid_width as usize + 1);
 
@@ -51,12 +107,17 @@ impl Hitbox {
     (self.width, self.height)
   }
 
+  /// Returns true if the hitbox is labeled as empty.
   pub fn is_empty(&self) -> bool {
     self.empty_hitbox
   }
 }
 
 impl HitboxCreationData {
+  /// Creates a new instance of HitboxCreationData.
+  ///
+  /// This should not be used over model files.
+  /// Refer to [`ModelData`](crate::models::model_data::ModelData) for information of creating a model file.
   pub fn new(shape: &str, anchor_character: char) -> Self {
     Self {
       shape: shape.to_string(),
@@ -64,10 +125,16 @@ impl HitboxCreationData {
     }
   }
 
-  /// Converts the given data into a list of relative points from the anchor.
+  /// Converts a [`HitboxCreationData`](HitboxCreationData) into a [`Hitbox`](Hitbox).
   ///
-  /// Returns an error when an invalid hitbox is passed in, or when there's no
-  /// valid anchor character in the shape of the hitbox.
+  /// Takes the relative distance of the top left of the hitbox to the skin when their anchors are aligned.
+  ///
+  /// If the skin string is empty, returns an [`empty hitbox`](Hitbox::create_empty).
+  ///
+  /// # Errors
+  ///
+  /// - Returns an error when no anchor was found on the shape of the hitbox.
+  /// - Returns an error if multiple anchors were found on the shape of the hitbox.
   fn get_hitbox_data(self, skin_relative_anchor: (isize, isize)) -> Result<Hitbox, ModelError> {
     if self.shape.trim() == "" {
       return Ok(Hitbox::create_empty());
@@ -114,14 +181,14 @@ impl HitboxCreationData {
 }
 
 /// Returns
-/// (width, height).
+/// Result<(width, height)>.
 ///
-/// An error is returned when the hitbox isn't a rectangle.
+/// # Errors
+///
+/// - An error is returned when the hitbox isn't a rectangle.
+// It shouldn't be possible to pass in nothing where this is called right now.
+// If that changes then change this to account for that.
 fn valid_rectangle_check(model: &str) -> Result<(usize, usize), ModelError> {
-  if model.chars().count() == 0 {
-    return Err(ModelError::EmptyHitboxString);
-  }
-
   let rows: Vec<&str> = model.split('\n').collect();
   let model_width = rows[0].chars().count();
 
@@ -156,17 +223,6 @@ mod valid_rectangle_check_logic {
     let expected_error = Err(ModelError::NonRectangularShape);
 
     let returned_data = valid_rectangle_check(shape);
-
-    assert_eq!(returned_data, expected_error);
-  }
-
-  #[test]
-  fn empty_string_passed_in() {
-    let empty_string = "";
-
-    let expected_error = Err(ModelError::EmptyHitboxString);
-
-    let returned_data = valid_rectangle_check(empty_string);
 
     assert_eq!(returned_data, expected_error);
   }

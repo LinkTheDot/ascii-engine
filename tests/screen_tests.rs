@@ -25,7 +25,7 @@ mod model_storage_tests {
   fn insert_valid_model_data() {
     let model_data = get_model_data((5, 5));
     let model = Square::new(model_data);
-    let mut model_storage = Models::new();
+    let mut model_storage = InternalModels::new();
 
     let insert_result = model_storage.insert(model.get_model_data());
 

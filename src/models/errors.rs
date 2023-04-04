@@ -2,8 +2,9 @@ use crate::models::model_data::Strata;
 use std::ffi::OsString;
 
 #[derive(Debug, PartialEq, Eq)]
-/// This is the list of possible errors that could occurr
-/// while handling models.
+/// This is the list of possible errors that could occurr while handling models.
+///
+/// Includes a wrapper for [`ModelCreationError`](crate::models::errors::ModelCreationError).
 pub enum ModelError {
   /// While creating the model, no anchor point was found.
   NoAnchor,
@@ -11,12 +12,6 @@ pub enum ModelError {
   /// While creating the model, no every row
   /// contained the same amount of characters.
   NonRectangularShape,
-
-  /// While building out the hitbox, the string was
-  /// found to be empty.
-  // possibly just make this mean there's no hitbox
-  // period
-  EmptyHitboxString,
 
   /// This error is returned when a strata that wasn't 0-100 was passed in.
   IncorrectStrataRange(Strata),
@@ -38,15 +33,19 @@ pub enum ModelError {
   /// Returns the list of indexes the anchor was found in.
   MultipleAnchorsFound(Vec<usize>),
 
+  /// [`ModelData::from_file()`](crate::models::ModelData::from_file) was called with a path that has the wrong extension.
+  NonModelFile,
+
   /// When something went wrong but it wasn't enough to warrent it's own type.
   ///
   /// Contains a description of what went wrong.
   Other(String),
 
-  /// Contains the types of errors that can happen when parsing a model file.
+  /// A wrapper for [`ModelCreationError`](crate::models::errors::ModelCreationError).
   ModelCreationError(ModelCreationError),
 }
 
+/// This is the list of possible errors that could happen when parsing a model file.
 #[derive(Debug, PartialEq, Eq)]
 pub enum ModelCreationError {
   /// Invalid syntax was found with the line it was on being contained in the error.

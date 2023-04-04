@@ -1,25 +1,21 @@
 /// (x, y)
 pub type Coordinates = (usize, usize);
 
-pub enum Movements {
-  Up,
-  Down,
-  Left,
-  Right,
-}
-
 pub trait CoordinateMethods {
+  /// Converts coordinates into an index of the given grid width.
   fn coordinates_to_index(&self, width: usize) -> usize;
 
+  /// Returns the sum of the given coordinates.
   fn add(&self, add: Coordinates) -> Self;
+  /// Returns the difference of the x and y values of the given coordinates.
+  ///
+  /// Self - Other
   fn subtract(&self, subtract: Coordinates) -> (isize, isize);
-
-  fn get_coordinates_in_between(&self, bottom_right: &Self) -> Vec<Coordinates>;
 }
 
 #[allow(non_camel_case_types)]
 pub trait usizeMethods {
-  /// Returns (x, y).
+  /// Converts the given index to a set of coordinates of the passed in grid width.
   fn index_to_coordinates(&self, width: usize) -> (usize, usize);
 }
 
@@ -43,24 +39,5 @@ impl CoordinateMethods for Coordinates {
       self.0 as isize - subtract.0 as isize,
       self.1 as isize - subtract.1 as isize,
     )
-  }
-
-  fn get_coordinates_in_between(&self, bottom_right: &Self) -> Vec<Coordinates> {
-    let mut coordinates_in_between = vec![];
-    let mut coordiates_to_add = *self;
-
-    coordinates_in_between.push(coordiates_to_add);
-
-    while &coordiates_to_add != bottom_right {
-      if coordiates_to_add.0 == bottom_right.0 {
-        coordiates_to_add = (self.0, coordiates_to_add.1 + 1);
-      } else {
-        coordiates_to_add.0 += 1
-      }
-
-      coordinates_in_between.push(coordiates_to_add);
-    }
-
-    coordinates_in_between
   }
 }

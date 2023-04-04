@@ -1,9 +1,9 @@
 SKIN
-anchor='c'
-anchor_replacement='|'
-air='-'
-name='Wall'
-strata='100'
+anchor="c"
+anchor_replacement="|"
+air="-"
+name="Wall"
+strata="100"
 -=--=-
 Appearance
 |||||
