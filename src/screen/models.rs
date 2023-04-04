@@ -55,6 +55,62 @@ impl InternalModels {
     Ok(())
   }
 
+  /// Removes the ModelData of the given key.
+  ///
+  /// Returns The ModelData if it existed, otherwise returns None.
+  ///
+  /// # Errors (yes there's technically an error)
+  ///
+  /// Returns None when any existing model somehow has an impossible strata.
+  pub fn remove(&mut self, key: &u64) -> Option<ModelData> {
+    if self.model_exists(key) {
+      self.remove_mention_of(key)
+    } else {
+      self.fix_strata_list().ok()?;
+
+      self.remove_mention_of(key)
+    }
+  }
+
+  /// Returns true if the model exists in both the ModelData list, and the Strata list pertaining to it's currently assigned strata.
+  ///
+  /// Returns false if the model's strata is somehow incorrect.
+  /// Returns false if the model didn't exist internally.
+  fn model_exists(&self, key: &u64) -> bool {
+    if let Some(model) = self.get_model(key) {
+      let model_strata = model.get_strata();
+
+      if let Some(model_stratas) = self.get_strata_keys(&model_strata) {
+        if model_stratas.contains(key) {
+          return true;
+        }
+      }
+    }
+
+    false
+  }
+
+  /// Removes any mention the model corresponding to the passed in key.
+  ///
+  /// This means the key will be removed from the strata list and internal ModelData list.
+  ///
+  /// This will also delete the strata list if it's empty after removing this model.
+  ///
+  /// Returns the ModelData if it existed.
+  /// Otherwise returns None.
+  fn remove_mention_of(&mut self, key: &u64) -> Option<ModelData> {
+    let model = self.models.remove(key)?;
+    let model_strata = model.get_strata();
+
+    self.model_stratas.get_mut(&model_strata)?.remove(key);
+
+    if self.model_stratas.get(&model_strata)?.is_empty() {
+      self.model_stratas.remove(&model_strata);
+    }
+
+    Some(model)
+  }
+
   /// Returns a reference to the model hashes corresponding to the given Strata level.
   ///
   /// Returns None when no models in that Strata range exist.
