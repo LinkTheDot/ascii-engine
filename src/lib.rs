@@ -15,7 +15,6 @@ pub mod general_data {
   pub mod coordinates;
   pub mod file_logger;
   pub mod hasher;
-  pub mod map_methods;
   pub mod user_input;
 }
 

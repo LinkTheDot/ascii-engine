@@ -1,11 +1,12 @@
 use crate::models::errors::*;
 use crate::models::{hitboxes::*, model_data::*};
-use guard::guard;
 use log::error;
 use std::io::Read;
 
+/// The namespace for the ModelParser methods.
 pub struct ModelParser;
 
+/// The data required for building an instance of ModelData.
 #[derive(Default, Debug)]
 struct ModelDataBuilder {
   anchor: Option<char>,
@@ -17,6 +18,7 @@ struct ModelDataBuilder {
   hitbox_dimensions: Option<String>,
 }
 
+/// Used for which section the parser is currently checking the data for.
 #[derive(Debug, Eq, PartialEq)]
 enum Section {
   Skin,
@@ -26,6 +28,12 @@ enum Section {
 }
 
 impl ModelDataBuilder {
+  /// Used to build out the ModelData from the given data from the ModelDataBulder.
+  ///
+  /// # Errors
+  ///
+  /// Returns an error when the ModelDataBuilder is missing one or more fields of data.
+  /// Returns an error when the Appearance data had no anchor.
   fn build(self, frame_position: (usize, usize)) -> Result<ModelData, ModelError> {
     if let Err(error) = self.check_if_all_data_exists() {
       return Err(ModelError::ModelCreationError(error));
@@ -43,6 +51,11 @@ impl ModelDataBuilder {
     )
   }
 
+  /// Creates a [`Sprite`](crate::models::sprite::Sprite) with the data inside of self.
+  ///
+  /// # Errors
+  ///
+  /// Returns an error when no anchor was found on the appearance of the model.
   fn build_sprite(&self) -> Result<Sprite, ModelError> {
     let skin = Skin::new(
       self.appearance.as_ref().unwrap(),
@@ -54,6 +67,7 @@ impl ModelDataBuilder {
     Sprite::new(skin)
   }
 
+  /// Creates [`HitboxCreationData`](crate::models::hitboxes::HitboxCreationData) with the data inside of self.
   fn build_hitbox_data(&self) -> HitboxCreationData {
     let hitbox_shape = &self.hitbox_dimensions.as_ref().unwrap();
     let anchor_character = self.anchor.unwrap();
@@ -112,8 +126,11 @@ impl ModelDataBuilder {
 }
 
 impl ModelParser {
-  /// Comments: if "+- " is anywhere on a line, it'll be ignored
-  /// Spliters: Are -=--=-
+  /// Parses the passed in file of ``name.model``.
+  ///
+  /// # Errors
+  ///
+  /// Returns an error when any data within the model file is invalid. (Yes that includes when it's empty.)
   pub fn parse(
     mut model_file: std::fs::File,
     frame_position: (usize, usize),
@@ -133,6 +150,13 @@ impl ModelParser {
     model_data_builder.build(frame_position)
   }
 
+  /// Takes the rows from the model file and adds the data to a ModelDataBuilder.
+  ///
+  /// Returns the ModelDataBuilder with all the data contained in the model file for creating a ModelData.
+  ///
+  /// # Errors
+  ///
+  /// Returns an error when the syntax on any line was invalid.
   fn parse_rows(model_file_lines: Vec<&str>) -> Result<ModelDataBuilder, ModelError> {
     let mut model_data_builder = ModelDataBuilder::default();
     let mut section = Section::Unknown;
@@ -214,6 +238,11 @@ impl ModelParser {
     Ok(model_data_builder)
   }
 
+  /// Parses the given row under the ``Skin`` header and adds the data to the given ModelDataBuilder.
+  ///
+  /// # Errors
+  ///
+  /// Returns an error when the row had invalid syntax.
   fn skin_checks(
     model_data_builder: &mut ModelDataBuilder,
     model_file_row: &str,
@@ -228,9 +257,17 @@ impl ModelParser {
     let data_type = split_row[0];
     let contained_row_contents = split_row[1];
 
-    guard!( let Some(row_contents) = contained_row_contents.split('\'').nth(1) else {
-      return Err(ModelCreationError::InvalidSyntax(line_number));
-    });
+    let mut row_contents = contained_row_contents.split('\'').nth(1);
+
+    if row_contents.is_none() {
+      if let Some(real_contents) = contained_row_contents.split('\"').nth(1) {
+        row_contents = Some(real_contents)
+      } else {
+        return Err(ModelCreationError::InvalidSyntax(line_number));
+      }
+    }
+
+    let row_contents = row_contents.unwrap();
 
     match data_type.to_lowercase().trim() {
       "anchor" => {
@@ -288,6 +325,11 @@ impl ModelParser {
     Ok(())
   }
 
+  /// Checks if the contents are 1 character, and converts it into a ``char``.
+  ///
+  /// # Errors
+  ///
+  /// Returns an error when the contents >= 1 character.
   fn contents_to_char(contents: &str, line_number: usize) -> Result<char, ModelCreationError> {
     if contents.len() > 1 {
       return Err(ModelCreationError::InvalidStringSizeAtLine(line_number));

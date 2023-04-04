@@ -4,15 +4,26 @@ use guard::guard;
 use log::{error, info, warn};
 use std::collections::{HashMap, HashSet};
 
-/// Model data will contain all model hashes and their corresponding model types.
+/// This the the struct that contains a reference to every model that exists in the world.
+/// InternalModels contains a list of stratas 0-100 and the hashes of which objects correspond to those stratas.
+///
+/// The user will never create this, it will merely be apart of the screen.
+/// Every model will also hold a reference to this for two reasons.
+///
+/// One, when a model changes it's strata it needs to reflect that internally. and;
+///
+/// Two, models need to know about the existence of every other model for collision checks.
 #[derive(Debug)]
-pub struct Models {
+pub struct InternalModels {
   model_stratas: HashMap<Strata, HashSet<u64>>,
   models: HashMap<u64, ModelData>,
 }
 
-impl Models {
+impl InternalModels {
   #[allow(clippy::new_without_default)]
+  /// Creates a new instance of the InternalModels struct.
+  ///
+  /// This will only be called by the screen and is not needed anywhere else.
   pub fn new() -> Self {
     Self {
       model_stratas: HashMap::new(),
@@ -20,6 +31,11 @@ impl Models {
     }
   }
 
+  /// Creates a reference to the passed in ModelData and stores it.
+  ///
+  /// # Errors
+  ///
+  /// - An error is returned when attempting to add a model that already exists.
   pub fn insert(&mut self, model: ModelData) -> Result<(), ModelError> {
     let key = model.get_unique_hash();
 
@@ -53,34 +69,23 @@ impl Models {
     self.models.get(key).cloned()
   }
 
+  /// Returns a HashSet which contains references to the hashes of every model that exists in the world.
   pub fn get_model_keys(&self) -> HashSet<&u64> {
     self.models.keys().collect()
   }
 
+  /// Returns a reference to the internal HashMap of <hash, ModelData>.
   pub fn get_model_list(&self) -> &HashMap<u64, ModelData> {
     &self.models
   }
 
-  fn change_model_strata(&mut self, key: &u64, new_strata: Strata) -> Result<(), ModelError> {
-    if !new_strata.correct_range() {
-      return Err(ModelError::IncorrectStrataRange(new_strata));
-    }
-
-    if let Some(model) = self.models.get_mut(key) {
-      let old_strata = model.get_strata();
-
-      if let Some(strata_keys) = self.model_stratas.get_mut(&old_strata) {
-        let model_existed = strata_keys.remove(key);
-
-        if model_existed {
-          return self.insert_strata(key);
-        }
-      }
-    }
-
-    Err(ModelError::ModelDoesntExist)
-  }
-
+  /// Insert a model_hash to the model's currently assigned strata.
+  ///
+  /// # Errors
+  ///
+  /// - Returns an error when the given model_hash doesn't exist in the world.
+  // (I don't know if this below is possible or not. I'll leave it just incase something comes up in the future that makes it possible.)
+  /// - Returns an error when a model somehow has an impossible strata range.
   fn insert_strata(&mut self, model_key: &u64) -> Result<(), ModelError> {
     guard!( let Some(model) = self.get_model(model_key) else {
       return Err(ModelError::ModelDoesntExist)
@@ -95,7 +100,6 @@ impl Models {
         .model_stratas
         .insert(model_strata, HashSet::from([(model_hash)]));
     } else {
-      // Might be an impossible error, if so remove it.
       error!(
         "There was an attempt to insert model {} which has an impossible strata {model_strata:?}",
         model_hash
@@ -107,6 +111,12 @@ impl Models {
     Ok(())
   }
 
+  /// Iterates through every known model and checks if their assigned stratas are different from their current stratas.
+  /// Any model who's strata was found to be incorrect is moved to the strata it's currently assigned to.
+  ///
+  /// # Errors
+  ///
+  /// - Returns an error when a model somehow has an impossible strata.
   pub fn fix_strata_list(&mut self) -> Result<(), ModelError> {
     for strata_number in 0..=100 {
       let current_strata = Strata(strata_number);
@@ -130,64 +140,40 @@ impl Models {
 
       incorrect_strata_list
         .into_iter()
-        .try_for_each(|(strata, model_hash)| {
+        .try_for_each(|(new_strata, model_hash)| {
           info!("{model_hash} changed stratas to {current_strata:?}");
 
-          self.change_model_strata(&model_hash, strata)
+          self.fix_model_strata(&model_hash, current_strata, new_strata)
         })?;
     }
 
     Ok(())
   }
-}
 
-#[cfg(test)]
-mod tests {
-  use super::*;
-  use crate::models::hitboxes::HitboxCreationData;
-
-  #[derive(DisplayModel)]
-  struct TestModel {
-    model_data: ModelData,
-  }
-
-  impl TestModel {
-    fn new() -> Self {
-      let hitbox_data = HitboxCreationData::new("xxx\nxcx", 'c');
-      let skin = Skin::new("xxx\nxcx", 'c', ' ', '-').unwrap();
-      let name = String::from("Test_Model");
-      let strata = Strata(0);
-      let sprite = Sprite::new(skin).unwrap();
-      let model_data = ModelData::new((0, 0), sprite, hitbox_data, strata, name).unwrap();
-
-      Self { model_data }
+  /// Removes the given model_hash from 'old_strata' and moves it to 'new_strata'
+  ///
+  /// # Errors
+  ///
+  /// - Returns an error when the 'old_strata' doesn't exist. (meaning when it has no hashes)
+  /// - Returns an error when the model wasn't contained in 'old_strata'.
+  fn fix_model_strata(
+    &mut self,
+    key: &u64,
+    old_strata: Strata,
+    new_strata: Strata,
+  ) -> Result<(), ModelError> {
+    if !new_strata.correct_range() {
+      return Err(ModelError::IncorrectStrataRange(new_strata));
     }
-  }
 
-  #[cfg(test)]
-  mod change_model_strata_logic {
-    use super::*;
+    if let Some(strata_keys) = self.model_stratas.get_mut(&old_strata) {
+      let model_existed = strata_keys.remove(key);
 
-    #[test]
-    fn used_impossible_strata() {
-      let (mut models, test_model) = get_test_data();
-      let impossible_strata = Strata(101);
-      let model_key = test_model.get_unique_hash();
-
-      let expected_result = Err(ModelError::IncorrectStrataRange(Strata(101)));
-
-      let result = models.change_model_strata(&model_key, impossible_strata);
-
-      assert_eq!(expected_result, result);
+      if model_existed {
+        return self.insert_strata(key);
+      }
     }
-  }
 
-  fn get_test_data() -> (Models, TestModel) {
-    let mut models = Models::new();
-    let test_model = TestModel::new();
-
-    models.insert(test_model.get_model_data()).unwrap();
-
-    (models, test_model)
+    Err(ModelError::ModelDoesntExist)
   }
 }

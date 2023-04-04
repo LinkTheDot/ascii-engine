@@ -149,7 +149,7 @@ impl TeleportPad {
 }
 
 fn main() {
-  let mut screen = ScreenData::new().unwrap();
+  let mut screen = ScreenData::new();
   screen.start_printer().unwrap();
   let mut screen_config = ScreenConfig::new(screen);
 

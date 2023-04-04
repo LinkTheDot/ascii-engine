@@ -10,6 +10,11 @@ use termios::{tcsetattr, Termios, ECHO, ICANON, TCSANOW};
 #[allow(unused)]
 use log::{debug, info};
 
+const ERROR_CHARACTER: &str = "|";
+
+/// Gets a user's input without canonical mode.
+///
+/// If anything unexpected happens the ERROR_CHARACTER is returned.
 fn get_user_input() -> String {
   let stdin = 0;
 
@@ -27,7 +32,7 @@ fn get_user_input() -> String {
 
     tcsetattr(stdin, TCSANOW, &termios).unwrap(); // reset the stdin to original termios data
 
-    return String::from("|");
+    return String::from(ERROR_CHARACTER);
   }
 
   tcsetattr(stdin, TCSANOW, &termios).unwrap(); // reset the stdin to original termios data

@@ -6,29 +6,42 @@ use crate::CONFIG;
 use guard::guard;
 use log::error;
 use screen_printer::printer::*;
-use std::error::Error;
 use std::sync::{Arc, RwLock};
 use thread_clock::Clock;
 
 #[allow(unused)]
 use log::debug;
 
-pub const GRID_SPACER: &str = "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
-
-/// This is in the context of the update_placed_models function
-/// but could technically be used anywhere
-pub enum Actions {
-  Add,
-  Subtract,
-}
-
-/// Contains all of the data for the screen such as
-/// The clock
-/// The counter for all models that exist
-/// The set of pixels that make up the screen
+/// ScreenData is where all the internal information required to create frames is held.
+///
+/// # Creation
+///
+/// ```
+///  use ascii_engine::prelude::*;
+///
+///  let screen_data = ScreenData::new();
+/// ```
+///
+/// # Usage
+///
+/// ```ignore
+///  use ascii_engine::prelude::*;
+///
+///  let mut screen_data = ScreenData::new();
+///  screen_data.start_printer().unwrap();
+///
+///  // Add models to be printed to the screen.
+///
+///  if let Err(error) = screen_data.print_screen() {
+///    log::error!("An error has occurred while printing the screen: {error:?}");
+///  }
+/// ```
+///
+/// To create your own models refer to [`ModelData`](crate::models::model_data::ModelData).
+/// For adding them to the screen look to [add_model()](crate::screen::screen_data::ScreenData::add_model()).
 pub struct ScreenData {
   screen_clock: Clock,
-  model_data: Arc<RwLock<Models>>,
+  model_data: Arc<RwLock<InternalModels>>,
   printer: Printer,
   first_print: bool,
   printer_started: bool,
@@ -38,30 +51,64 @@ pub struct ScreenData {
 }
 
 impl ScreenData {
-  /// Creates a new screen and starts all processes required for the engine.
-  /// These include the file logger, clock, and cursor hider.
-  pub fn new() -> Result<ScreenData, Box<dyn Error>> {
+  /// Creates the screen.
+  ///
+  /// # Creation
+  ///
+  /// ```
+  ///  use ascii_engine::prelude::*;
+  ///
+  ///  let screen_data = ScreenData::new();
+  /// ```
+  ///
+  /// # Usage
+  ///
+  /// ```ignore
+  ///  use ascii_engine::prelude::*;
+  ///
+  ///  let mut screen_data = ScreenData::new();
+  ///  screen_data.start_printer().unwrap();
+  ///
+  ///  // Add models to be printed to the screen.
+  ///
+  ///  if let Err(error) = screen_data.print_screen() {
+  ///    log::error!("An error has occurred while printing the screen: {error:?}");
+  ///  }
+  /// ```
+  ///
+  /// To create your own models refer to [`ModelData`](crate::models::model_data::ModelData).
+  /// For adding them to the screen look to [add_model()](crate::screen::screen_data::ScreenData::add_model()).
+  pub fn new() -> ScreenData {
     // The handle for the file logger, isn't needed right now
     let _ = file_logger::setup_file_logger();
     let cursor_hider = termion::cursor::HideCursor::from(std::io::stdout());
     let mut screen_clock = Clock::custom(CONFIG.tick_duration).unwrap_or_else(|error| {
       panic!("An error has occurred while spawning a clock thread: '{error}'")
     });
-    let model_data = Arc::new(RwLock::new(Models::new()));
+    let model_data = Arc::new(RwLock::new(InternalModels::new()));
 
     screen_clock.start();
 
-    Ok(ScreenData {
+    ScreenData {
       screen_clock,
       model_data,
       printer: Printer::new(CONFIG.grid_width as usize, CONFIG.grid_height as usize),
       first_print: true,
       printer_started: false,
       _cursor_hider: cursor_hider,
-    })
+    }
   }
 
-  /// Creates a new frame of the world as it currently stands
+  /// Creates a new frame of the world as it currently stands.
+  ///
+  /// This method will build out a frame for the world and return it.
+  /// This could be used for when you don't want to use the built in printer and maybe want to
+  /// send the data somewhere else other than a terminal.
+  ///
+  /// If you want to print to a terminal it's best to use the
+  /// [`print_screen()`](crate::screen::screen_data::ScreenData::print_screen) method for that.
+  ///
+  /// Using this does not require you to start the printer as it just returns a frame the printer would've used itself.
   pub fn display(&self) -> String {
     let mut frame = Self::create_blank_frame();
 
@@ -89,11 +136,33 @@ impl ScreenData {
 
   /// Prints the screen as it currently is.
   ///
+  /// This will use a built in printer to efficiently print to the screen.
+  /// This prevents any flickers that normally appear in the terminal when printing a lot in a given time frame.
+  ///
+  /// To use this method you must first call the [`start_printer()`](crate::screen::screen_data::ScreenData::start_printer) method
+  /// to activate the printer.
+  /// It's recommended to do this right after creating the screen, and before you do anything else.
+  ///
+  /// # Usage
+  ///
+  /// ```ignore
+  ///  use ascii_engine::prelude::*;
+  ///
+  ///  let mut screen_data = ScreenData::new();
+  ///  screen_data.start_printer().unwrap();
+  ///
+  ///  // Add models to the screen.
+  ///
+  ///  if let Err(error) = screen_data.print_screen() {
+  ///    log::error!("An error has occurred while printing the screen: {error:?}");
+  ///  }
+  /// ```
+  ///
   /// # Errors
   ///
   /// Returns an error if;
   /// - The printer hasn't been started yet.
-  /// - An object is overlapping on the edge of the grid.
+  /// - A model is overlapping on the edge of the grid.
   pub fn print_screen(&mut self) -> Result<(), ScreenError> {
     if !self.printer_started {
       return Err(ScreenError::PrinterNotStarted);
@@ -111,15 +180,26 @@ impl ScreenData {
   }
 
   /// Prints whitespace over the screen.
+  ///
+  /// This can be used to reset the grid if things get desynced from possible bugs.
+  ///
+  /// # Errors
+  ///
+  /// - Returns an error if the printer hasn't been started with [`start_printer()`](crate::screen::screen_data::ScreenData::start_printer).
   pub fn clear_screen(&mut self) -> Result<(), ScreenError> {
-    if let Err(error) = self.printer.clear_grid() {
-      return Err(ScreenError::PrintingError(error));
+    if !self.printer_started() {
+      return Err(ScreenError::PrinterNotStarted);
     }
+
+    // Any errors this returns shouldn't be able to happen with a started screen.
+    self.printer.clear_grid().unwrap();
 
     Ok(())
   }
 
-  /// Prints text at the top of the screen.
+  /// This shouldn't be a main way of printing text, but it's here if needed.
+  ///
+  /// Prints a message at the top of the terminal.
   pub fn print_text<T>(&mut self, message: T)
   where
     T: std::fmt::Display + std::ops::Deref,
@@ -128,6 +208,22 @@ impl ScreenData {
     println!("{message}");
   }
 
+  /// Starts the printer allowing you to use the
+  /// [`print_screen()`](crate::screen::screen_data::ScreenData::print_screen) method.
+  ///
+  /// This should be called before starting the user_input thread or any instance of blocking stdin.
+  ///
+  /// # Usage
+  /// ```ignore
+  /// use ascii_engine::prelude::*;
+  ///
+  /// let mut screen_data = ScreenData::new();
+  /// screen_data.start_printer().unwrap();
+  /// ```
+  ///
+  /// # Errors
+  ///
+  /// - An error is returned when stdin is being block upon calling this method.
   pub fn start_printer(&mut self) -> Result<(), ScreenError> {
     if self.printer_started {
       return Err(ScreenError::PrinterAlreadyStarted);
@@ -145,21 +241,65 @@ impl ScreenData {
     Ok(())
   }
 
+  /// Returns true if the printer has been started or not.
+  ///
+  /// # Example
+  ///
+  /// ```
+  /// use ascii_engine::prelude::*;
+  ///
+  /// let screen_data = ScreenData::new();
+  ///
+  /// assert!(!screen_data.printer_started());
+  /// ```
   pub fn printer_started(&self) -> bool {
     self.printer_started
   }
 
-  /// Waits for the input amount of ticks.
-  /// The time between ticks is determined by the given value
-  /// in the config file.
   // The way the clock is handled should be changed.
   // Pass around a clock_receiver instead of using the screen itself to handle that.
+  /// Not useful at the moment, soon the be depricated.
   pub fn wait_for_x_ticks(&mut self, x: u32) {
     // Fix the documentation on how this errors
     let _ = self.screen_clock.wait_for_x_ticks(x);
   }
 
-  pub fn add_model<O: DisplayModel>(&mut self, model: &O) -> Result<(), ModelError> {
+  /// This is how you let the screen know a model exists.
+  ///
+  /// Refer to [`ModelData`](crate::models::model_data::ModelData) on how to create your own model.
+  ///
+  /// # Usage
+  /// ```
+  /// use ascii_engine::prelude::*;
+  /// use std::path::Path;
+  ///
+  /// #[derive(DisplayModel)]
+  /// struct MyModel {
+  ///   model_data: ModelData,
+  /// }
+  ///
+  /// impl MyModel {
+  ///   fn new(world_position: (usize, usize)) -> Self {
+  ///     let model_path = Path::new("examples/models/square.model");
+  ///
+  ///     Self {
+  ///       model_data: ModelData::from_file(model_path, world_position).unwrap(),
+  ///     }
+  ///   }
+  /// }
+  ///
+  /// let mut screen_data = ScreenData::new();
+  /// // screen_data.start_printer().unwrap(); crashes when running in tests
+  ///
+  /// let my_model = MyModel::new((10, 10));
+  ///
+  /// screen_data.add_model(&my_model).unwrap();
+  /// ```
+  ///
+  /// # Errors
+  ///
+  /// - An error is returned when attempting to add a model that already exists.
+  pub fn add_model<M: DisplayModel>(&mut self, model: &M) -> Result<(), ModelError> {
     let mut model_data = model.get_model_data();
 
     model_data.assign_model_list(self.model_data.clone());
@@ -198,6 +338,9 @@ impl ScreenData {
     }
   }
 
+  /// Returns a 2D string of the assigned air character in the config file.
+  ///
+  /// 2D meaning, rows of characters separated by newlines "creating a second dimension.
   fn create_blank_frame() -> String {
     // This was the fastest way I found to create a large 2-dimensional string of 1 character.
     let pixel_row = CONFIG.empty_pixel.repeat(CONFIG.grid_width as usize) + "\n";
@@ -210,6 +353,7 @@ impl ScreenData {
 }
 
 #[allow(dead_code)]
+// This will be remade completely once a "collision check" method is added to models.
 fn out_of_bounds_check(
   model_frame_position: usize,
   model_width: usize,

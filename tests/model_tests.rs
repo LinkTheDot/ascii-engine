@@ -419,7 +419,7 @@ mod model_data_logic {
 
   #[test]
   fn move_to_logic() {
-    let mut screen = ScreenData::new().unwrap();
+    let mut screen = ScreenData::new();
     let mut test_model = TestModel::new();
 
     screen.add_model(&test_model).unwrap();
