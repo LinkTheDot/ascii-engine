@@ -307,6 +307,17 @@ impl ScreenData {
     self.model_data.write().unwrap().insert(model_data)
   }
 
+  /// Removes the ModelData of the given key.
+  ///
+  /// Returns The ModelData if it existed, otherwise returns None.
+  ///
+  /// # Errors (yes there's technically an error)
+  ///
+  /// Returns None when any existing model somehow has an impossible strata.
+  pub fn remove_model(&mut self, key: &u64) -> Option<ModelData> {
+    self.model_data.write().unwrap().remove(key)
+  }
+
   /// Places the appearance of the model in the given frame.
   fn apply_model_in_frame(model: ModelData, current_frame: &mut String) {
     let model_frame_position = model.top_left();

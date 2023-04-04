@@ -40,6 +40,18 @@ impl ScreenConfig {
     Ok(square_hash)
   }
 
+  /// Removes any mention of the square pertaining to the given hash.
+  ///
+  /// Returns the removed square, if it didn't exist returns None.
+  #[allow(dead_code)]
+  pub fn remove_square(&mut self, key: &u64) -> Option<Square> {
+    let square = self.models.square_list.remove(key)?;
+
+    self.screen.remove_model(key)?;
+
+    Some(square)
+  }
+
   /// Gets a mutable reference to the square of the given unique hash.
   ///
   /// Returns None if the model didn't exist.
