@@ -364,14 +364,6 @@ impl ModelData {
     internal_data.sprite.get_shape().to_string()
   }
 
-  /// Replaces the String for the model's appearance
-  // This needs changing
-  pub fn change_sprite(&mut self, new_model: String) {
-    let mut internal_data = self.get_internal_data();
-
-    *internal_data.sprite.get_mut_shape() = new_model;
-  }
-
   /// Returns the model's currently assigned strata.
   pub fn get_strata(&self) -> Strata {
     let internal_data = self.get_internal_data();

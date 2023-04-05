@@ -27,8 +27,6 @@ pub trait DisplayModel {
 
   /// Returns the model's current appearance.
   fn get_sprite(&self) -> String;
-  /// Changes the appearance of the model.
-  fn change_sprite(&mut self, new_model: String);
 
   /// Returns a copy of the model's unique hash.
   fn get_unique_hash(&self) -> u64;

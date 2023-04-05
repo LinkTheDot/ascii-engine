@@ -51,12 +51,6 @@ impl Sprite {
     &self.shape
   }
 
-  /// Returns a mutable reference to the skin's appearance
-  // This should be removed
-  pub fn get_mut_shape(&mut self) -> &mut String {
-    &mut self.shape
-  }
-
   /// Returns the character labeled as air in the sprite's appearance.
   pub fn air_character(&self) -> char {
     self.air_character

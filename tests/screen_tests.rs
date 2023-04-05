@@ -15,7 +15,7 @@ mod display_logic {
 
   #[test]
   fn empty_screen() {
-    let screen = ScreenData::new();
+    let screen = ScreenData::default();
     // adding the height - 1 is accounting for new lines
     let expected_pixel_count =
       ((CONFIG.grid_width * CONFIG.grid_height) + CONFIG.grid_height - 1) as usize;
@@ -76,9 +76,5 @@ impl TestModel {
     let model_data = ModelData::from_file(test_model_path, WORLD_POSITION).unwrap();
 
     Self { model_data }
-  }
-
-  fn get_sprite() -> Sprite {
-    Sprite::new(SHAPE, ANCHOR_CHAR, ANCHOR_REPLACEMENT_CHAR, AIR_CHAR).unwrap()
   }
 }
