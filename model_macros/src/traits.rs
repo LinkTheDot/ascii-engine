@@ -34,10 +34,6 @@ pub fn generate_traits(ast: &syn::DeriveInput) -> TokenStream {
         self.model_data.get_sprite()
       }
 
-      fn change_sprite(&mut self, new_model: String) {
-        self.model_data.change_sprite(new_model)
-      }
-
       fn get_unique_hash(&self) -> u64 {
         self.model_data.get_unique_hash()
       }

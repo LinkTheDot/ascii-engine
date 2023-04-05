@@ -41,3 +41,32 @@ impl CoordinateMethods for Coordinates {
     )
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn add_logic() {
+    let left = (1, 1);
+    let right = (1, 1);
+
+    let expected_result = (2, 2);
+
+    let result = left.add(right);
+
+    assert_eq!(result, expected_result);
+  }
+
+  #[test]
+  fn subtract_logic() {
+    let left = (1, 1);
+    let right = (1, 1);
+
+    let expected_result = (0, 0);
+
+    let result = left.subtract(right);
+
+    assert_eq!(result, expected_result);
+  }
+}

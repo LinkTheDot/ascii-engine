@@ -29,7 +29,7 @@ use std::cmp::Ordering;
 ///
 /// First you much create [`HitboxCreationData`](HitboxCreationData).
 /// From there, you can create a hitbox with that and the relative anchor to the skin using the [`Hitbox::from()`](Hitbox::from) method.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Hitbox {
   relative_position_to_skin: (isize, isize),
   width: isize,
@@ -90,7 +90,7 @@ impl Hitbox {
     }
   }
 
-  /// Returns the top left position of the hitbox in a frame.
+  /// Takes the frame position of the model and returns the hitbox's frame position.
   ///
   /// Returned as (x, y)
   pub fn get_hitbox_position(&self, model_position: usize) -> (isize, isize) {
@@ -100,6 +100,17 @@ impl Hitbox {
       model_x as isize + self.relative_position_to_skin.0,
       model_y as isize + self.relative_position_to_skin.1,
     )
+
+    // let frame_grid_width = CONFIG.grid_width as isize + 1;
+    // let hitbox_difference =
+    //   self.relative_position_to_skin.0 + (self.relative_position_to_skin.1 * frame_grid_width);
+    //
+    // let hitbox_frame_position = hitbox_difference + model_position as isize;
+    //
+    // (
+    //   hitbox_frame_position % frame_grid_width,
+    //   hitbox_frame_position / frame_grid_width,
+    // )
   }
 
   /// Returns the (width, height) of the hitbox.
@@ -127,7 +138,15 @@ impl HitboxCreationData {
 
   /// Converts a [`HitboxCreationData`](HitboxCreationData) into a [`Hitbox`](Hitbox).
   ///
-  /// Takes the relative distance of the top left of the hitbox to the skin when their anchors are aligned.
+  /// NOTE
+  /// This method takes the distance of the model's anchor TO it's top left.
+  /// What this means is if you have some model:
+  /// ```no_run,bash,ignore
+  /// xxx
+  /// xax
+  /// xxx
+  /// ```
+  /// Here you would pass in (-1, -1). This is because the top left if (-1, -1) away from the anchor.
   ///
   /// If the skin string is empty, returns an [`empty hitbox`](Hitbox::create_empty).
   ///
@@ -164,8 +183,8 @@ impl HitboxCreationData {
     };
 
     let hitbox_anchor_coordinates = (
-      (hitbox_anchor_index % hitbox_width) as isize,
-      (hitbox_anchor_index / hitbox_width) as isize,
+      (hitbox_anchor_index as f32 % hitbox_width as f32).ceil() as isize,
+      (hitbox_anchor_index as f32 / hitbox_width as f32).ceil() as isize,
     );
 
     let x_difference = skin_relative_anchor.0 - hitbox_anchor_coordinates.0;
@@ -202,28 +221,108 @@ fn valid_rectangle_check(model: &str) -> Result<(usize, usize), ModelError> {
 }
 
 #[cfg(test)]
-mod valid_rectangle_check_logic {
+mod tests {
   use super::*;
+  // use crate::prelude::*;
 
-  #[test]
-  fn valid_rectangle() {
-    let rectangle = "xxx\nxxx\nxxx";
+  #[cfg(test)]
+  mod valid_rectangle_check_logic {
+    use super::*;
 
-    let expected_dimensions = Ok((3, 3));
+    #[test]
+    fn valid_rectangle() {
+      let dimensions = "xxx\nxxx\nxxx";
 
-    let rectangle_dimensions = valid_rectangle_check(rectangle);
+      let expected_dimensions = Ok((3, 3));
 
-    assert_eq!(rectangle_dimensions, expected_dimensions);
+      let rectangle_dimensions = valid_rectangle_check(dimensions);
+
+      assert_eq!(rectangle_dimensions, expected_dimensions);
+    }
+
+    #[test]
+    fn invalid_rectangle() {
+      let dimensions = "xx\nxxx\nx\nxxxxxx";
+
+      let expected_error = Err(ModelError::NonRectangularShape);
+
+      let returned_data = valid_rectangle_check(dimensions);
+
+      assert_eq!(returned_data, expected_error);
+    }
   }
 
   #[test]
-  fn invalid_rectangle() {
-    let shape = "xx\nxxx\nx\nxxxxxx";
+  fn empty_hitbox_logic() {
+    let hitbox_creation_data = HitboxCreationData::new("", 'a');
+    let hitbox = Hitbox::from(hitbox_creation_data, (0, 0)).unwrap();
 
-    let expected_error = Err(ModelError::NonRectangularShape);
-
-    let returned_data = valid_rectangle_check(shape);
-
-    assert_eq!(returned_data, expected_error);
+    assert!(hitbox.is_empty());
   }
+
+  #[test]
+  fn get_hitbox_position_logic() {
+    let hitbox_creation_data = HitboxCreationData::new("xxxxx\nxxaxx\nxxxxx", 'a');
+    let hitbox = Hitbox::from(hitbox_creation_data, (1, 1)).unwrap();
+    let model_frame_position = 10 + (10 * (CONFIG.grid_width as usize + 1));
+
+    let expected_position = (9, 9);
+
+    let position = hitbox.get_hitbox_position(model_frame_position);
+
+    assert_eq!(position, expected_position);
+  }
+
+  #[test]
+  fn get_dimensions_logic() {
+    let hitbox_creation_data = HitboxCreationData::new("xxxxx\nxxaxx\nxxxxx", 'a');
+    let hitbox = Hitbox::from(hitbox_creation_data, (1, 1)).unwrap();
+
+    let expected_dimensions: (isize, isize) = (5, 3);
+
+    let hitbox_dimensions = hitbox.get_dimensions();
+
+    assert_eq!(hitbox_dimensions, expected_dimensions);
+  }
+
+  #[test]
+  fn hitbox_data_no_anchor() {
+    let hitbox_creation_data = HitboxCreationData::new("x", 'a');
+
+    let expected_result = Err(ModelError::NoAnchor);
+
+    let result = Hitbox::from(hitbox_creation_data, (0, 0));
+
+    assert_eq!(result, expected_result);
+  }
+
+  #[test]
+  fn hitbox_data_multiple_anchors() {
+    let hitbox_creation_data = HitboxCreationData::new("xaax", 'a');
+
+    let expected_result = Err(ModelError::MultipleAnchorsFound(vec![1, 2]));
+
+    let result = Hitbox::from(hitbox_creation_data, (0, 0));
+
+    assert_eq!(result, expected_result);
+  }
+
+  // uncomment if needed
+  //
+  // -- Data for tests below --
+  //
+  //
+  // #[derive(DisplayModel)]
+  // struct TestModel {
+  //   model_data: ModelData,
+  // }
+  //
+  // impl TestModel {
+  //   fn new() -> Self {
+  //     let test_model_path = std::path::Path::new("tests/models/test_square.model");
+  //     let model_data = ModelData::from_file(test_model_path, WORLD_POSITION).unwrap();
+  //
+  //     Self { model_data }
+  //   }
+  // }
 }

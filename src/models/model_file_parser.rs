@@ -57,14 +57,12 @@ impl ModelDataBuilder {
   ///
   /// Returns an error when no anchor was found on the appearance of the model.
   fn build_sprite(&self) -> Result<Sprite, ModelError> {
-    let skin = Skin::new(
+    Sprite::new(
       self.appearance.as_ref().unwrap(),
       self.anchor.unwrap(),
       self.anchor_replacement.unwrap(),
       self.air.unwrap(),
-    )?;
-
-    Sprite::new(skin)
+    )
   }
 
   /// Creates [`HitboxCreationData`](crate::models::hitboxes::HitboxCreationData) with the data inside of self.
@@ -109,10 +107,6 @@ impl ModelDataBuilder {
 
     if self.appearance.is_none() {
       error_list.push("Appearance".to_string());
-    }
-
-    if self.hitbox_dimensions.is_none() {
-      error_list.push("Hitbox Dimensions".to_string());
     }
 
     if error_list.is_empty() {
@@ -232,7 +226,9 @@ impl ModelParser {
     let appearance = appearance_rows.join("\n");
     let hitbox_dimensions = hitbox_dimension_rows.join("\n");
 
-    model_data_builder.appearance = Some(appearance);
+    if !appearance.is_empty() {
+      model_data_builder.appearance = Some(appearance);
+    }
     model_data_builder.hitbox_dimensions = Some(hitbox_dimensions);
 
     Ok(model_data_builder)
@@ -248,26 +244,7 @@ impl ModelParser {
     model_file_row: &str,
     line_number: usize,
   ) -> Result<(), ModelCreationError> {
-    let split_row: Vec<&str> = model_file_row.split('=').collect();
-
-    if split_row.len() != 2 {
-      return Err(ModelCreationError::InvalidSyntax(line_number));
-    }
-
-    let data_type = split_row[0];
-    let contained_row_contents = split_row[1];
-
-    let mut row_contents = contained_row_contents.split('\'').nth(1);
-
-    if row_contents.is_none() {
-      if let Some(real_contents) = contained_row_contents.split('\"').nth(1) {
-        row_contents = Some(real_contents)
-      } else {
-        return Err(ModelCreationError::InvalidSyntax(line_number));
-      }
-    }
-
-    let row_contents = row_contents.unwrap();
+    let (data_type, row_contents) = Self::line_to_parts(model_file_row, line_number)?;
 
     match data_type.to_lowercase().trim() {
       "anchor" => {
@@ -325,6 +302,35 @@ impl ModelParser {
     Ok(())
   }
 
+  /// Returns the (data_type, row_contents).
+  ///
+  /// # Errors
+  ///
+  /// Returns an error when the syntax on this line was incorrect.
+  fn line_to_parts(
+    model_file_row: &str,
+    line_number: usize,
+  ) -> Result<(&str, &str), ModelCreationError> {
+    let (data_type, contained_row_contents) = match model_file_row.split_once('=') {
+      Some(split_row) => split_row,
+      None => return Err(ModelCreationError::InvalidSyntax(line_number)),
+    };
+
+    let mut row_contents = contained_row_contents.split('\'').nth(1);
+
+    if row_contents.is_none() {
+      if let Some(real_contents) = contained_row_contents.split('\"').nth(1) {
+        row_contents = Some(real_contents)
+      } else {
+        return Err(ModelCreationError::InvalidSyntax(line_number));
+      }
+    }
+
+    let row_contents = row_contents.unwrap();
+
+    Ok((data_type, row_contents))
+  }
+
   /// Checks if the contents are 1 character, and converts it into a ``char``.
   ///
   /// # Errors
@@ -339,5 +345,122 @@ impl ModelParser {
       .chars()
       .next()
       .ok_or(ModelCreationError::InvalidStringSizeAtLine(line_number))
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::fs::File;
+  use std::path::Path;
+
+  #[test]
+  fn missing_data() {
+    let missing_file_path = Path::new("tests/models/missing_data.model");
+    let missing_data_file = File::open(missing_file_path).unwrap();
+
+    let error = ModelCreationError::MissingData(get_error_list());
+    let expected_result = Err(ModelError::ModelCreationError(error));
+
+    let result = ModelParser::parse(missing_data_file, (0, 0));
+
+    assert_eq!(result, expected_result);
+  }
+
+  fn get_error_list() -> Vec<String> {
+    vec![
+      "Anchor Character".to_string(),
+      "Anchor Replacement Character".to_string(),
+      "Air Character".to_string(),
+      "Assigned Name".to_string(),
+      "Strata".to_string(),
+      "Appearance".to_string(),
+    ]
+  }
+
+  #[test]
+  fn equals_in_skin_field() {
+    let file_path = Path::new("tests/models/equals_in_skin_field.model");
+    let model_file = File::open(file_path).unwrap();
+
+    ModelParser::parse(model_file, (0, 0)).unwrap();
+  }
+
+  #[test]
+  fn empty_model_file() {
+    let file_path = Path::new("tests/models/empty_file.model");
+    let empty_file = File::open(file_path).unwrap();
+
+    let error = ModelCreationError::ModelFileIsEmpty;
+    let expected_result = Err(ModelError::ModelCreationError(error));
+
+    let result = ModelParser::parse(empty_file, (0, 0));
+
+    assert_eq!(result, expected_result);
+  }
+
+  #[test]
+  fn model_with_impossible_strata() {
+    let file_path = Path::new("tests/models/wrong_strata_range.model");
+    let model_file = File::open(file_path).unwrap();
+
+    let error = ModelCreationError::InvalidStrataRange(1000);
+    let expected_result = Err(ModelError::ModelCreationError(error));
+
+    let result = ModelParser::parse(model_file, (0, 0));
+
+    assert_eq!(result, expected_result);
+  }
+
+  #[test]
+  fn model_with_no_data_in_strata() {
+    let file_path = Path::new("tests/models/empty_strata.model");
+    let model_file = File::open(file_path).unwrap();
+
+    let error = ModelCreationError::InvalidStringSizeAtLine(6);
+    let expected_result = Err(ModelError::ModelCreationError(error));
+
+    let result = ModelParser::parse(model_file, (0, 0));
+
+    assert_eq!(result, expected_result);
+  }
+
+  #[test]
+  fn model_with_no_name() {
+    let file_path = Path::new("tests/models/empty_name.model");
+    let model_file = File::open(file_path).unwrap();
+
+    let error = ModelCreationError::InvalidStringSizeAtLine(5);
+    let expected_result = Err(ModelError::ModelCreationError(error));
+
+    let result = ModelParser::parse(model_file, (0, 0));
+
+    assert_eq!(result, expected_result);
+  }
+
+  #[test]
+  fn incorrect_right_hand_side_under_skin_header() {
+    let file_path = Path::new("tests/models/incorrect_right_hand_side.model");
+    let model_file = File::open(file_path).unwrap();
+
+    let error = ModelCreationError::InvalidStringSizeAtLine(6);
+    let expected_result = Err(ModelError::ModelCreationError(error));
+
+    let result = ModelParser::parse(model_file, (0, 0));
+
+    assert_eq!(result, expected_result);
+  }
+
+  #[test]
+  fn characters_in_strata_field() {
+    let file_path = Path::new("tests/models/characters_in_strata.model");
+    let model_file = File::open(file_path).unwrap();
+
+    let error = ModelCreationError::InvalidSyntax(6);
+    let expected_result = Err(ModelError::ModelCreationError(error));
+
+    let result = ModelParser::parse(model_file, (0, 0));
+
+    assert_eq!(result, expected_result);
   }
 }
