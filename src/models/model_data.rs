@@ -5,7 +5,6 @@ use crate::models::model_file_parser::ModelParser;
 pub use crate::models::traits::*;
 use crate::screen::models::InternalModels;
 use crate::CONFIG;
-use guard::guard;
 use std::ffi::OsStr;
 use std::sync::{Arc, MutexGuard, RwLock};
 use std::{fs::File, path::Path};
@@ -255,6 +254,7 @@ impl ModelData {
       Err(_) => {
         let file_path = model_file_path
           .file_name()
+          // Unwrap and convert the OsStr to an OsString.
           .map(|path_string| path_string.to_owned());
 
         let error = ModelCreationError::ModelFileDoesntExist(file_path);
@@ -378,18 +378,15 @@ impl ModelData {
   /// Returns an error when the new given strata is beyond the possible range.
   /// Returns an error when a model's currently assigned strata is also impossible.
   pub fn change_strata(&mut self, new_strata: Strata) -> Result<(), ModelError> {
-    let mut internal_data = self.get_internal_data();
-
-    if new_strata.correct_range() {
-      internal_data.strata = new_strata;
-      drop(internal_data);
-
-      self.fix_model_strata()?;
-    } else {
+    if !new_strata.correct_range() {
       return Err(ModelError::IncorrectStrataRange(new_strata));
     }
 
-    Ok(())
+    let mut internal_data = self.get_internal_data();
+    internal_data.strata = new_strata;
+    drop(internal_data);
+
+    self.fix_model_strata()
   }
 
   /// Changes the name of the model to the one passed in.
@@ -449,7 +446,12 @@ impl ModelData {
   pub fn fix_model_strata(&self) -> Result<(), ModelError> {
     let internal_data = self.get_internal_data();
 
-    guard!( let Some(model_list) = internal_data.existing_models.as_ref() else { return Err(ModelError::ModelDoesntExist) } );
+    if internal_data.existing_models.is_none() {
+      return Err(ModelError::ModelDoesntExist);
+    }
+
+    let model_list = internal_data.existing_models.clone().unwrap();
+    drop(internal_data);
 
     let mut model_list_guard = model_list.write().unwrap();
 
@@ -554,12 +556,18 @@ fn get_frame_index_to_world_placement_anchor(sprite: &Sprite) -> (isize, isize) 
   (-skin_anchor_coordinates.0, -skin_anchor_coordinates.1)
 }
 
+impl PartialEq for ModelData {
+  fn eq(&self, other: &Self) -> bool {
+    let self_hash = self.get_unique_hash();
+    let other_hash = other.get_unique_hash();
+
+    self_hash == other_hash
+  }
+}
+
 impl PartialEq for InternalModelData {
   fn eq(&self, other: &Self) -> bool {
-    self.placement_anchor == other.placement_anchor
-      && self.position_in_frame == other.position_in_frame
-      && self.strata == other.strata
-      && self.sprite == other.sprite
+    self.unique_hash == other.unique_hash
   }
 }
 
