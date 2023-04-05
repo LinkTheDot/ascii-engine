@@ -82,9 +82,7 @@ impl ScreenData {
     // The handle for the file logger, isn't needed right now
     let _ = file_logger::setup_file_logger();
     let cursor_hider = termion::cursor::HideCursor::from(std::io::stdout());
-    let mut screen_clock = Clock::custom(CONFIG.tick_duration).unwrap_or_else(|error| {
-      panic!("An error has occurred while spawning a clock thread: '{error}'")
-    });
+    let mut screen_clock = Clock::custom(CONFIG.tick_duration).unwrap();
     let model_data = Arc::new(RwLock::new(InternalModels::new()));
 
     screen_clock.start();
