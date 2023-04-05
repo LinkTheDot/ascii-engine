@@ -450,4 +450,17 @@ mod tests {
 
     assert_eq!(result, expected_result);
   }
+
+  #[test]
+  fn characters_in_strata_field() {
+    let file_path = Path::new("tests/models/characters_in_strata.model");
+    let model_file = File::open(file_path).unwrap();
+
+    let error = ModelCreationError::InvalidSyntax(6);
+    let expected_result = Err(ModelError::ModelCreationError(error));
+
+    let result = ModelParser::parse(model_file, (0, 0));
+
+    assert_eq!(result, expected_result);
+  }
 }

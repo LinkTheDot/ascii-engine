@@ -606,8 +606,46 @@ mod tests {
     assert_eq!(relative_position, expected_position);
   }
 
+  #[test]
+  fn fix_model_strata_model_not_in_screen() {
+    let test_model = TestModel::new();
+    let model_data = test_model.get_model_data();
+
+    let expected_result = Err(ModelError::ModelDoesntExist);
+
+    let result = model_data.fix_model_strata();
+
+    assert_eq!(result, expected_result);
+  }
+
+  #[test]
+  fn collisions_empty_hitbox() {
+    let test_model = TestModel::new();
+    let no_hitbox = TestModel::create_empty();
+    let test_model_data = test_model.get_model_data();
+    let no_hitbox_model_data = no_hitbox.get_model_data();
+
+    let internal_test_data = test_model_data.get_internal_data();
+    let internal_no_hitbox_data = no_hitbox_model_data.get_internal_data();
+
+    let result = internal_test_data.check_model_collision(&internal_no_hitbox_data);
+
+    assert!(!result);
+  }
+
+  #[test]
+  fn eq_logic() {
+    let test_model = TestModel::new();
+    let test_model_data = test_model.get_model_data();
+
+    let cloned_model_data = test_model_data.clone();
+
+    assert_eq!(test_model_data, cloned_model_data);
+  }
+
   //
   // Functions used for tests
+  //
 
   #[derive(DisplayModel)]
   struct TestModel {
@@ -618,6 +656,13 @@ mod tests {
     #[allow(unused)]
     fn new() -> Self {
       let test_model_path = std::path::Path::new("tests/models/test_square.model");
+      let model_data = ModelData::from_file(test_model_path, WORLD_POSITION).unwrap();
+
+      Self { model_data }
+    }
+
+    fn create_empty() -> Self {
+      let test_model_path = std::path::Path::new("tests/models/test_model_no_hitbox.model");
       let model_data = ModelData::from_file(test_model_path, WORLD_POSITION).unwrap();
 
       Self { model_data }
