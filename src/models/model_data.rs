@@ -288,16 +288,7 @@ impl ModelData {
   ///
   /// Returns a list of references to model collisions that occurred in the new location.
   pub fn move_to(&mut self, new_position: (usize, usize)) -> Vec<ModelData> {
-    let internal_data = self.get_internal_data();
-
-    let anchored_placement = new_position.0 + ((CONFIG.grid_width as usize + 1) * new_position.1);
-    let top_left_difference = (internal_data.placement_anchor.0
-      + (internal_data.placement_anchor.1 * (CONFIG.grid_width as isize + 1)))
-      as usize;
-
-    drop(internal_data);
-
-    let new_index = anchored_placement - top_left_difference;
+    let new_index = self.calculate_move_to_frame_position(new_position);
 
     self.change_position(new_index);
 
@@ -308,13 +299,42 @@ impl ModelData {
   ///
   /// Returns a list of references to model collisions that occurred in the new location.
   pub fn move_by(&mut self, added_position: (isize, isize)) -> Vec<ModelData> {
-    let true_width = CONFIG.grid_width as isize + 1;
+    let new_index = self.calculate_move_by_frame_position(added_position);
 
-    let new_index = added_position.0 + (true_width * added_position.1) + self.top_left() as isize;
-
-    self.change_position(new_index as usize);
+    self.change_position(new_index);
 
     self.check_collisions_against_all_models()
+  }
+
+  pub fn move_to_collision_check(&self, new_position: (usize, usize)) -> Vec<ModelData> {
+    let check_index = self.calculate_move_to_frame_position(new_position);
+
+    self.check_collisions_in_different_position(check_index)
+  }
+
+  pub fn move_by_collision_check(&self, added_position: (isize, isize)) -> Vec<ModelData> {
+    let check_index = self.calculate_move_by_frame_position(added_position);
+
+    self.check_collisions_in_different_position(check_index)
+  }
+
+  fn calculate_move_to_frame_position(&self, new_position: (usize, usize)) -> usize {
+    let internal_data = self.get_internal_data();
+
+    let anchored_placement = new_position.0 + ((CONFIG.grid_width as usize + 1) * new_position.1);
+    let top_left_difference = (internal_data.placement_anchor.0
+      + (internal_data.placement_anchor.1 * (CONFIG.grid_width as isize + 1)))
+      as usize;
+
+    drop(internal_data);
+
+    anchored_placement - top_left_difference
+  }
+
+  fn calculate_move_by_frame_position(&self, added_position: (isize, isize)) -> usize {
+    let true_width = CONFIG.grid_width as isize + 1;
+
+    (added_position.0 + (true_width * added_position.1) + self.top_left() as isize) as usize
   }
 
   /// Changes the placement_anchor and top left position of the model.
@@ -407,6 +427,21 @@ impl ModelData {
   ///
   /// Returns the list of hitboxes that are colliding with the model's hitbox.
   pub fn check_collisions_against_all_models(&self) -> Vec<ModelData> {
+    self.collisions_against_all_models(None)
+  }
+
+  fn check_collisions_in_different_position(&self, check_position: usize) -> Vec<ModelData> {
+    self.collisions_against_all_models(Some(check_position))
+  }
+
+  /// Internal check for collisions against all models that exist in the world.
+  ///
+  /// Takes an optional new position for the hitbox, this is so you can check what collisions
+  /// would have happened had the model moved to that new location.
+  fn collisions_against_all_models(
+    &self,
+    new_self_hitbox_position: Option<usize>,
+  ) -> Vec<ModelData> {
     let internal_data = self.get_internal_data();
 
     let mut collision_list = vec![];
@@ -421,7 +456,8 @@ impl ModelData {
 
         let other_model_internal_data = model_data.get_internal_data();
 
-        if internal_data.check_model_collision(&other_model_internal_data) {
+        if internal_data.check_model_collision(&other_model_internal_data, new_self_hitbox_position)
+        {
           drop(other_model_internal_data);
 
           collision_list.push(model_data.clone());
@@ -496,12 +532,17 @@ impl InternalModelData {
   }
 
   /// Returns true if the model's hitbox is overlapping with the hitbox of the model passed in.
-  pub fn check_model_collision(&self, other_model: &Self) -> bool {
+  pub fn check_model_collision(&self, other_model: &Self, check_position: Option<usize>) -> bool {
     if self.hitbox.is_empty() || other_model.hitbox.is_empty() {
       return false;
     }
 
-    let (self_hitbox_x, self_hitbox_y) = self.hitbox.get_hitbox_position(self.position_in_frame);
+    let (self_hitbox_x, self_hitbox_y) = if let Some(check_index) = check_position {
+      self.hitbox.get_position_based_on(check_index)
+    } else {
+      self.hitbox.get_hitbox_position(self.position_in_frame)
+    };
+
     let (other_hitbox_x, other_hitbox_y) = other_model
       .hitbox
       .get_hitbox_position(other_model.position_in_frame);
@@ -574,26 +615,13 @@ impl PartialEq for InternalModelData {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::screen::screen_data::ScreenData;
 
   const WORLD_POSITION: (usize, usize) = (10, 10);
   const SHAPE: &str = "x-x\nxcx\nx-x";
   const ANCHOR_CHAR: char = 'c';
   const ANCHOR_REPLACEMENT_CHAR: char = '-';
   const AIR_CHAR: char = '-';
-
-  #[test]
-  #[ignore]
-  fn get_top_left_coordinates_of_skin_logic() {
-    // let (x, y) = (10, 10);
-    // let model_index = (x, y).coordinates_to_index(CONFIG.grid_width as usize + 1);
-    // let sprite = get_sprite(true);
-    //
-    // let expected_index = ((CONFIG.grid_width + 1) as usize * (y - 1)) + (x - 1);
-    //
-    // let top_left_index = get_position_data(model_index, &sprite);
-    //
-    // assert_eq!(top_left_index, expected_index);
-  }
 
   #[test]
   fn get_frame_index_to_world_placement_anchor_logic() {
@@ -619,18 +647,66 @@ mod tests {
   }
 
   #[test]
+  fn check_model_collision_not_in_screen() {
+    let test_model = TestModel::new();
+    let test_model_data = test_model.get_model_data();
+
+    let expected_collisions = vec![];
+
+    let collisions = test_model_data.check_collisions_against_all_models();
+
+    assert_eq!(collisions, expected_collisions);
+  }
+
+  #[test]
   fn collisions_empty_hitbox() {
+    let mut screen = ScreenData::new();
     let test_model = TestModel::new();
     let no_hitbox = TestModel::create_empty();
     let test_model_data = test_model.get_model_data();
     let no_hitbox_model_data = no_hitbox.get_model_data();
 
+    screen.add_model(&test_model).unwrap();
+    screen.add_model(&no_hitbox).unwrap();
+
     let internal_test_data = test_model_data.get_internal_data();
     let internal_no_hitbox_data = no_hitbox_model_data.get_internal_data();
 
-    let result = internal_test_data.check_model_collision(&internal_no_hitbox_data);
+    let result = internal_test_data.check_model_collision(&internal_no_hitbox_data, None);
 
     assert!(!result);
+  }
+
+  #[test]
+  fn move_to_collision_check_no_collision() {
+    let mut screen = ScreenData::new();
+    let test_model = TestModel::new();
+
+    screen.add_model(&test_model).unwrap();
+
+    let expected_collisions = vec![];
+
+    let collisions = test_model.move_to_collision_check((20, 20));
+
+    assert_eq!(collisions, expected_collisions)
+  }
+
+  #[test]
+  fn move_to_collision_check_collided_model() {
+    let mut screen = ScreenData::new();
+    let test_model = TestModel::new();
+    let mut collided_model = TestModel::new();
+    let collided_model_data = collided_model.get_model_data();
+    collided_model.move_to((20, 20));
+
+    screen.add_model(&test_model).unwrap();
+    screen.add_model(&collided_model).unwrap();
+
+    let expected_collisions = vec![collided_model_data];
+
+    let collisions = test_model.move_to_collision_check((21, 21));
+
+    assert_eq!(collisions, expected_collisions)
   }
 
   #[test]

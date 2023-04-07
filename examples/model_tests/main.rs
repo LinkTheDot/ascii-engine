@@ -1,3 +1,4 @@
+use crate::collision_data::*;
 use crate::screen_config::*;
 use ascii_engine::general_data::coordinates::*;
 use ascii_engine::general_data::user_input::spawn_input_thread;
@@ -9,6 +10,7 @@ use std::path::Path;
 #[allow(unused)]
 use log::{debug, error, info, warn};
 
+mod collision_data;
 mod screen_config;
 
 #[derive(Debug, DisplayModel)]
@@ -27,6 +29,12 @@ pub struct TeleportPad {
   connected_pad_hash: u64,
 }
 
+#[derive(Debug)]
+pub struct ConnectedTeleportPads<'a> {
+  pub teleport_pad_1: &'a TeleportPad,
+  pub teleport_pad_2: &'a TeleportPad,
+}
+
 impl Square {
   fn from_file(path: &Path, world_position: (usize, usize)) -> Self {
     Self {
@@ -34,74 +42,69 @@ impl Square {
     }
   }
 
-  fn check_collisions(
-    mut initial_square: ModelData,
+  fn collision_checks(
+    initial_square: ModelData,
     mut collision_list: VecDeque<ModelData>,
     move_by: (isize, isize),
     screen_config: &ScreenConfig,
-  ) {
+  ) -> CollisionChain {
+    let mut collision_chain = CollisionChain::new();
+
+    let square_movement = MovementType::MoveBy(move_by);
+    let initial_square_action = CollisionAction::new(initial_square.clone(), square_movement);
+    collision_chain.add_action(initial_square_action);
+
     while !collision_list.is_empty() {
-      guard!( let Some(mut collided_model) = collision_list.pop_back() else { return; });
+      guard!( let Some(mut collided_model) = collision_list.pop_back() else { break; });
 
       let model_name = collided_model.get_name().to_lowercase();
 
       match model_name.trim() {
         "square" => {
-          let new_collisions = collided_model.move_by(move_by);
-          let new_collisions = VecDeque::from(new_collisions);
+          let new_collisions = VecDeque::from(collided_model.move_by_collision_check(move_by));
 
-          let collisions = (move_by, new_collisions);
+          let added_link =
+            Square::collision_checks(collided_model, new_collisions, move_by, screen_config);
 
-          Self::check_collisions(collided_model, collisions.1, collisions.0, screen_config);
+          collision_chain.append(added_link);
         }
 
-        "wall" => {
-          let move_back = (-move_by.0, -move_by.1);
-
-          let collisions = initial_square.move_by(move_back);
-
-          let collisions = (move_back, VecDeque::from(collisions));
-
-          Self::check_collisions(
-            initial_square.clone(),
-            collisions.1,
-            collisions.0,
-            screen_config,
-          );
-        }
+        "wall" => collision_chain.cancel_action_chain(),
 
         "teleport pad" => {
           let teleport_pad_position = collided_model.get_model_position();
-          let initial_square_position = initial_square.get_model_position();
 
-          if teleport_pad_position == initial_square_position {
-            debug!("{teleport_pad_position} == {initial_square_position}");
-            let touched_teleport_pad = screen_config
-              .get_teleport_pad(&collided_model.get_unique_hash())
+          let relative_distance_to_moved_position =
+            move_by.0 + (move_by.1 * (CONFIG.grid_width as isize + 1));
+          let moved_square_position = (initial_square.get_model_position() as isize
+            + relative_distance_to_moved_position) as usize;
+
+          if moved_square_position == teleport_pad_position {
+            let connected_teleport_pads = screen_config
+              .get_connected_teleport_pads(&collided_model.get_unique_hash())
               .unwrap();
-            let connected_teleport_pad = screen_config
-              .get_teleport_pad(&touched_teleport_pad.get_connected_pad_hash())
-              .unwrap();
 
-            let connected_pad_position = connected_teleport_pad.get_position();
-            let connected_pad_position =
-              connected_pad_position.index_to_coordinates((CONFIG.grid_width + 1) as usize);
+            let connected_pad_position = connected_teleport_pads
+              .teleport_pad_2
+              .get_position()
+              .index_to_coordinates((CONFIG.grid_width + 1) as usize);
 
-            let collision_list = initial_square.move_to(connected_pad_position);
+            let potential_collisions =
+              initial_square.move_to_collision_check(connected_pad_position);
 
-            // move back if something else was on the other pad
-            if collision_list.len() > 1 {
-              let previous_square_position =
-                initial_square_position.index_to_coordinates((CONFIG.grid_width + 1) as usize);
+            if potential_collisions.len() == 1 {
+              let new_movement = MovementType::MoveTo(connected_pad_position);
 
-              initial_square.move_to(previous_square_position);
+              let initial_square_hash = initial_square.get_unique_hash();
+              collision_chain.change_movement_of(&initial_square_hash, new_movement);
             }
           }
         }
-
         _ => (),
       }
     }
+
+    collision_chain
   }
 }
 
@@ -188,6 +191,9 @@ fn add_squares(screen_config: &mut ScreenConfig) -> u64 {
     .map(|square| screen_config.add_square(square).unwrap())
     .collect();
 
+  debug!("Player square hash is: {}", square_hash_list[0]);
+  debug!("Moved square hash is {}", square_hash_list[1]);
+
   square_hash_list.remove(0)
 }
 
@@ -220,7 +226,7 @@ fn user_move(screen_config: &mut ScreenConfig, player_hash: u64) {
     .get_square(&player_hash)
     .unwrap()
     .get_top_left_position();
-  let mut player_model_data = screen_config
+  let player_model_data = screen_config
     .get_square(&player_hash)
     .unwrap()
     .get_model_data();
@@ -255,15 +261,15 @@ fn user_move(screen_config: &mut ScreenConfig, player_hash: u64) {
       _ => continue,
     };
 
-    let player_collisions = player_model_data.move_by(move_by);
-    let player_collisions = VecDeque::from(player_collisions);
+    let possible_collisions = VecDeque::from(player_model_data.move_by_collision_check(move_by));
 
-    Square::check_collisions(
+    Square::collision_checks(
       player_model_data.clone(),
-      player_collisions,
+      possible_collisions,
       move_by,
       screen_config,
-    );
+    )
+    .run_link();
 
     let new_frame_index = player_model_data.top_left();
 

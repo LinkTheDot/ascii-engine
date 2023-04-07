@@ -26,6 +26,14 @@ pub fn generate_traits(ast: &syn::DeriveInput) -> TokenStream {
         self.model_data.move_by(added_position)
       }
 
+      fn move_to_collision_check(&self, new_position: (usize, usize)) -> Vec<ModelData> {
+        self.model_data.move_to_collision_check(new_position)
+      }
+
+      fn move_by_collision_check(&self, added_position: (isize, isize)) -> Vec<ModelData> {
+        self.model_data.move_by_collision_check(added_position)
+      }
+
       fn get_air_char(&self) -> char {
         self.model_data.get_air_char()
       }

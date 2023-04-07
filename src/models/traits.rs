@@ -22,6 +22,11 @@ pub trait DisplayModel {
   /// Moves the model a relative amount from it's current position.
   fn move_by(&mut self, added_position: (isize, isize)) -> Vec<ModelData>;
 
+  /// Returns the list of collisions the model would have had if it moved to the given location.
+  fn move_to_collision_check(&self, new_position: (usize, usize)) -> Vec<ModelData>;
+  /// Returns the list of collisions the model would have had if it moved by the given amount.
+  fn move_by_collision_check(&self, added_position: (isize, isize)) -> Vec<ModelData>;
+
   /// Returns the value the model uses to classify air in it's appearance.
   fn get_air_char(&self) -> char;
 

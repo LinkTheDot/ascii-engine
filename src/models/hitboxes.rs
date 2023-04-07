@@ -100,17 +100,6 @@ impl Hitbox {
       model_x as isize + self.relative_position_to_skin.0,
       model_y as isize + self.relative_position_to_skin.1,
     )
-
-    // let frame_grid_width = CONFIG.grid_width as isize + 1;
-    // let hitbox_difference =
-    //   self.relative_position_to_skin.0 + (self.relative_position_to_skin.1 * frame_grid_width);
-    //
-    // let hitbox_frame_position = hitbox_difference + model_position as isize;
-    //
-    // (
-    //   hitbox_frame_position % frame_grid_width,
-    //   hitbox_frame_position / frame_grid_width,
-    // )
   }
 
   /// Returns the (width, height) of the hitbox.
@@ -121,6 +110,18 @@ impl Hitbox {
   /// Returns true if the hitbox is labeled as empty.
   pub fn is_empty(&self) -> bool {
     self.empty_hitbox
+  }
+
+  /// Returns the (x, y) of the hitbox based on if the model was in the position of the new passed in value.
+  ///
+  /// The passed in value is based on frame index.
+  pub fn get_position_based_on(&self, new_position: usize) -> (isize, isize) {
+    let (model_x, model_y) = new_position.index_to_coordinates(CONFIG.grid_width as usize + 1);
+
+    (
+      model_x as isize + self.relative_position_to_skin.0,
+      model_y as isize + self.relative_position_to_skin.1,
+    )
   }
 }
 
