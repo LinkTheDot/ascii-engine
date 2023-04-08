@@ -10,7 +10,7 @@ const AIR_CHAR: char = '-';
 const MODEL_NAME: &str = "Test_Model";
 
 #[test]
-fn move_to_logic() {
+fn absolute_movement_logic() {
   let mut screen = ScreenData::new();
   let mut test_model = TestModel::new();
 
@@ -19,7 +19,7 @@ fn move_to_logic() {
   let expected_collisions = 0;
   let expected_position = ((CONFIG.grid_width + 1) as usize * 11) + 11;
 
-  let collisions = test_model.move_to((11, 11));
+  let collisions = test_model.absolute_movement((11, 11));
 
   let new_model_position = test_model.get_position();
 
@@ -28,7 +28,7 @@ fn move_to_logic() {
 }
 
 #[test]
-fn move_by_logic() {
+fn relative_movement_logic() {
   let mut screen = ScreenData::new();
   let mut test_model = TestModel::new();
 
@@ -37,7 +37,7 @@ fn move_by_logic() {
   let expected_collisions = 0;
   let expected_position = ((CONFIG.grid_width + 1) as usize * 11) + 11;
 
-  let collisions = test_model.move_by((1, 1));
+  let collisions = test_model.relative_movement((1, 1));
 
   let new_model_position = test_model.get_position();
 
@@ -128,7 +128,7 @@ mod check_collisions_against_all_models {
     let model_data_one = model_one.get_model_data();
     let mut model_data_two = model_two.get_model_data();
 
-    model_data_two.move_to((20, 20));
+    model_data_two.absolute_movement((20, 20));
     screen.add_model(&model_one).unwrap();
     screen.add_model(&model_two).unwrap();
 

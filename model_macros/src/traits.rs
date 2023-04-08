@@ -18,12 +18,20 @@ pub fn generate_traits(ast: &syn::DeriveInput) -> TokenStream {
         self.model_data.get_sprite_dimensions()
       }
 
-      fn move_to(&mut self, new_position: (usize, usize)) -> Vec<ModelData> {
-        self.model_data.move_to(new_position)
+      fn absolute_movement(&mut self, new_position: (usize, usize)) -> Vec<ModelData> {
+        self.model_data.absolute_movement(new_position)
       }
 
-      fn move_by(&mut self, added_position: (isize, isize)) -> Vec<ModelData> {
-        self.model_data.move_by(added_position)
+      fn relative_movement(&mut self, added_position: (isize, isize)) -> Vec<ModelData> {
+        self.model_data.relative_movement(added_position)
+      }
+
+      fn absolute_movement_collision_check(&self, new_position: (usize, usize)) -> Vec<ModelData> {
+        self.model_data.absolute_movement_collision_check(new_position)
+      }
+
+      fn relative_movement_collision_check(&self, added_position: (isize, isize)) -> Vec<ModelData> {
+        self.model_data.relative_movement_collision_check(added_position)
       }
 
       fn get_air_char(&self) -> char {

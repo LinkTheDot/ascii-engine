@@ -1,4 +1,4 @@
-use crate::{Square, TeleportPad, Wall};
+use crate::{ConnectedTeleportPads, Square, TeleportPad, Wall};
 use ascii_engine::prelude::*;
 use std::collections::HashMap;
 
@@ -140,6 +140,18 @@ impl ScreenConfig {
   #[allow(dead_code)]
   pub fn get_mut_teleport_pad(&mut self, key: &u64) -> Option<&mut TeleportPad> {
     self.models.teleport_pads.get_mut(key)
+  }
+
+  pub fn get_connected_teleport_pads(&self, key: &u64) -> Option<ConnectedTeleportPads> {
+    let teleport_pad = self.get_teleport_pad(key)?;
+
+    let other_teleport_pad_hash = teleport_pad.get_connected_pad_hash();
+    let other_teleport_pad = self.get_teleport_pad(&other_teleport_pad_hash)?;
+
+    Some(ConnectedTeleportPads {
+      teleport_pad_1: teleport_pad,
+      teleport_pad_2: other_teleport_pad,
+    })
   }
 }
 
