@@ -287,8 +287,8 @@ impl ModelData {
   /// Moves a model to the given world position.
   ///
   /// Returns a list of references to model collisions that occurred in the new location.
-  pub fn move_to(&mut self, new_position: (usize, usize)) -> Vec<ModelData> {
-    let new_index = self.calculate_move_to_frame_position(new_position);
+  pub fn absolute_movement(&mut self, new_position: (usize, usize)) -> Vec<ModelData> {
+    let new_index = self.calculate_absolute_movement_frame_position(new_position);
 
     self.change_position(new_index);
 
@@ -298,27 +298,30 @@ impl ModelData {
   /// Moves a relative amount based on the values passed in.
   ///
   /// Returns a list of references to model collisions that occurred in the new location.
-  pub fn move_by(&mut self, added_position: (isize, isize)) -> Vec<ModelData> {
-    let new_index = self.calculate_move_by_frame_position(added_position);
+  pub fn relative_movement(&mut self, added_position: (isize, isize)) -> Vec<ModelData> {
+    let new_index = self.calculate_relative_movement_frame_position(added_position);
 
     self.change_position(new_index);
 
     self.check_collisions_against_all_models()
   }
 
-  pub fn move_to_collision_check(&self, new_position: (usize, usize)) -> Vec<ModelData> {
-    let check_index = self.calculate_move_to_frame_position(new_position);
+  pub fn absolute_movement_collision_check(&self, new_position: (usize, usize)) -> Vec<ModelData> {
+    let check_index = self.calculate_absolute_movement_frame_position(new_position);
 
     self.check_collisions_in_different_position(check_index)
   }
 
-  pub fn move_by_collision_check(&self, added_position: (isize, isize)) -> Vec<ModelData> {
-    let check_index = self.calculate_move_by_frame_position(added_position);
+  pub fn relative_movement_collision_check(
+    &self,
+    added_position: (isize, isize),
+  ) -> Vec<ModelData> {
+    let check_index = self.calculate_relative_movement_frame_position(added_position);
 
     self.check_collisions_in_different_position(check_index)
   }
 
-  fn calculate_move_to_frame_position(&self, new_position: (usize, usize)) -> usize {
+  fn calculate_absolute_movement_frame_position(&self, new_position: (usize, usize)) -> usize {
     let internal_data = self.get_internal_data();
 
     let anchored_placement = new_position.0 + ((CONFIG.grid_width as usize + 1) * new_position.1);
@@ -331,7 +334,7 @@ impl ModelData {
     anchored_placement - top_left_difference
   }
 
-  fn calculate_move_by_frame_position(&self, added_position: (isize, isize)) -> usize {
+  fn calculate_relative_movement_frame_position(&self, added_position: (isize, isize)) -> usize {
     let true_width = CONFIG.grid_width as isize + 1;
 
     (added_position.0 + (true_width * added_position.1) + self.top_left() as isize) as usize
@@ -678,7 +681,7 @@ mod tests {
   }
 
   #[test]
-  fn move_to_collision_check_no_collision() {
+  fn absolute_movement_collision_check_no_collision() {
     let mut screen = ScreenData::new();
     let test_model = TestModel::new();
 
@@ -686,25 +689,43 @@ mod tests {
 
     let expected_collisions = vec![];
 
-    let collisions = test_model.move_to_collision_check((20, 20));
+    let collisions = test_model.absolute_movement_collision_check((20, 20));
 
     assert_eq!(collisions, expected_collisions)
   }
 
   #[test]
-  fn move_to_collision_check_collided_model() {
+  fn absolute_movement_collision_check_collided_model() {
     let mut screen = ScreenData::new();
     let test_model = TestModel::new();
     let mut collided_model = TestModel::new();
     let collided_model_data = collided_model.get_model_data();
-    collided_model.move_to((20, 20));
+    collided_model.absolute_movement((20, 20));
 
     screen.add_model(&test_model).unwrap();
     screen.add_model(&collided_model).unwrap();
 
     let expected_collisions = vec![collided_model_data];
 
-    let collisions = test_model.move_to_collision_check((21, 21));
+    let collisions = test_model.absolute_movement_collision_check((21, 21));
+
+    assert_eq!(collisions, expected_collisions)
+  }
+
+  #[test]
+  fn relative_movement_collision_check_collided_model() {
+    let mut screen = ScreenData::new();
+    let test_model = TestModel::new();
+    let mut collided_model = TestModel::new();
+    let collided_model_data = collided_model.get_model_data();
+    collided_model.absolute_movement((15, 10));
+
+    screen.add_model(&test_model).unwrap();
+    screen.add_model(&collided_model).unwrap();
+
+    let expected_collisions = vec![collided_model_data];
+
+    let collisions = test_model.relative_movement_collision_check((1, 0));
 
     assert_eq!(collisions, expected_collisions)
   }

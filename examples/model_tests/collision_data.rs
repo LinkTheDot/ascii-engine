@@ -21,8 +21,8 @@ pub struct CollisionAction {
 
 #[derive(Clone, Debug)]
 pub enum MovementType {
-  MoveTo((usize, usize)),
-  MoveBy((isize, isize)),
+  AbsoluteMovement((usize, usize)),
+  RelativeMovement((isize, isize)),
 }
 
 impl CollisionChain {
@@ -33,13 +33,12 @@ impl CollisionChain {
     }
   }
 
-  pub fn run_link(self) {
+  pub fn run_action_list(self) {
     if self.action_chain_canceled {
       return;
     }
 
-    let mut action_list: Vec<CollisionAction> = self.model_actions.into_values().collect();
-    action_list.reverse();
+    let action_list: Vec<CollisionAction> = self.model_actions.into_values().collect();
 
     action_list.into_iter().for_each(CollisionAction::act);
   }
@@ -77,8 +76,8 @@ impl CollisionAction {
 
   fn act(mut self) {
     match self.movement {
-      MovementType::MoveTo(movement) => self.model.move_to(movement),
-      MovementType::MoveBy(movement) => self.model.move_by(movement),
+      MovementType::AbsoluteMovement(movement) => self.model.absolute_movement(movement),
+      MovementType::RelativeMovement(movement) => self.model.relative_movement(movement),
     };
   }
 }

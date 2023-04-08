@@ -45,12 +45,12 @@ impl Square {
   fn collision_checks(
     initial_square: ModelData,
     mut collision_list: VecDeque<ModelData>,
-    move_by: (isize, isize),
+    relative_movement: (isize, isize),
     screen_config: &ScreenConfig,
   ) -> CollisionChain {
     let mut collision_chain = CollisionChain::new();
 
-    let square_movement = MovementType::MoveBy(move_by);
+    let square_movement = MovementType::RelativeMovement(relative_movement);
     let initial_square_action = CollisionAction::new(initial_square.clone(), square_movement);
     collision_chain.add_action(initial_square_action);
 
@@ -61,10 +61,15 @@ impl Square {
 
       match model_name.trim() {
         "square" => {
-          let new_collisions = VecDeque::from(collided_model.move_by_collision_check(move_by));
+          let new_collisions =
+            VecDeque::from(collided_model.relative_movement_collision_check(relative_movement));
 
-          let added_link =
-            Square::collision_checks(collided_model, new_collisions, move_by, screen_config);
+          let added_link = Square::collision_checks(
+            collided_model,
+            new_collisions,
+            relative_movement,
+            screen_config,
+          );
 
           collision_chain.append(added_link);
         }
@@ -75,7 +80,7 @@ impl Square {
           let teleport_pad_position = collided_model.get_model_position();
 
           let relative_distance_to_moved_position =
-            move_by.0 + (move_by.1 * (CONFIG.grid_width as isize + 1));
+            relative_movement.0 + (relative_movement.1 * (CONFIG.grid_width as isize + 1));
           let moved_square_position = (initial_square.get_model_position() as isize
             + relative_distance_to_moved_position) as usize;
 
@@ -90,10 +95,10 @@ impl Square {
               .index_to_coordinates((CONFIG.grid_width + 1) as usize);
 
             let potential_collisions =
-              initial_square.move_to_collision_check(connected_pad_position);
+              initial_square.absolute_movement_collision_check(connected_pad_position);
 
             if potential_collisions.len() == 1 {
-              let new_movement = MovementType::MoveTo(connected_pad_position);
+              let new_movement = MovementType::AbsoluteMovement(connected_pad_position);
 
               let initial_square_hash = initial_square.get_unique_hash();
               collision_chain.change_movement_of(&initial_square_hash, new_movement);
@@ -169,7 +174,15 @@ fn main() {
 
 /// Returns the hash for the player's square.
 fn add_squares(screen_config: &mut ScreenConfig) -> u64 {
-  let square_world_position_list = vec![(20, 10), (25, 10), (20, 20), (15, 5)];
+  let square_world_position_list = vec![
+    (20, 10),
+    (25, 10),
+    (20, 20),
+    (15, 5),
+    (15, 10),
+    (10, 10),
+    (10, 13),
+  ];
   let square_list: Vec<Square> = square_world_position_list
     .into_iter()
     .enumerate()
@@ -240,7 +253,7 @@ fn user_move(screen_config: &mut ScreenConfig, player_hash: u64) {
       .print_screen()
       .unwrap_or_else(|error| error!("{error:?}"));
 
-    let move_by = match input.to_lowercase().trim() {
+    let relative_movement = match input.to_lowercase().trim() {
       "w" => {
         screen_config.screen.wait_for_x_ticks(1);
 
@@ -261,15 +274,17 @@ fn user_move(screen_config: &mut ScreenConfig, player_hash: u64) {
       _ => continue,
     };
 
-    let possible_collisions = VecDeque::from(player_model_data.move_by_collision_check(move_by));
+    // relative_movement/absolute_movement
+    let possible_collisions =
+      VecDeque::from(player_model_data.relative_movement_collision_check(relative_movement));
 
     Square::collision_checks(
       player_model_data.clone(),
       possible_collisions,
-      move_by,
+      relative_movement,
       screen_config,
     )
-    .run_link();
+    .run_action_list();
 
     let new_frame_index = player_model_data.top_left();
 
