@@ -2,13 +2,13 @@ use crate::collision_data::*;
 use crate::screen_config::*;
 use ascii_engine::general_data::coordinates::*;
 use ascii_engine::general_data::user_input::spawn_input_thread;
+// use ascii_engine::models::animation::*;
 use ascii_engine::prelude::*;
 use guard::guard;
+use log::{error, info, warn};
 use std::collections::VecDeque;
 use std::path::Path;
-
-#[allow(unused)]
-use log::{debug, error, info, warn};
+use std::sync::{Arc, Mutex};
 
 mod collision_data;
 mod screen_config;
@@ -53,7 +53,6 @@ impl Square {
     let square_movement = MovementType::RelativeMovement(relative_movement);
     let initial_square_action = CollisionAction::new(initial_square.clone(), square_movement);
     collision_chain.add_action(initial_square_action);
-
     while !collision_list.is_empty() {
       guard!( let Some(mut collided_model) = collision_list.pop_back() else { break; });
 
@@ -156,38 +155,60 @@ impl TeleportPad {
   }
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
   let mut screen = ScreenData::new();
   screen.start_printer().unwrap();
+  // screen.start_animation_thread().await.unwrap();
+
   let mut screen_config = ScreenConfig::new(screen);
 
-  let player_square_hash = add_squares(&mut screen_config);
+  spawn_printing_task(screen_config.screen.clone());
+
+  let player_square_hash = add_squares(&mut screen_config).await;
   add_walls(&mut screen_config);
   add_teleport_pads(&mut screen_config);
 
-  screen_config.screen.print_screen().log_if_err();
-
-  user_move(&mut screen_config, player_square_hash);
+  user_move(&mut screen_config, player_square_hash).await;
 
   warn!("Program closed.");
+  std::process::exit(0);
+}
+
+fn spawn_printing_task(screen: Arc<Mutex<ScreenData>>) {
+  let _printing_handle = tokio::task::spawn(async move {
+    loop {
+      std::thread::sleep(std::time::Duration::from_millis(12));
+
+      screen.lock().unwrap().print_screen().log_if_err();
+    }
+  });
+}
+
+/// Gives a list of coordinates to place 50 square for testing placing a ton of models.
+fn get_50_square_coordinates() -> Vec<(usize, usize)> {
+  let initial_square = (95, 1);
+
+  (0..50)
+    .map(|iteration| {
+      let x = ((iteration as f32 / 5.0).floor() * 5.0) as usize + initial_square.0;
+      let y = ((iteration % 5) * 3) + initial_square.1;
+
+      (x, y)
+    })
+    .collect()
 }
 
 /// Returns the hash for the player's square.
-fn add_squares(screen_config: &mut ScreenConfig) -> u64 {
-  let square_world_position_list = vec![
-    (20, 10),
-    (25, 10),
-    (20, 20),
-    (15, 5),
-    (15, 10),
-    (10, 10),
-    (10, 13),
-  ];
+async fn add_squares(screen_config: &mut ScreenConfig) -> u64 {
+  let mut square_world_position_list = vec![(20, 10), (25, 10), (20, 20), (15, 5)];
+  square_world_position_list.append(&mut get_50_square_coordinates());
+
   let square_list: Vec<Square> = square_world_position_list
     .into_iter()
     .enumerate()
-    .map(|(count, world_position)| {
-      let square_path = if (count + 1) % 4 == 0 {
+    .map(|(iteration, world_position)| {
+      let square_path = if (iteration + 1) % 4 == 0 {
         Path::new("examples/models/air_square.model")
       } else {
         Path::new("examples/models/square.model")
@@ -201,11 +222,8 @@ fn add_squares(screen_config: &mut ScreenConfig) -> u64 {
 
   let mut square_hash_list: Vec<u64> = square_list
     .into_iter()
-    .map(|square| screen_config.add_square(square).unwrap())
+    .flat_map(|square| screen_config.add_square(square))
     .collect();
-
-  debug!("Player square hash is: {}", square_hash_list[0]);
-  debug!("Moved square hash is {}", square_hash_list[1]);
 
   square_hash_list.remove(0)
 }
@@ -213,18 +231,17 @@ fn add_squares(screen_config: &mut ScreenConfig) -> u64 {
 fn add_walls(screen_config: &mut ScreenConfig) {
   let wall_path = Path::new("examples/models/wall.model");
 
-  // left side
-  let wall1 = Wall::from_file(wall_path, (30, 15));
-  let wall2 = Wall::from_file(wall_path, (40, 15));
-
-  // right side
-  let wall3 = Wall::from_file(wall_path, (80, 15));
-  let wall4 = Wall::from_file(wall_path, (90, 15));
-
-  screen_config.add_wall(wall1).log_if_err();
-  screen_config.add_wall(wall2).log_if_err();
-  screen_config.add_wall(wall3).log_if_err();
-  screen_config.add_wall(wall4).log_if_err();
+  vec![
+    // Left side.
+    (30, 15),
+    (40, 15),
+    // Right side.
+    (80, 15),
+    (90, 15),
+  ]
+  .into_iter()
+  .map(|world_position| Wall::from_file(wall_path, world_position))
+  .for_each(|wall| screen_config.add_wall(wall).log_if_err());
 }
 
 fn add_teleport_pads(screen_config: &mut ScreenConfig) {
@@ -233,8 +250,9 @@ fn add_teleport_pads(screen_config: &mut ScreenConfig) {
   screen_config.add_teleport_pads(pad_1, pad_2).unwrap();
 }
 
-fn user_move(screen_config: &mut ScreenConfig, player_hash: u64) {
-  let (user_input, input_kill_sender) = spawn_input_thread(&screen_config.screen).unwrap();
+async fn user_move(screen_config: &mut ScreenConfig, player_hash: u64) {
+  let (user_input, input_kill_sender) =
+    spawn_input_thread(&screen_config.screen.lock().unwrap()).unwrap();
   let mut previous_frame_index = screen_config
     .get_square(&player_hash)
     .unwrap()
@@ -244,27 +262,17 @@ fn user_move(screen_config: &mut ScreenConfig, player_hash: u64) {
     .unwrap()
     .get_model_data();
 
+  let event_sync = screen_config.screen.lock().unwrap().get_event_sync();
+
   for input in user_input {
-    screen_config.screen.wait_for_x_ticks(1);
+    event_sync.wait_for_tick();
 
     info!("THE INPUT WAS {input}");
-    screen_config
-      .screen
-      .print_screen()
-      .unwrap_or_else(|error| error!("{error:?}"));
 
     let relative_movement = match input.to_lowercase().trim() {
-      "w" => {
-        screen_config.screen.wait_for_x_ticks(1);
-
-        (0, -1)
-      }
+      "w" => (0, -1),
       "a" => (-1, 0),
-      "s" => {
-        screen_config.screen.wait_for_x_ticks(1);
-
-        (0, 1)
-      }
+      "s" => (0, 1),
       "d" => (1, 0),
       "q" => {
         input_kill_sender.send(()).unwrap();
@@ -294,13 +302,6 @@ fn user_move(screen_config: &mut ScreenConfig, player_hash: u64) {
     );
 
     previous_frame_index = new_frame_index;
-
-    screen_config
-      .screen
-      .print_screen()
-      .unwrap_or_else(|error| error!("{error:?}"));
-
-    screen_config.screen.wait_for_x_ticks(1);
   }
 }
 

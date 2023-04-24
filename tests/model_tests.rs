@@ -1,16 +1,9 @@
-#![allow(unused)]
-
 use ascii_engine::prelude::*;
 
 const WORLD_POSITION: (usize, usize) = (10, 10);
-const SHAPE: &str = "xxxxx\nxxaxx\nxxxxx";
-const ANCHOR_CHAR: char = 'a';
-const ANCHOR_REPLACEMENT_CHAR: char = 'x';
-const AIR_CHAR: char = '-';
-const MODEL_NAME: &str = "Test_Model";
 
-#[test]
-fn absolute_movement_logic() {
+#[tokio::test]
+async fn absolute_movement_logic() {
   let mut screen = ScreenData::new();
   let mut test_model = TestModel::new();
 
@@ -27,8 +20,8 @@ fn absolute_movement_logic() {
   assert_eq!(new_model_position, expected_position);
 }
 
-#[test]
-fn relative_movement_logic() {
+#[tokio::test]
+async fn relative_movement_logic() {
   let mut screen = ScreenData::new();
   let mut test_model = TestModel::new();
 
@@ -69,8 +62,8 @@ fn from_file_model_doesnt_exist() {
   assert_eq!(result, expected_result);
 }
 
-#[test]
-fn change_strata() {
+#[tokio::test]
+async fn change_strata() {
   let mut screen = ScreenData::new();
   let mut test_model = TestModel::new();
 
@@ -105,8 +98,8 @@ fn change_name() {
 mod check_collisions_against_all_models {
   use super::*;
 
-  #[test]
-  fn no_other_models() {
+  #[tokio::test]
+  async fn no_other_models() {
     let mut screen = ScreenData::new();
     let test_model = TestModel::new();
     let model_data = test_model.get_model_data();
@@ -120,8 +113,8 @@ mod check_collisions_against_all_models {
     assert_eq!(collisions, expected_collisions);
   }
 
-  #[test]
-  fn one_other_model_no_collision() {
+  #[tokio::test]
+  async fn one_other_model_no_collision() {
     let mut screen = ScreenData::new();
     let model_one = TestModel::new();
     let model_two = TestModel::new();
@@ -139,8 +132,8 @@ mod check_collisions_against_all_models {
     assert_eq!(collisions, expected_collisions);
   }
 
-  #[test]
-  fn one_other_model_colliding() {
+  #[tokio::test]
+  async fn one_other_model_colliding() {
     let mut screen = ScreenData::new();
     let model_one = TestModel::new();
     let model_two = TestModel::new();
@@ -157,8 +150,8 @@ mod check_collisions_against_all_models {
     assert_eq!(collisions, expected_collisions);
   }
 
-  #[test]
-  fn two_other_models_colliding() {
+  #[tokio::test]
+  async fn two_other_models_colliding() {
     let mut screen = ScreenData::new();
     let model_one = TestModel::new();
     let model_two = TestModel::new();

@@ -1,14 +1,12 @@
 use crate::screen::{errors::ScreenError, screen_data::ScreenData};
 use log::error;
+use log::info;
 use oneshot::Sender;
 use std::io;
 use std::io::{Read, Write};
 use std::sync::mpsc::{channel, Receiver};
 use std::thread;
 use termios::{tcsetattr, Termios, ECHO, ICANON, TCSANOW};
-
-#[allow(unused)]
-use log::{debug, info};
 
 const ERROR_CHARACTER: &str = "|";
 

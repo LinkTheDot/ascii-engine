@@ -1,13 +1,11 @@
 use crate::{ConnectedTeleportPads, Square, TeleportPad, Wall};
 use ascii_engine::prelude::*;
 use std::collections::HashMap;
-
-#[allow(unused)]
-use log::debug;
+use std::sync::{Arc, Mutex};
 
 /// Contains the ScreenData and list of models that exist.
 pub struct ScreenConfig {
-  pub screen: ScreenData,
+  pub screen: Arc<Mutex<ScreenData>>,
   models: ModelTypes,
 }
 
@@ -21,7 +19,7 @@ struct ModelTypes {
 impl ScreenConfig {
   pub fn new(screen: ScreenData) -> Self {
     Self {
-      screen,
+      screen: Arc::new(Mutex::new(screen)),
       models: ModelTypes::new(),
     }
   }
@@ -33,7 +31,10 @@ impl ScreenConfig {
   /// - Returns an error when attempting to add a model that already exists.
   pub fn add_square(&mut self, square: Square) -> Result<u64, ModelError> {
     let square_hash = square.get_unique_hash();
-    self.screen.add_model(&square)?;
+    let mut screen_lock = self.screen.lock().unwrap();
+
+    screen_lock.add_model(&square)?;
+    drop(screen_lock);
 
     self.models.square_list.insert(square_hash, square);
 
@@ -46,8 +47,9 @@ impl ScreenConfig {
   #[allow(dead_code)]
   pub fn remove_square(&mut self, key: &u64) -> Option<Square> {
     let square = self.models.square_list.remove(key)?;
+    let mut screen_lock = self.screen.lock().unwrap();
 
-    self.screen.remove_model(key)?;
+    screen_lock.remove_model(key)?;
 
     Some(square)
   }
@@ -74,7 +76,10 @@ impl ScreenConfig {
   /// - Returns an error is returned when attempting to add a model that already exists.
   pub fn add_wall(&mut self, wall: Wall) -> Result<u64, ModelError> {
     let wall_hash = wall.get_unique_hash();
-    self.screen.add_model(&wall)?;
+    let mut screen_lock = self.screen.lock().unwrap();
+
+    screen_lock.add_model(&wall)?;
+    drop(screen_lock);
 
     self.models.wall_list.insert(wall_hash, wall);
 
@@ -109,8 +114,11 @@ impl ScreenConfig {
     pad_2: TeleportPad,
   ) -> Result<(u64, u64), ModelError> {
     if pad_1.is_connected_to(&pad_2) {
-      self.screen.add_model(&pad_1)?;
-      self.screen.add_model(&pad_2)?;
+      let mut screen_lock = self.screen.lock().unwrap();
+
+      screen_lock.add_model(&pad_1)?;
+      screen_lock.add_model(&pad_2)?;
+      drop(screen_lock);
 
       let pad_1_hash = pad_1.get_unique_hash();
       let pad_2_hash = pad_2.get_unique_hash();

@@ -237,16 +237,9 @@ impl InternalModels {
 
 #[cfg(test)]
 mod tests {
-  #![allow(unused)]
-
   use super::*;
 
   const WORLD_POSITION: (usize, usize) = (10, 10);
-  const SHAPE: &str = "xxxxx\nxxaxx\nxxxxx";
-  const ANCHOR_CHAR: char = 'a';
-  const ANCHOR_REPLACEMENT_CHAR: char = 'x';
-  const AIR_CHAR: char = '-';
-  const MODEL_NAME: &str = "Test_Model";
 
   #[cfg(test)]
   mod insert_and_remove_logic {
@@ -323,7 +316,7 @@ mod tests {
       let model_hash = test_model.get_unique_hash();
       let model_strata = test_model.get_strata();
 
-      model_list.insert(test_model.get_model_data());
+      model_list.insert(test_model.get_model_data()).unwrap();
 
       let strata_keys = model_list.get_strata_keys(&model_strata).unwrap();
 
@@ -336,7 +329,7 @@ mod tests {
       let test_model = TestModel::new();
       let model_hash = test_model.get_unique_hash();
 
-      model_list.insert(test_model.get_model_data());
+      model_list.insert(test_model.get_model_data()).unwrap();
 
       let result = model_list.get_model(&model_hash).unwrap();
 
@@ -359,7 +352,7 @@ mod tests {
       let test_model = TestModel::new();
       let model_hash = test_model.get_unique_hash();
 
-      model_list.insert(test_model.get_model_data());
+      model_list.insert(test_model.get_model_data()).unwrap();
 
       let model_keys = model_list.get_model_keys();
 
@@ -372,7 +365,7 @@ mod tests {
       let test_model = TestModel::new();
       let model_hash = test_model.get_unique_hash();
 
-      model_list.insert(test_model.get_model_data());
+      model_list.insert(test_model.get_model_data()).unwrap();
 
       let model_keys = model_list.get_model_list();
 
@@ -428,10 +421,8 @@ mod tests {
     #[test]
     fn model_doesnt_exist() {
       let mut model_list = InternalModels::new();
-      let test_model = TestModel::new();
 
       let fake_hash: u64 = 0;
-      let model_strata = test_model.get_strata();
 
       let insert_result = model_list.insert_strata(&fake_hash);
 

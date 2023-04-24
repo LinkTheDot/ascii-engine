@@ -1,16 +1,15 @@
 use crate::errors::*;
 use crate::general_data::file_logger;
+use crate::models::animation::{AnimationConnection, AnimationRequest, ModelAnimationData};
 use crate::models::model_data::*;
 use crate::screen::models::*;
 use crate::CONFIG;
+use event_sync::EventSync;
 use guard::guard;
 use log::error;
 use screen_printer::printer::*;
 use std::sync::{Arc, RwLock};
-use thread_clock::Clock;
-
-#[allow(unused)]
-use log::debug;
+use tokio::sync::mpsc;
 
 /// ScreenData is where all the internal information required to create frames is held.
 ///
@@ -40,14 +39,16 @@ use log::debug;
 /// To create your own models refer to [`ModelData`](crate::models::model_data::ModelData).
 /// For adding them to the screen look to [add_model()](crate::screen::screen_data::ScreenData::add_model()).
 pub struct ScreenData {
-  screen_clock: Clock,
   model_data: Arc<RwLock<InternalModels>>,
   printer: Printer,
+  event_sync: EventSync,
   first_print: bool,
   printer_started: bool,
 
   /// Hides the cursor as long as this lives
   _cursor_hider: termion::cursor::HideCursor<std::io::Stdout>,
+
+  animation_thread_connection: Option<AnimationConnection>,
 }
 
 impl ScreenData {
@@ -82,18 +83,16 @@ impl ScreenData {
     // The handle for the file logger, isn't needed right now
     let _ = file_logger::setup_file_logger();
     let cursor_hider = termion::cursor::HideCursor::from(std::io::stdout());
-    let mut screen_clock = Clock::custom(CONFIG.tick_duration).unwrap();
     let model_data = Arc::new(RwLock::new(InternalModels::new()));
 
-    screen_clock.start();
-
     ScreenData {
-      screen_clock,
       model_data,
       printer: Printer::new(CONFIG.grid_width as usize, CONFIG.grid_height as usize),
+      event_sync: EventSync::new(CONFIG.tick_duration),
       first_print: true,
       printer_started: false,
       _cursor_hider: cursor_hider,
+      animation_thread_connection: None,
     }
   }
 
@@ -255,14 +254,6 @@ impl ScreenData {
     self.printer_started
   }
 
-  // The way the clock is handled should be changed.
-  // Pass around a clock_receiver instead of using the screen itself to handle that.
-  /// Not useful at the moment, soon the be depricated.
-  pub fn wait_for_x_ticks(&mut self, x: u32) {
-    // Fix the documentation on how this errors
-    let _ = self.screen_clock.wait_for_x_ticks(x);
-  }
-
   /// This is how you let the screen know a model exists.
   ///
   /// Refer to [`ModelData`](crate::models::model_data::ModelData) on how to create your own model.
@@ -315,6 +306,39 @@ impl ScreenData {
   /// Returns None when any existing model somehow has an impossible strata.
   pub fn remove_model(&mut self, key: &u64) -> Option<ModelData> {
     self.model_data.write().unwrap().remove(key)
+  }
+
+  /// Starts the animation thread for the screen.
+  ///
+  /// This allows for the use of animation methods on Models.
+  ///
+  /// # Errors
+  ///
+  /// - An error is returned if the animation thread was already started.
+  pub async fn start_animation_thread(&mut self) -> Result<(), ScreenError> {
+    if self.animation_thread_connection.is_some() {
+      return Err(ScreenError::AnimationThreadAlreadyStarted);
+    }
+
+    let event_sync = self.get_event_sync();
+
+    match ModelAnimationData::start_animation_thread(event_sync).await {
+      Ok(animation_connection) => self.animation_thread_connection = Some(animation_connection),
+      Err(animation_error) => return Err(ScreenError::AnimationError(animation_error)),
+    }
+
+    Ok(())
+  }
+
+  /// Returns a copy of the AnimationRequest sender for animation threads.
+  ///
+  /// None is returned if [`screen_data.start_animation_thread()`](ScreenData::start_animation_thread) hasn't been called yet.
+  pub fn get_animation_connection(&self) -> Option<mpsc::Sender<AnimationRequest>> {
+    Some(self.animation_thread_connection.as_ref()?.clone_sender())
+  }
+
+  pub fn get_event_sync(&self) -> EventSync {
+    self.event_sync.clone()
   }
 
   /// Places the appearance of the model in the given frame.
@@ -393,17 +417,11 @@ fn out_of_bounds_check(
 
 #[cfg(test)]
 mod tests {
-  #![allow(unused)]
-
   use super::*;
   use crate::general_data::coordinates::*;
 
   const WORLD_POSITION: (usize, usize) = (10, 10);
   const SHAPE: &str = "xxxxx\nxxaxx\nxxxxx";
-  const ANCHOR_CHAR: char = 'a';
-  const ANCHOR_REPLACEMENT_CHAR: char = 'x';
-  const AIR_CHAR: char = '-';
-  const MODEL_NAME: &str = "Test_Model";
 
   #[test]
   fn change_position_out_of_bounds_right() {

@@ -1,20 +1,13 @@
-#![allow(unused)]
-
 use ascii_engine::prelude::*;
 
 const WORLD_POSITION: (usize, usize) = (10, 10);
-const SHAPE: &str = "xxxxx\nxxaxx\nxxxxx";
-const ANCHOR_CHAR: char = 'a';
-const ANCHOR_REPLACEMENT_CHAR: char = 'x';
-const AIR_CHAR: char = '-';
-const MODEL_NAME: &str = "Test_Model";
 
 #[cfg(test)]
 mod display_logic {
   use super::*;
 
-  #[test]
-  fn empty_screen() {
+  #[tokio::test]
+  async fn empty_screen() {
     let screen = ScreenData::default();
     // adding the height - 1 is accounting for new lines
     let expected_pixel_count =
@@ -24,8 +17,8 @@ mod display_logic {
     assert_eq!(display.chars().count(), expected_pixel_count);
   }
 
-  #[test]
-  fn with_model() {
+  #[tokio::test]
+  async fn with_model() {
     let mut screen = ScreenData::new();
     let test_model = TestModel::new();
 
@@ -40,8 +33,8 @@ mod display_logic {
   }
 }
 
-#[test]
-fn add_and_remove_model() {
+#[tokio::test]
+async fn add_and_remove_model() {
   let mut screen = ScreenData::new();
   let test_model = TestModel::new();
 
@@ -54,8 +47,8 @@ fn add_and_remove_model() {
   assert_eq!(result_data.get_unique_hash(), test_model_hash);
 }
 
-#[test]
-fn printer_started() {
+#[tokio::test]
+async fn printer_started() {
   let screen = ScreenData::new();
 
   assert!(!screen.printer_started());

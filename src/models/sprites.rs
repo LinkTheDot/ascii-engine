@@ -1,13 +1,5 @@
 use crate::models::errors::*;
 
-#[allow(unused)]
-use log::debug;
-
-//
-// Remove the Skin and just have the sprite contain all the internal data.
-// There's no use for the skin anymore now that hitboxes are stored somewhere else.
-//
-
 /// The ``Sprite`` contains the data for how a model looks on the screen.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Sprite {
@@ -41,6 +33,31 @@ impl Sprite {
     })
   }
 
+  pub fn replace_appearance(
+    &mut self,
+    mut new_appearance: String,
+    new_anchor_replacement: Option<char>,
+  ) -> Result<(), ModelError> {
+    let anchor_replacement_character = match new_anchor_replacement {
+      Some(anchor_replacement) => anchor_replacement,
+      None => self.anchor_replacement_character,
+    };
+
+    let new_anchor_character_index =
+      Self::get_anchor_index(&new_appearance, self.anchor_character)?;
+
+    Self::fix_shape(
+      &mut new_appearance,
+      self.anchor_character,
+      anchor_replacement_character,
+    );
+
+    self.shape = new_appearance.to_owned();
+    self.anchor_character_index = new_anchor_character_index;
+
+    Ok(())
+  }
+
   /// Returns the index of the anchor character in the sprite's appearance.
   pub fn get_anchor_character_index(&self) -> usize {
     self.anchor_character_index
@@ -69,5 +86,39 @@ impl Sprite {
       .chars()
       .position(|pixel| pixel == anchor_character)
       .ok_or(ModelError::NoAnchor)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[cfg(test)]
+  mod get_anchor_index_logic {
+    use super::*;
+
+    #[test]
+    fn expected_data() {
+      let shape = "aaaaa\naaxaa";
+      let anchor = 'x';
+
+      let expected_index = Ok(7);
+
+      let anchor_index = Sprite::get_anchor_index(shape, anchor);
+
+      assert_eq!(anchor_index, expected_index);
+    }
+
+    #[test]
+    fn no_anchor() {
+      let shape = "aaaaa\naaaaa";
+      let anchor = 'x';
+
+      let expected_result = Err(ModelError::NoAnchor);
+
+      let result = Sprite::get_anchor_index(shape, anchor);
+
+      assert_eq!(result, expected_result);
+    }
   }
 }

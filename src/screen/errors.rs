@@ -13,9 +13,15 @@ pub enum ScreenError {
   /// A wrapper for [`PrintingError`](screen_printer::printer::PrintingError).
   PrintingError(screen_printer::printer::PrintingError),
 
+  /// A wrapper for [`AnimationError`](crate::models::errors::AnimationError).
+  AnimationError(AnimationError),
+
   /// This error is returned when an action was made that requires the printer to be running first.
   PrinterNotStarted,
 
   /// This error is returned when attempting to start the printer when it has already been started.
   PrinterAlreadyStarted,
+
+  /// This error is returned when attempting to start the animation thread when it has already been started.
+  AnimationThreadAlreadyStarted,
 }

@@ -289,6 +289,8 @@ pub mod general_data {
 }
 
 pub mod models {
+  pub mod animation;
+  pub mod animation_file_parser;
   pub mod errors;
   pub mod hitboxes;
   pub mod model_data;

@@ -1,0 +1,50 @@
+Data
++- This tells the engine that this model has a resting state.
++- If this 'resting_state' isn't assigned, then the model will sit on it's last frame when animation is stopped.
++- The resting_state is not an animation, rather, 1 frame for the model to sit at when "resting".
+resting_state='true'
+-=--=-
+Animations
+
++- This is an example of assigning a "resting_state" for a model. 
++- If the model animation was ever stopped, it'll look like this.
++Resting+
+xxxxx
+x+c+x
+xxxxx
+--
+
++- This is an example of an animation that lasts forever, and where every frame lasts the same amount of time.
++Test+
+default_duration='9'
+loop_count='forever'
+-
+xx|xx
+-+c+-
+xx|xx
+-
+\xx|x
+x+c+x
+x|xx\
+-
+x|xx/
+x+c+x
+/xx|x
+--
+
++- This is an example of running the animations x times and for different times per frame
++Teleport+
+loop_count='1'
+- 6 ticks
++++++
+x+c+x
+xxxxx
+- 4 ticks
++++++
+++c++
+xxxxx
+- 2 ticks
++++++
+++c++
++++++
+--

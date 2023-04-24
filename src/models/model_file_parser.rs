@@ -165,16 +165,9 @@ impl ModelParser {
         let line_number = iteration + 1;
 
         match model_file_line.to_lowercase().trim() {
-          // Spacers
-          // - --
-          // - =
           "-=--=-" => section = Section::Unknown,
           "" => section = Section::Unknown,
 
-          // Headers
-          // - Skin
-          // - HitboxDimensions
-          // - Appearance
           "skin" => {
             section = Section::Skin;
 
@@ -199,15 +192,6 @@ impl ModelParser {
 
         match section {
           Section::Skin => {
-            // Contents
-            // - anchor
-            // - anchor_replacement
-            // - air
-            // - name
-            // - strata
-
-            // Containers
-            // - ''
             if let Err(error) =
               ModelParser::skin_checks(&mut model_data_builder, model_file_line, line_number)
             {

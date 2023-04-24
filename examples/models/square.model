@@ -1,14 +1,14 @@
 SKIN
 +- This line will not be run because it has "+- " in it
 anchor='c'
-anchor_replacement='-'
-air='-'
+anchor_replacement='+'
+air='+'
 name='Square'
 strata='1'
 -=--=-
 Appearance
 xxxxx
-x-c-x
+x+c+x
 xxxxx
 -=--=-
 Hitbox_Dimensions

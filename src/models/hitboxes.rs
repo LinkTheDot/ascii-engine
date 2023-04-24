@@ -31,7 +31,8 @@ use std::cmp::Ordering;
 /// From there, you can create a hitbox with that and the relative anchor to the skin using the [`Hitbox::from()`](Hitbox::from) method.
 #[derive(Debug, Eq, PartialEq)]
 pub struct Hitbox {
-  relative_position_to_skin: (isize, isize),
+  skin_top_left_to_hitbox_top_left: (isize, isize),
+  hitbox_anchor_index: usize,
   width: isize,
   height: isize,
   empty_hitbox: bool,
@@ -64,15 +65,26 @@ pub struct HitboxCreationData {
 impl Hitbox {
   /// Creates a new hitbox from the passed in data and anchor to the skin.
   ///
+  /// NOTE
+  /// "anchor_skin_coordinates" is the internal coordinates of the anchor within the model's current appearance.
+  ///
+  /// That would mean if you had a skin like such:
+  /// ```no_run,bash,ignore
+  /// xxx
+  /// xax
+  /// xxx
+  /// ```
+  /// you would pass in (1, 1).
+  ///
   /// # Errors
   ///
   /// - Returns an error when no anchor was found on the shape of the hitbox.
   /// - Returns an error if multiple anchors were found on the shape of the hitbox.
   pub fn from(
     hitbox_data: HitboxCreationData,
-    skin_anchor: (isize, isize),
+    anchor_skin_coordinates: (isize, isize),
   ) -> Result<Self, ModelError> {
-    hitbox_data.get_hitbox_data(skin_anchor)
+    hitbox_data.get_hitbox_data(anchor_skin_coordinates)
   }
 
   /// Returns an empty hitbox.
@@ -83,7 +95,8 @@ impl Hitbox {
   /// This means an object with an "empty hitbox" will never interact with the world.
   fn create_empty() -> Self {
     Self {
-      relative_position_to_skin: (0, 0),
+      skin_top_left_to_hitbox_top_left: (0, 0),
+      hitbox_anchor_index: 0,
       width: 0,
       height: 0,
       empty_hitbox: true,
@@ -93,12 +106,13 @@ impl Hitbox {
   /// Takes the frame position of the model and returns the hitbox's frame position.
   ///
   /// Returned as (x, y)
-  pub fn get_hitbox_position(&self, model_position: usize) -> (isize, isize) {
-    let (model_x, model_y) = model_position.index_to_coordinates(CONFIG.grid_width as usize + 1);
+  pub fn get_hitbox_position(&self, model_frame_position: usize) -> (isize, isize) {
+    let (model_x, model_y) =
+      model_frame_position.index_to_coordinates(CONFIG.grid_width as usize + 1);
 
     (
-      model_x as isize + self.relative_position_to_skin.0,
-      model_y as isize + self.relative_position_to_skin.1,
+      model_x as isize + self.skin_top_left_to_hitbox_top_left.0,
+      model_y as isize + self.skin_top_left_to_hitbox_top_left.1,
     )
   }
 
@@ -119,9 +133,23 @@ impl Hitbox {
     let (model_x, model_y) = new_position.index_to_coordinates(CONFIG.grid_width as usize + 1);
 
     (
-      model_x as isize + self.relative_position_to_skin.0,
-      model_y as isize + self.relative_position_to_skin.1,
+      model_x as isize + self.skin_top_left_to_hitbox_top_left.0,
+      model_y as isize + self.skin_top_left_to_hitbox_top_left.1,
     )
+  }
+
+  pub fn get_relative_top_left(&self) -> (isize, isize) {
+    self.skin_top_left_to_hitbox_top_left
+  }
+
+  pub fn recalculate_relative_top_left(&mut self, skin_anchor_coordinates: (isize, isize)) {
+    let new_relative_distance = HitboxCreationData::calculate_skin_top_left_to_hitbox_top_left(
+      skin_anchor_coordinates,
+      self.hitbox_anchor_index as f32,
+      self.width as f32,
+    );
+
+    self.skin_top_left_to_hitbox_top_left = new_relative_distance;
   }
 }
 
@@ -140,14 +168,8 @@ impl HitboxCreationData {
   /// Converts a [`HitboxCreationData`](HitboxCreationData) into a [`Hitbox`](Hitbox).
   ///
   /// NOTE
-  /// This method takes the distance of the model's anchor TO it's top left.
-  /// What this means is if you have some model:
-  /// ```no_run,bash,ignore
-  /// xxx
-  /// xax
-  /// xxx
-  /// ```
-  /// Here you would pass in (-1, -1). This is because the top left if (-1, -1) away from the anchor.
+  /// "anchor_skin_coordinates" is the internal coordinates of the anchor within the model's current appearance.
+  ///
   ///
   /// If the skin string is empty, returns an [`empty hitbox`](Hitbox::create_empty).
   ///
@@ -155,7 +177,7 @@ impl HitboxCreationData {
   ///
   /// - Returns an error when no anchor was found on the shape of the hitbox.
   /// - Returns an error if multiple anchors were found on the shape of the hitbox.
-  fn get_hitbox_data(self, skin_relative_anchor: (isize, isize)) -> Result<Hitbox, ModelError> {
+  fn get_hitbox_data(self, anchor_skin_coordinates: (isize, isize)) -> Result<Hitbox, ModelError> {
     if self.shape.trim() == "" {
       return Ok(Hitbox::create_empty());
     }
@@ -183,20 +205,72 @@ impl HitboxCreationData {
       }
     };
 
-    let hitbox_anchor_coordinates = (
-      (hitbox_anchor_index as f32 % hitbox_width as f32).ceil() as isize,
-      (hitbox_anchor_index as f32 / hitbox_width as f32).ceil() as isize,
-    );
-
-    let x_difference = skin_relative_anchor.0 - hitbox_anchor_coordinates.0;
-    let y_difference = skin_relative_anchor.1 - hitbox_anchor_coordinates.1;
+    let skin_top_left_to_hitbox_top_left =
+      HitboxCreationData::calculate_skin_top_left_to_hitbox_top_left(
+        anchor_skin_coordinates,
+        hitbox_anchor_index as f32,
+        hitbox_width as f32,
+      );
 
     Ok(Hitbox {
-      relative_position_to_skin: (x_difference, y_difference),
+      skin_top_left_to_hitbox_top_left,
+      hitbox_anchor_index,
       width: hitbox_width as isize,
       height: hitbox_height as isize,
       empty_hitbox: false,
     })
+  }
+
+  /// This returns the relative position of the skin's top left to the hitbox's top left
+  ///
+  /// Takes the position of the skin's anchor character interally.
+  ///
+  /// This method also takes the index of where the anchor is in the hitbox string. Does not count newlines.
+  ///
+  /// # Example
+  ///
+  /// Say you have a skin with 'a' as the anchor, that looks like this:
+  /// ```no_run,bash,ignore
+  /// xxx
+  /// xax
+  /// xxx
+  /// ```
+  /// In this case, the first argument would be (1, 1).
+  /// This is because the anchor character is within position (1, 1) of the ``model's skin``.
+  ///
+  /// Now say your hitbox looks the exact same as the skin.
+  /// The other arguments would be 4 and 3.
+  ///
+  /// With this data, this method would return (0, 0).
+  ///
+  /// ```
+  /// use ascii_engine::models::hitboxes::HitboxCreationData;                        
+  ///
+  /// let skin_relative_anchor: (isize, isize) = (1, 1);
+  /// let hitbox_anchor_index: f32 = 4.0;
+  /// let hitbox_width: f32 = 3.0;
+  ///
+  /// let skin_to_hitbox_anchor =
+  ///   HitboxCreationData::calculate_skin_top_left_to_hitbox_top_left(
+  ///     skin_relative_anchor,
+  ///     hitbox_anchor_index,
+  ///     hitbox_width
+  ///   );
+  ///
+  /// assert_eq!(skin_to_hitbox_anchor, (0, 0));
+  /// ```
+  pub fn calculate_skin_top_left_to_hitbox_top_left(
+    skin_anchor_to_top_left: (isize, isize),
+    hitbox_anchor_index: f32,
+    hitbox_width: f32,
+  ) -> (isize, isize) {
+    let hitbox_anchor_to_top_left_x = (hitbox_anchor_index % hitbox_width).round() as isize;
+    let hitbox_anchor_to_top_left_y = (hitbox_anchor_index / hitbox_width).round() as isize;
+
+    (
+      hitbox_anchor_to_top_left_x - skin_anchor_to_top_left.0,
+      hitbox_anchor_to_top_left_y - skin_anchor_to_top_left.1,
+    )
   }
 }
 
@@ -206,10 +280,13 @@ impl HitboxCreationData {
 /// # Errors
 ///
 /// - An error is returned when the hitbox isn't a rectangle.
-// It shouldn't be possible to pass in nothing where this is called right now.
-// If that changes then change this to account for that.
-fn valid_rectangle_check(model: &str) -> Result<(usize, usize), ModelError> {
-  let rows: Vec<&str> = model.split('\n').collect();
+// Move this and other similar functions that are lying around into their own general_data module.
+pub fn valid_rectangle_check(rectangle_shape: &str) -> Result<(usize, usize), ModelError> {
+  if rectangle_shape.is_empty() {
+    return Err(ModelError::NonRectangularShape);
+  }
+
+  let rows: Vec<&str> = rectangle_shape.split('\n').collect();
   let model_width = rows[0].chars().count();
 
   let rows_have_same_lengths = rows.iter().all(|row| row.chars().count() == model_width);
@@ -263,15 +340,17 @@ mod tests {
 
   #[test]
   fn get_hitbox_position_logic() {
-    let hitbox_creation_data = HitboxCreationData::new("xxxxx\nxxaxx\nxxxxx", 'a');
+    let hitbox_creation_data = HitboxCreationData::new("xxx\nxax", 'a');
+    // With a skin of the same shape: "xxx\nxax".
     let hitbox = Hitbox::from(hitbox_creation_data, (1, 1)).unwrap();
+    // where the model is at (11, 11).
     let model_frame_position = 10 + (10 * (CONFIG.grid_width as usize + 1));
 
-    let expected_position = (9, 9);
+    let expected_hitbox_frame_position = (10, 10);
 
-    let position = hitbox.get_hitbox_position(model_frame_position);
+    let hitbox_frame_position = hitbox.get_hitbox_position(model_frame_position);
 
-    assert_eq!(position, expected_position);
+    assert_eq!(hitbox_frame_position, expected_hitbox_frame_position);
   }
 
   #[test]

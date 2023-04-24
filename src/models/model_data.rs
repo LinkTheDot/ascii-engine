@@ -1,16 +1,17 @@
 use crate::general_data::{coordinates::*, hasher};
+use crate::models::animation::*;
 use crate::models::errors::*;
 use crate::models::hitboxes::*;
 use crate::models::model_file_parser::ModelParser;
 pub use crate::models::traits::*;
 use crate::screen::models::InternalModels;
+use crate::screen::screen_data::ScreenData;
 use crate::CONFIG;
+use guard::guard;
 use std::ffi::OsStr;
-use std::sync::{Arc, MutexGuard, RwLock};
+use std::sync::{Arc, Mutex as StdMutex, MutexGuard as StdMutexGuard, RwLock};
 use std::{fs::File, path::Path};
-
-#[allow(unused)]
-use log::debug;
+use tokio::sync::Mutex as TokioMutex;
 
 /// ModelData contains everything the screen needs to know for a model to be placed in the world.
 ///
@@ -158,7 +159,7 @@ use log::debug;
 /// This means if you put ``+- `` anywhere on a line in your model file, that line will be ignored by the parser.
 #[derive(Debug)]
 pub struct ModelData {
-  internal_data: Arc<Mutex<InternalModelData>>,
+  internal_data: Arc<StdMutex<InternalModelData>>,
 }
 
 /// This is the internal storage of ModelData.
@@ -168,8 +169,10 @@ pub struct ModelData {
 struct InternalModelData {
   unique_hash: u64,
   assigned_name: String,
-  /// Relative position of the top left to the model's world placement
-  placement_anchor: (isize, isize),
+  /// The internal coordinates of the sprite's anchor.
+  ///
+  /// Treated as if the appearance of the sprite was a grid, and the anchor was a point on that grid.
+  sprite_internal_anchor_coordinates: (isize, isize),
   /// counts new lines
   position_in_frame: usize,
   strata: Strata,
@@ -177,6 +180,10 @@ struct InternalModelData {
   hitbox: Hitbox,
   /// Exists only when models are placed on the screen
   existing_models: Option<Arc<RwLock<InternalModels>>>,
+  /// This is created when parsing a model.
+  ///
+  /// None if there was no `.animate` file in the same path of the model, or there was no alternative path given.
+  animation_data: Option<Arc<TokioMutex<ModelAnimationData>>>,
 }
 
 /// The Strata will be the priority on the screen.
@@ -204,7 +211,7 @@ impl Clone for ModelData {
 
 impl ModelData {
   /// Returns a MutexGuard of the [`InternalModelData`](InternalModelData).
-  fn get_internal_data(&self) -> MutexGuard<InternalModelData> {
+  fn get_internal_data(&self) -> StdMutexGuard<InternalModelData> {
     self.internal_data.lock().unwrap()
   }
 
@@ -224,7 +231,7 @@ impl ModelData {
       InternalModelData::new(model_position, sprite, hitbox_data, strata, assigned_name)?;
 
     Ok(Self {
-      internal_data: Arc::new(Mutex::new(internal_data)),
+      internal_data: Arc::new(StdMutex::new(internal_data)),
     })
   }
 
@@ -246,7 +253,6 @@ impl ModelData {
     if model_file_path.extension() != Some(OsStr::new("model")) {
       return Err(ModelError::NonModelFile);
     }
-
     let model_file = File::open(model_file_path);
 
     match model_file {
@@ -325,8 +331,8 @@ impl ModelData {
     let internal_data = self.get_internal_data();
 
     let anchored_placement = new_position.0 + ((CONFIG.grid_width as usize + 1) * new_position.1);
-    let top_left_difference = (internal_data.placement_anchor.0
-      + (internal_data.placement_anchor.1 * (CONFIG.grid_width as isize + 1)))
+    let top_left_difference = (internal_data.sprite_internal_anchor_coordinates.0
+      + (internal_data.sprite_internal_anchor_coordinates.1 * (CONFIG.grid_width as isize + 1)))
       as usize;
 
     drop(internal_data);
@@ -347,14 +353,14 @@ impl ModelData {
     let mut internal_data = self.get_internal_data();
 
     let new_frame_anchor_index = new_position as isize
-      + internal_data.placement_anchor.0
-      + (internal_data.placement_anchor.1 * (CONFIG.grid_width as isize + 1));
+      + internal_data.sprite_internal_anchor_coordinates.0
+      + (internal_data.sprite_internal_anchor_coordinates.1 * (CONFIG.grid_width as isize + 1));
 
     let (frame_index, new_anchor) =
       get_position_data(new_frame_anchor_index as usize, &internal_data.sprite);
 
     internal_data.position_in_frame = frame_index;
-    internal_data.placement_anchor = new_anchor;
+    internal_data.sprite_internal_anchor_coordinates = new_anchor;
   }
 
   /// Returns the character the model uses for air.
@@ -376,8 +382,9 @@ impl ModelData {
     let internal_data = self.get_internal_data();
 
     (internal_data.position_in_frame as isize
-      + internal_data.placement_anchor.0
-      + (internal_data.placement_anchor.1 * (CONFIG.grid_width as isize + 1))) as usize
+      + internal_data.sprite_internal_anchor_coordinates.0
+      + (internal_data.sprite_internal_anchor_coordinates.1 * (CONFIG.grid_width as isize + 1)))
+      as usize
   }
 
   /// Returns a copy of the model's current appearance.
@@ -496,6 +503,147 @@ impl ModelData {
 
     model_list_guard.fix_strata_list()
   }
+
+  /// Changes the current appearance of the skin.
+  ///
+  /// The world position will remain the same after calling this.
+  ///
+  /// # Errors
+  ///
+  /// - Returns an error when the skin isn't rectangular.
+  /// - Returns an error when the skin has more or less than 1 anchor.
+  /// - Returns an error when the skin is empty.
+  pub fn change_sprite_appearance(
+    &mut self,
+    new_appearance: &str,
+    new_anchor_replacement: Option<char>,
+  ) -> Result<(), ModelError> {
+    let mut internal_data = self.get_internal_data();
+
+    internal_data
+      .sprite
+      .replace_appearance(new_appearance.to_string(), new_anchor_replacement)?;
+    let new_skin_anchor_coordinates = get_position_data(0, &internal_data.sprite).1;
+
+    internal_data
+      .hitbox
+      .recalculate_relative_top_left(new_skin_anchor_coordinates);
+
+    internal_data.sprite_internal_anchor_coordinates = new_skin_anchor_coordinates;
+
+    Ok(())
+  }
+
+  /// # Errors
+  ///
+  /// - An error is returned when the [`animation thread`](crate::scree::screen_data::ScreenData::start_animation_thread) hasn't been started yet.
+  /// - An error is returned when this model has already started it's animation.
+  pub async fn start_animation(&mut self, screen_data: &ScreenData) -> Result<(), AnimationError> {
+    guard!( let Some(animation_connection) = screen_data.get_animation_connection() else {
+      log::error!("Attempted to start a model animation without starting the main animation thread");
+
+      return Err(AnimationError::AnimationThreadNotStarted);
+    });
+
+    let model_data_clone = self.clone();
+    let model_hash = self.get_unique_hash();
+    let animation_data = self.get_animation_data()?;
+    let mut animation_data = animation_data.lock().await;
+
+    if animation_data.is_started() {
+      return Err(AnimationError::AnimationAlreadyStarted);
+    }
+
+    animation_data.assign_communicator(animation_connection)?;
+
+    let action = AnimationAction::AddAnimator(model_data_clone);
+
+    animation_data.send_request(model_hash, action).await?;
+
+    Ok(())
+  }
+
+  pub async fn force_change_current_animation(
+    &mut self,
+    animation_name: String,
+  ) -> Result<(), AnimationError> {
+    let model_hash = self.get_unique_hash();
+    let animation_data = self.get_animation_data()?;
+    let mut animation_data = animation_data.lock().await;
+
+    let animation = animation_data.get_animation(animation_name)?;
+
+    let action = AnimationAction::OverwriteCurrentAnimation(animation);
+
+    animation_data.send_request(model_hash, action).await
+  }
+
+  pub async fn store_new_possible_animation(
+    &mut self,
+    animation_name: String,
+    animation: AnimationFrames,
+  ) -> Result<(), AnimationError> {
+    let animation_data = self.get_animation_data()?;
+    let mut animation_data = animation_data.lock().await;
+
+    animation_data.add_new_animation_to_list(animation_name, animation)
+  }
+
+  pub async fn remove_possible_animation(
+    &mut self,
+    animation_name: String,
+  ) -> Result<AnimationFrames, AnimationError> {
+    let animation_data = self.get_animation_data()?;
+    let mut animation_data = animation_data.lock().await;
+
+    animation_data.remove_animation_from_list(animation_name)
+  }
+
+  /// # Errors
+  ///
+  /// - An error is returned when the model has no animation data.
+  /// - An error is returned when the model has no animation of the passed in name.
+  /// - An error is returned when the model hasn't started it's animation through [`start_animation()`](ModelData::start_animation).
+  pub async fn queue_next_animation(
+    &mut self,
+    animation_name: String,
+  ) -> Result<(), AnimationError> {
+    let model_hash = self.get_unique_hash();
+    let animation_data = self.get_animation_data()?;
+    let mut animation_data = animation_data.lock().await;
+
+    let animation_to_queue = animation_data.get_animation(animation_name)?;
+
+    let action = AnimationAction::AddToQueue(animation_to_queue);
+
+    animation_data.send_request(model_hash, action).await?;
+
+    Ok(())
+  }
+
+  pub async fn delete_animation_queue(&mut self) -> Result<(), AnimationError> {
+    let model_hash = self.get_unique_hash();
+    let animation_data = self.get_animation_data()?;
+    let mut animation_data = animation_data.lock().await;
+
+    animation_data
+      .send_request(model_hash, AnimationAction::ClearQueue)
+      .await
+  }
+
+  /// Returns a copy of the internal animation data for this model.
+  ///
+  /// # Errors
+  ///
+  /// - An error is returned when the model in question doesn't have any animation data.
+  fn get_animation_data(&self) -> Result<Arc<TokioMutex<ModelAnimationData>>, AnimationError> {
+    let internal_data = self.get_internal_data();
+
+    match &internal_data.animation_data {
+      Some(animation_data) => Ok(animation_data.clone()),
+      None => Err(AnimationError::ModelHasNoAnimationData),
+    }
+  }
 }
 
 impl InternalModelData {
@@ -525,12 +673,13 @@ impl InternalModelData {
     Ok(Self {
       unique_hash,
       assigned_name,
-      placement_anchor: position_data.1,
+      sprite_internal_anchor_coordinates: position_data.1,
       strata,
       sprite,
       position_in_frame: position_data.0,
       hitbox,
       existing_models: None,
+      animation_data: None,
     })
   }
 
@@ -569,6 +718,9 @@ impl InternalModelData {
 ///
 /// Takes the world placement of a model and returns it's index in a frame, and
 /// the relative distance of the FrameIndex to the WorldPlacement.
+///
+/// A better way of thinking of WorldPLacementAnchor would be, it's the coordinates of where the anchor is
+/// within the bounding box of the model's skin.
 ///
 /// Returns (FrameIndex, WorldPlacementAnchor)
 fn get_position_data(model_position: usize, sprite: &Sprite) -> (usize, (isize, isize)) {
@@ -661,8 +813,8 @@ mod tests {
     assert_eq!(collisions, expected_collisions);
   }
 
-  #[test]
-  fn collisions_empty_hitbox() {
+  #[tokio::test]
+  async fn collisions_empty_hitbox() {
     let mut screen = ScreenData::new();
     let test_model = TestModel::new();
     let no_hitbox = TestModel::create_empty();
@@ -680,8 +832,8 @@ mod tests {
     assert!(!result);
   }
 
-  #[test]
-  fn absolute_movement_collision_check_no_collision() {
+  #[tokio::test]
+  async fn absolute_movement_collision_check_no_collision() {
     let mut screen = ScreenData::new();
     let test_model = TestModel::new();
 
@@ -694,8 +846,8 @@ mod tests {
     assert_eq!(collisions, expected_collisions)
   }
 
-  #[test]
-  fn absolute_movement_collision_check_collided_model() {
+  #[tokio::test]
+  async fn absolute_movement_collision_check_collided_model() {
     let mut screen = ScreenData::new();
     let test_model = TestModel::new();
     let mut collided_model = TestModel::new();
@@ -712,8 +864,8 @@ mod tests {
     assert_eq!(collisions, expected_collisions)
   }
 
-  #[test]
-  fn relative_movement_collision_check_collided_model() {
+  #[tokio::test]
+  async fn relative_movement_collision_check_collided_model() {
     let mut screen = ScreenData::new();
     let test_model = TestModel::new();
     let mut collided_model = TestModel::new();
@@ -740,6 +892,37 @@ mod tests {
     assert_eq!(test_model_data, cloned_model_data);
   }
 
+  #[test]
+  fn change_sprite_appearance() {
+    let test_model = TestModel::new();
+    let mut model_data = test_model.get_model_data();
+    let new_sprite = "sssss\nxxaxx\nxxxxx";
+
+    let expected_appearance = "sssss\nxxxxx\nxxxxx".to_string();
+    let expected_sprite_anchor_coordinates = (2, 1);
+    let expected_sprite_anchor_index = 7;
+    let expected_hitbox_relative_top_left = (0, 0);
+
+    model_data
+      .change_sprite_appearance(new_sprite, None)
+      .unwrap();
+
+    let internal_data = model_data.get_internal_data();
+
+    let new_appearance = internal_data.sprite.get_shape();
+    let sprite_anchor_index = internal_data.sprite.get_anchor_character_index();
+    let sprite_anchor_coordinates = internal_data.sprite_internal_anchor_coordinates;
+    let hitbox_relative_top_left = internal_data.hitbox.get_relative_top_left();
+
+    assert_eq!(new_appearance, expected_appearance);
+    assert_eq!(sprite_anchor_index, expected_sprite_anchor_index);
+    assert_eq!(
+      sprite_anchor_coordinates,
+      expected_sprite_anchor_coordinates
+    );
+    assert_eq!(hitbox_relative_top_left, expected_hitbox_relative_top_left);
+  }
+
   //
   // Functions used for tests
   //
@@ -750,7 +933,6 @@ mod tests {
   }
 
   impl TestModel {
-    #[allow(unused)]
     fn new() -> Self {
       let test_model_path = std::path::Path::new("tests/models/test_square.model");
       let model_data = ModelData::from_file(test_model_path, WORLD_POSITION).unwrap();
