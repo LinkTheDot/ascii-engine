@@ -348,7 +348,6 @@ impl ScreenData {
     let air_character = model.get_air_char();
 
     let model_shape = model.get_sprite().replace('\n', "");
-    drop(model); // Drops the model lock early since it's no longer needed.
     let model_characters = model_shape.chars();
 
     // Error returned here to prevent the program from crashing when a model is found to be out of bounds.

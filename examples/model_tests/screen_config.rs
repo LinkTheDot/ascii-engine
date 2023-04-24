@@ -31,10 +31,8 @@ impl ScreenConfig {
   /// - Returns an error when attempting to add a model that already exists.
   pub fn add_square(&mut self, square: Square) -> Result<u64, ModelError> {
     let square_hash = square.get_unique_hash();
-    let mut screen_lock = self.screen.lock().unwrap();
 
-    screen_lock.add_model(&square)?;
-    drop(screen_lock);
+    self.screen.lock().unwrap().add_model(&square)?;
 
     self.models.square_list.insert(square_hash, square);
 
@@ -76,10 +74,8 @@ impl ScreenConfig {
   /// - Returns an error is returned when attempting to add a model that already exists.
   pub fn add_wall(&mut self, wall: Wall) -> Result<u64, ModelError> {
     let wall_hash = wall.get_unique_hash();
-    let mut screen_lock = self.screen.lock().unwrap();
 
-    screen_lock.add_model(&wall)?;
-    drop(screen_lock);
+    self.screen.lock().unwrap().add_model(&wall)?;
 
     self.models.wall_list.insert(wall_hash, wall);
 
@@ -128,7 +124,6 @@ impl ScreenConfig {
 
       Ok((pad_1_hash, pad_2_hash))
     } else {
-      // maybe make an error called "ModelError::Other("What went wrong")"
       Err(ModelError::Other(
         "Attempted to add teleport pads that weren't connected".to_string(),
       ))

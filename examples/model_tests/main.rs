@@ -253,10 +253,6 @@ fn add_teleport_pads(screen_config: &mut ScreenConfig) {
 async fn user_move(screen_config: &mut ScreenConfig, player_hash: u64) {
   let (user_input, input_kill_sender) =
     spawn_input_thread(&screen_config.screen.lock().unwrap()).unwrap();
-  let mut previous_frame_index = screen_config
-    .get_square(&player_hash)
-    .unwrap()
-    .get_top_left_position();
   let player_model_data = screen_config
     .get_square(&player_hash)
     .unwrap()
@@ -293,15 +289,6 @@ async fn user_move(screen_config: &mut ScreenConfig, player_hash: u64) {
       screen_config,
     )
     .run_action_list();
-
-    let new_frame_index = player_model_data.top_left();
-
-    info!(
-      "previous_position: {}, new_position: {}",
-      previous_frame_index, new_frame_index
-    );
-
-    previous_frame_index = new_frame_index;
   }
 }
 

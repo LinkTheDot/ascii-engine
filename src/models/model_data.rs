@@ -412,9 +412,7 @@ impl ModelData {
       return Err(ModelError::IncorrectStrataRange(new_strata));
     }
 
-    let mut internal_data = self.get_internal_data();
-    internal_data.strata = new_strata;
-    drop(internal_data);
+    self.internal_data.lock().unwrap().strata = new_strata;
 
     self.fix_model_strata()
   }
@@ -464,12 +462,9 @@ impl ModelData {
           continue;
         }
 
-        let other_model_internal_data = model_data.get_internal_data();
-
-        if internal_data.check_model_collision(&other_model_internal_data, new_self_hitbox_position)
+        if internal_data
+          .check_model_collision(&model_data.get_internal_data(), new_self_hitbox_position)
         {
-          drop(other_model_internal_data);
-
           collision_list.push(model_data.clone());
         }
       }
