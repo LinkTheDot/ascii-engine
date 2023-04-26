@@ -21,7 +21,4 @@ pub enum ScreenError {
 
   /// This error is returned when attempting to start the printer when it has already been started.
   PrinterAlreadyStarted,
-
-  /// This error is returned when attempting to start the animation thread when it has already been started.
-  AnimationThreadAlreadyStarted,
 }

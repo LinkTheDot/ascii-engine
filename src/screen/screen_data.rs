@@ -316,18 +316,16 @@ impl ScreenData {
   ///
   /// - An error is returned if the animation thread was already started.
   pub async fn start_animation_thread(&mut self) -> Result<(), ScreenError> {
-    if self.animation_thread_connection.is_some() {
-      return Err(ScreenError::AnimationThreadAlreadyStarted);
-    }
-
-    let event_sync = self.get_event_sync();
-
-    match ModelAnimationData::start_animation_thread(event_sync).await {
+    match ModelAnimationData::start_animation_thread(self).await {
       Ok(animation_connection) => self.animation_thread_connection = Some(animation_connection),
       Err(animation_error) => return Err(ScreenError::AnimationError(animation_error)),
     }
 
     Ok(())
+  }
+
+  pub fn animation_thread_already_started(&self) -> bool {
+    self.animation_thread_connection.is_some()
   }
 
   /// Returns a copy of the AnimationRequest sender for animation threads.

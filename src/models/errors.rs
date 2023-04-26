@@ -125,6 +125,9 @@ pub enum AnimationError {
   ///
   /// To start the animation thread use [`screen_data.start_animation_thread()`](crate::screen::screen_data::ScreenData::start_animation_thread).
   AnimationThreadNotStarted,
+
+  /// This error is returned when attempting to start the animation thread when it has already been started.
+  AnimationThreadAlreadyStarted,
 }
 
 #[derive(Debug, PartialEq, Eq)]

@@ -1,8 +1,8 @@
 use crate::errors::*;
 use crate::models::animation_file_parser::*;
 use crate::models::model_data::ModelData;
+use crate::screen::screen_data::ScreenData;
 pub use animation_frames::*;
-use event_sync::EventSync;
 use std::collections::{hash_map::Entry, HashMap, VecDeque};
 use std::ffi::OsStr;
 use std::fs::File;
@@ -16,6 +16,7 @@ pub struct ModelAnimationData {
   animation_communicator: Option<mpsc::Sender<AnimationRequest>>,
 }
 
+#[derive(Debug)]
 struct ModelAnimatorData {
   model: ModelData,
   animation_queue: VecDeque<AnimationFrames>,
@@ -78,6 +79,7 @@ impl ModelAnimatorData {
     false
   }
 
+  // TODO prevent users from making invalid frames in the animation file parser
   /// This will panic if the frame is invalid in any way.
   ///
   /// That will cause a chain reaction where it'll poison every mutex for every instance of ModelData.
@@ -199,31 +201,29 @@ impl ModelAnimationData {
   ///
   /// - Returns an error when the model animation thread already exists.
   pub async fn start_animation_thread(
-    event_sync: EventSync,
+    screen_data: &ScreenData,
   ) -> Result<AnimationConnection, AnimationError> {
+    if screen_data.animation_thread_already_started() {
+      return Err(AnimationError::AnimationThreadAlreadyStarted);
+    }
+
+    // change this to be mpsc::unbounded_channel
     let (sender, mut receiver) = mpsc::channel::<AnimationRequest>(200);
+    let event_sync = screen_data.get_event_sync();
 
     let animation_thread_handle = tokio::spawn(async move {
       let mut model_animator_data_list: HashMap<u64, ModelAnimatorData> = HashMap::new();
 
-      // possibly add a way where if all lists are empty (aka nothing is happening), just wait for requests
       (0..u64::MAX).for_each(|iteration| {
         event_sync.wait_for_tick();
 
-        while let Ok(request_data) = receiver.try_recv() {
-          if let Some(called_model_animator) =
-            model_animator_data_list.get_mut(&request_data.model_unique_hash)
-          {
-            if called_model_animator.run_request(request_data.request) {
-              model_animator_data_list.remove(&request_data.model_unique_hash);
-            }
-          } else if let AnimationAction::AddAnimator(add_model) = request_data.request {
-            model_animator_data_list.insert(
-              request_data.model_unique_hash,
-              ModelAnimatorData::new(add_model),
-            );
-          } else {
-            log::warn!("Attempted to call an animation request with an invalid model hash");
+        if Self::no_animators_are_running(&model_animator_data_list) {
+          if let Some(request_data) = receiver.blocking_recv() {
+            Self::run_model_request(&mut model_animator_data_list, request_data);
+          }
+        } else {
+          while let Ok(request_data) = receiver.try_recv() {
+            Self::run_model_request(&mut model_animator_data_list, request_data);
           }
         }
 
@@ -368,6 +368,29 @@ impl ModelAnimationData {
 
     Ok(())
   }
+
+  fn no_animators_are_running(model_animator_list: &HashMap<u64, ModelAnimatorData>) -> bool {
+    model_animator_list.values().all(|model_animator| {
+      model_animator.animation_queue.is_empty() && model_animator.current_animation.is_none()
+    })
+  }
+
+  fn run_model_request(
+    model_animator_list: &mut HashMap<u64, ModelAnimatorData>,
+    request: AnimationRequest,
+  ) {
+    if let Some(called_model_animator) = model_animator_list.get_mut(&request.model_unique_hash) {
+      let removal_request = called_model_animator.run_request(request.request);
+
+      if removal_request {
+        model_animator_list.remove(&request.model_unique_hash);
+      }
+    } else if let AnimationAction::AddAnimator(add_model) = request.request {
+      model_animator_list.insert(request.model_unique_hash, ModelAnimatorData::new(add_model));
+    } else {
+      log::warn!("Attempted to call an animation request with an invalid model hash");
+    }
+  }
 }
 
 impl AnimationConnection {
@@ -379,5 +402,182 @@ impl AnimationConnection {
 impl core::fmt::Debug for ModelAnimationData {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     write!(f, "{{ ... }}")
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[cfg(test)]
+  mod start_animation_thread_logic {
+    use super::*;
+
+    #[tokio::test]
+    async fn start_thread_once() {
+      let screen_data = ScreenData::new();
+
+      ModelAnimationData::start_animation_thread(&screen_data).await.unwrap();
+    }
+    
+    #[tokio::test]
+    #[should_panic]
+    async fn start_thread_multiple_times() {
+      let mut screen_data = ScreenData::new();
+
+      screen_data.start_animation_thread().await.unwrap();
+      ModelAnimationData::start_animation_thread(&screen_data).await.unwrap();
+    }
+  }
+
+  // how to test the animation thread
+  //   check if it's waiting properly
+  //     > start the thread
+  //     > add 2 models
+  //     > wait 2 ticks for it to sit and wait
+  //     > send in 2 animation requests for both models at the same time
+  //     > if only one of the models changed after that, it waited properly
+  //   check if it's running all animations
+  //     > start the thread
+  //     > add 2 models
+  //     > send requests to add animations
+  //     > if they both changed, it's running requests properly
+
+  #[cfg(test)]
+  mod model_animtor_methods {
+    use super::*;
+
+    #[cfg(test)]
+    mod run_request_logic {
+      use super::*;
+
+      #[test]
+      fn add_to_queue_no_running_animation() {
+        let model_data = get_test_model_data();
+        let mut model_animator = ModelAnimatorData::new(model_data);
+        let animation_frames = get_test_animation_limited_run_count();
+        let request = AnimationAction::AddToQueue(animation_frames);
+
+        let result = model_animator.run_request(request);
+
+        assert!(!result);
+        assert!(model_animator.animation_queue.is_empty());
+        assert!(model_animator.current_animation.is_some());
+      }
+
+      #[test]
+      fn add_to_queue_currently_running_animation() {
+        let model_data = get_test_model_data();
+        let mut model_animator = ModelAnimatorData::new(model_data);
+        let animation_frames = get_test_animation_limited_run_count();
+        model_animator.current_animation = Some(animation_frames.clone());
+        let request = AnimationAction::AddToQueue(animation_frames);
+
+        let result = model_animator.run_request(request);
+
+        assert!(!result);
+        assert!(!model_animator.animation_queue.is_empty());
+        assert!(model_animator.current_animation.is_some());
+      }
+
+      #[test]
+      fn overwrite_current_animation() {
+        let model_data = get_test_model_data();
+        let mut model_animator = ModelAnimatorData::new(model_data);
+        let animation_frames = get_test_animation_limited_run_count();
+        let initial_appearance_request = AnimationAction::AddToQueue(animation_frames);
+        model_animator.run_request(initial_appearance_request);
+        let replacing_animation_frames = get_test_animation_unlimited_run_count();
+        let overwrite_request = AnimationAction::OverwriteCurrentAnimation(replacing_animation_frames);
+
+        let expected_frame_appearance = "ooooo\nooaoo\nooooo".to_string();
+        
+        let result = model_animator.run_request(overwrite_request);
+        let frame_0_appearance = model_animator.current_animation
+          .unwrap()
+          .get_frame(0)
+          .unwrap()
+          .get_appearance()
+          .to_owned();
+
+        assert!(!result);
+        assert!(model_animator.animation_queue.is_empty());
+        assert_eq!(frame_0_appearance, expected_frame_appearance);
+      }
+
+      #[test]
+      fn clear_queue() {
+        let model_data = get_test_model_data();
+        let mut model_animator = ModelAnimatorData::new(model_data);
+        let animation_frames = get_test_animation_limited_run_count();
+        let appearance_request = AnimationAction::AddToQueue(animation_frames);
+        model_animator.run_request(appearance_request.clone());
+        model_animator.run_request(appearance_request);
+
+        assert!(!model_animator.animation_queue.is_empty());
+
+        let request = AnimationAction::ClearQueue;
+        let result = model_animator.run_request(request);
+
+        assert!(!result);
+        assert!(model_animator.animation_queue.is_empty());
+      }
+
+      #[test]
+      // Nothing should happen other than an error being logged
+      fn add_animator() {
+        let model_data = get_test_model_data();
+        let other_model_data = get_test_model_data();
+        let mut model_animator = ModelAnimatorData::new(model_data);
+        let request = AnimationAction::AddAnimator(other_model_data);
+
+        let result = model_animator.run_request(request);
+
+        assert!(!result);
+      }
+
+      #[test]
+      fn remove_animator() {
+        let model_data = get_test_model_data();
+        let mut model_animator = ModelAnimatorData::new(model_data);
+        let request = AnimationAction::RemoveAnimatior;
+
+        let result = model_animator.run_request(request);
+
+        assert!(result);
+      }
+    }
+  }
+
+  // data for tests
+
+const WORLD_POSITION: (usize, usize) = (10, 10);
+
+  fn get_test_model_data() -> ModelData {
+    let test_model_path = std::path::Path::new("tests/models/test_square.model");
+
+    ModelData::from_file(test_model_path, WORLD_POSITION).unwrap()
+  }
+
+  // This is temporary until animation file parsers are a thing.
+  fn get_test_animation_limited_run_count() -> AnimationFrames {
+    let frames = vec![
+      AnimationFrame::new("lllll\nllall\nlllll".to_string(), 1, None),
+      AnimationFrame::new("mmmmm\nmmamm\nmmmmm".to_string(), 1, None),
+      AnimationFrame::new("nnnnn\nnnann\nnnnnn".to_string(), 1, None),
+    ];
+
+    AnimationFrames::new(frames, AnimationLoopCount::Limited(5))
+  }
+
+  // This is temporary until animation file parsers are a thing.
+  fn get_test_animation_unlimited_run_count() -> AnimationFrames {
+    let frames = vec![
+      AnimationFrame::new("ooooo\nooaoo\nooooo".to_string(), 1, None),
+      AnimationFrame::new("ppppp\nppapp\nppppp".to_string(), 1, None),
+      AnimationFrame::new("qqqqq\nqqaqq\nqqqqq".to_string(), 1, None),
+    ];
+
+    AnimationFrames::new(frames, AnimationLoopCount::Forever)
   }
 }
