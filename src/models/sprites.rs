@@ -1,4 +1,5 @@
 use crate::models::errors::*;
+use crate::models::hitboxes::valid_rectangle_check;
 
 /// The ``Sprite`` contains the data for how a model looks on the screen.
 #[derive(Debug, PartialEq, Eq)]
@@ -19,6 +20,8 @@ impl Sprite {
     anchor_replacement_character: char,
     air_character: char,
   ) -> Result<Self, ModelError> {
+    valid_rectangle_check(shape)?;
+
     let mut shape = shape.to_string();
 
     let anchor_character_index = Self::get_anchor_index(&shape, anchor_character)?;
@@ -42,6 +45,7 @@ impl Sprite {
       Some(anchor_replacement) => anchor_replacement,
       None => self.anchor_replacement_character,
     };
+    valid_rectangle_check(&new_appearance)?;
 
     let new_anchor_character_index =
       Self::get_anchor_index(&new_appearance, self.anchor_character)?;

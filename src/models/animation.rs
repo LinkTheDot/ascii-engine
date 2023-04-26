@@ -92,9 +92,10 @@ impl ModelAnimatorData {
       .model
       .change_sprite_appearance(new_appearance, anchor_char_replacement)
     {
-      let error_message = format!("A model has attempted to animate with an invalid frame. Model Hash: {}, Model Name: {}, Error: {error:?}", 
-        self.model.get_unique_hash(),
-        self.model.get_name());
+      let error_message = format!(
+        "A model has attempted to animate with an invalid frame. Model Hash: {}, Model Name: {}, Error: {error:?}", 
+          self.model.get_unique_hash(),
+          self.model.get_name());
 
       log::error!("{error_message}");
 
@@ -108,15 +109,13 @@ impl ModelAnimatorData {
   ///
   /// This method also restarts the ``current_animation_iteration_counter``.
   fn overwrite_current_animation_with_first_in_queue(&mut self) -> Result<(), AnimationError> {
-    self.current_animation_iteration_counter = 0;
+    if let Some(new_animation) = self.animation_queue.pop_front() {
+      self.current_animation_iteration_counter = 0;
 
-    let new_animation = self.animation_queue.pop_front();
-
-    if new_animation.is_none() {
+      self.current_animation = Some(new_animation);
+    } else {
       return Err(AnimationError::EmptyQueue);
     }
-
-    self.current_animation = new_animation;
 
     Ok(())
   }
@@ -417,16 +416,20 @@ mod tests {
     async fn start_thread_once() {
       let screen_data = ScreenData::new();
 
-      ModelAnimationData::start_animation_thread(&screen_data).await.unwrap();
+      ModelAnimationData::start_animation_thread(&screen_data)
+        .await
+        .unwrap();
     }
-    
+
     #[tokio::test]
     #[should_panic]
     async fn start_thread_multiple_times() {
       let mut screen_data = ScreenData::new();
 
       screen_data.start_animation_thread().await.unwrap();
-      ModelAnimationData::start_animation_thread(&screen_data).await.unwrap();
+      ModelAnimationData::start_animation_thread(&screen_data)
+        .await
+        .unwrap();
     }
   }
 
@@ -444,7 +447,7 @@ mod tests {
   //     > if they both changed, it's running requests properly
 
   #[cfg(test)]
-  mod model_animtor_methods {
+  mod model_animator_methods {
     use super::*;
 
     #[cfg(test)]
@@ -488,12 +491,14 @@ mod tests {
         let initial_appearance_request = AnimationAction::AddToQueue(animation_frames);
         model_animator.run_request(initial_appearance_request);
         let replacing_animation_frames = get_test_animation_unlimited_run_count();
-        let overwrite_request = AnimationAction::OverwriteCurrentAnimation(replacing_animation_frames);
+        let overwrite_request =
+          AnimationAction::OverwriteCurrentAnimation(replacing_animation_frames);
 
         let expected_frame_appearance = "ooooo\nooaoo\nooooo".to_string();
-        
+
         let result = model_animator.run_request(overwrite_request);
-        let frame_0_appearance = model_animator.current_animation
+        let frame_0_appearance = model_animator
+          .current_animation
           .unwrap()
           .get_frame(0)
           .unwrap()
@@ -547,11 +552,115 @@ mod tests {
         assert!(result);
       }
     }
+
+    #[cfg(test)]
+    mod change_model_frame_logic {
+      use super::*;
+
+      #[test]
+      fn valid_input() {
+        let model_data = get_test_model_data();
+        let mut model_animator = ModelAnimatorData::new(model_data.clone());
+        let frame_appearance = "-----\n--a--\n-----".to_string();
+        let new_frame = AnimationFrame::new(frame_appearance, 1, Some('-'));
+
+        let expected_appearance = "-----\n-----\n-----".to_string();
+
+        model_animator.change_model_frame(new_frame);
+
+        let model_appearance = model_data.get_sprite();
+
+        assert_eq!(model_appearance, expected_appearance);
+      }
+
+      #[test]
+      #[should_panic]
+      fn invalid_frame_shape() {
+        let model_data = get_test_model_data();
+        let mut model_animator = ModelAnimatorData::new(model_data.clone());
+        let frame_appearance = "--\n--a--\n-----".to_string();
+        let new_frame = AnimationFrame::new(frame_appearance, 1, Some('-'));
+
+        model_animator.change_model_frame(new_frame);
+
+        println!("{}", model_data.get_sprite());
+      }
+    }
+
+    #[cfg(test)]
+    mod overwrite_current_animation_with_first_in_queue_logic {
+      use super::*;
+
+      #[test]
+      fn empty_queue_running_animation() {
+        let model_data = get_test_model_data();
+        let mut model_animator = ModelAnimatorData::new(model_data);
+        let running_animation = get_test_animation_limited_run_count();
+        model_animator.current_animation = Some(running_animation.clone());
+
+        let expected_animation = Some(running_animation);
+
+        let result = model_animator.overwrite_current_animation_with_first_in_queue();
+        let current_animation = &model_animator.current_animation;
+
+        assert!(result.is_err());
+        assert_eq!(current_animation, &expected_animation);
+      }
+
+      #[test]
+      fn empty_queue_no_running_animation() {
+        let model_data = get_test_model_data();
+        let mut model_animator = ModelAnimatorData::new(model_data);
+
+        let result = model_animator.overwrite_current_animation_with_first_in_queue();
+
+        assert!(result.is_err());
+        assert!(model_animator.current_animation.is_none());
+      }
+
+      #[test]
+      fn queue_has_contents_running_animation() {
+        let model_data = get_test_model_data();
+        let mut model_animator = ModelAnimatorData::new(model_data);
+        let running_animation = get_test_animation_limited_run_count();
+        let queued_animation = get_test_animation_unlimited_run_count();
+        model_animator.current_animation = Some(running_animation);
+        model_animator
+          .animation_queue
+          .push_front(queued_animation.clone());
+
+        let expected_animation = Some(queued_animation);
+
+        let result = model_animator.overwrite_current_animation_with_first_in_queue();
+        let current_animation = &model_animator.current_animation;
+
+        assert!(result.is_ok());
+        assert_eq!(current_animation, &expected_animation);
+      }
+
+      #[test]
+      fn queue_has_contents_no_running_animation() {
+        let model_data = get_test_model_data();
+        let mut model_animator = ModelAnimatorData::new(model_data);
+        let queued_animation = get_test_animation_limited_run_count();
+        model_animator
+          .animation_queue
+          .push_front(queued_animation.clone());
+
+        let expected_animation = Some(queued_animation);
+
+        let result = model_animator.overwrite_current_animation_with_first_in_queue();
+        let current_animation = &model_animator.current_animation;
+
+        assert!(result.is_ok());
+        assert_eq!(current_animation, &expected_animation);
+      }
+    }
   }
 
   // data for tests
 
-const WORLD_POSITION: (usize, usize) = (10, 10);
+  const WORLD_POSITION: (usize, usize) = (10, 10);
 
   fn get_test_model_data() -> ModelData {
     let test_model_path = std::path::Path::new("tests/models/test_square.model");

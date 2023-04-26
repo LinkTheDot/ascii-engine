@@ -123,7 +123,9 @@ async fn get_event_sync_logic() {
     let elapsed_time = now.elapsed().as_micros();
 
     // check if the elapsed time is 24ms +- 0.5ms;
-    assert!(expected_elapsed_time_low <= elapsed_time && expected_elapsed_time_high >= elapsed_time);
+    assert!(
+      expected_elapsed_time_low <= elapsed_time && expected_elapsed_time_high >= elapsed_time
+    );
   }
 }
 

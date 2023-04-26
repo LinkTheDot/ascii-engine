@@ -279,8 +279,13 @@ impl HitboxCreationData {
 ///
 /// # Errors
 ///
-/// - An error is returned when the hitbox isn't a rectangle.
+/// - An error is returned when the shape isn't a rectangle.
+/// - An error is returned when the shape is empty.
 // Move this and other similar functions that are lying around into their own general_data module.
+//
+// Possibly change this to two different methods
+// valid_rectangle() and get_dimensions()
+// which both will rely on the same logic, just return different things
 pub fn valid_rectangle_check(rectangle_shape: &str) -> Result<(usize, usize), ModelError> {
   if rectangle_shape.is_empty() {
     return Err(ModelError::NonRectangularShape);
