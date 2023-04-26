@@ -108,17 +108,23 @@ mod start_animation_thread_logic {
 async fn get_event_sync_logic() {
   let screen = ScreenData::new();
 
-  let expected_elapsed_time = 24;
+  let expected_elapsed_time_low = 23500;
+  let expected_elapsed_time_high = 24500;
 
   let event_sync = screen.get_event_sync();
 
-  let now = std::time::Instant::now();
+  // run the test 50 times
+  for _ in 0..50 {
+    event_sync.wait_for_tick();
+    let now = std::time::Instant::now();
 
-  event_sync.wait_for_tick();
+    event_sync.wait_for_tick();
 
-  let elapsed_time = now.elapsed().as_millis();
+    let elapsed_time = now.elapsed().as_micros();
 
-  assert_eq!(elapsed_time, expected_elapsed_time);
+    // check if the elapsed time is 24ms +- 0.5ms;
+    assert!(expected_elapsed_time_low <= elapsed_time && expected_elapsed_time_high >= elapsed_time);
+  }
 }
 
 //
