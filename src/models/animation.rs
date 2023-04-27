@@ -110,9 +110,7 @@ impl ModelAnimatorData {
   /// This method also restarts the ``current_animation_iteration_counter``.
   fn overwrite_current_animation_with_first_in_queue(&mut self) -> Result<(), AnimationError> {
     if let Some(new_animation) = self.animation_queue.pop_front() {
-      self.current_animation_iteration_counter = 0;
-
-      self.current_animation = Some(new_animation);
+      self.overwrite_current_animation(new_animation);
     } else {
       return Err(AnimationError::EmptyQueue);
     }
@@ -150,11 +148,18 @@ impl ModelAnimatorData {
   }
 
   /// Increments the counter for how many times this animation has changed the model's appearance.
-  fn increment_frame_iteration_counter(&mut self) {
-    self.current_animation_iteration_counter += 1;
+  fn increment_frame_iteration_counter(&mut self) -> Result<(), AnimationError> {
+    if self.current_animation.is_some() {
+      self.current_animation_iteration_counter += 1;
+    } else {
+      return Err(AnimationError::NoExistingAnimation);
+    }
+
+    Ok(())
   }
 
-  fn frame_change_on_iteration(&mut self, current_iteration: u64) {
+  /// Replaces the internal value for the last iteration a frame was changed on.
+  fn update_when_last_frame_changed(&mut self, current_iteration: u64) {
     self.iteration_of_last_frame_change = current_iteration;
   }
 }
@@ -259,7 +264,7 @@ impl ModelAnimationData {
                 let _ = animator_data.overwrite_current_animation_with_first_in_queue();
               }
 
-              animator_data.frame_change_on_iteration(iteration);
+              animator_data.update_when_last_frame_changed(iteration);
 
               return Some(animator_data);
             }
@@ -279,7 +284,8 @@ impl ModelAnimationData {
               .unwrap();
 
             animator_data.change_model_frame(new_model_frame);
-            animator_data.increment_frame_iteration_counter();
+            // There shouldn't be any way for this to panic.
+            animator_data.increment_frame_iteration_counter().unwrap();
           });
       });
     });
@@ -656,6 +662,162 @@ mod tests {
         assert_eq!(current_animation, &expected_animation);
       }
     }
+
+    #[cfg(test)]
+    mod has_animation_to_run_logic {
+      use super::*;
+
+      #[test]
+      fn has_animations() {
+        let model_data = get_test_model_data();
+        let mut model_animator = ModelAnimatorData::new(model_data);
+        let animation_one = get_test_animation_limited_run_count();
+        let animation_two = get_test_animation_limited_run_count();
+
+        model_animator.add_new_animation_to_queue(animation_one);
+        model_animator.add_new_animation_to_queue(animation_two);
+
+        let queue_and_current_result = model_animator.has_animations_to_run();
+
+        // has current animation but none in queue
+        model_animator.overwrite_current_animation_with_first_in_queue().unwrap();
+
+        let empty_queue_and_current_result = model_animator.has_animations_to_run();
+
+        assert!(queue_and_current_result);
+        assert!(empty_queue_and_current_result);
+      }
+
+      #[test]
+      fn has_no_animations() {
+        let model_data = get_test_model_data();
+        let model_animator = ModelAnimatorData::new(model_data);
+
+        assert!(!model_animator.has_animations_to_run());
+      }
+    }
+
+    #[test]
+    fn overwrite_current_animation_logic() {
+      let model_data = get_test_model_data();
+      let mut model_animator = ModelAnimatorData::new(model_data);
+      let running_animation = get_test_animation_limited_run_count();
+      let replacing_animation = get_test_animation_unlimited_run_count();
+      model_animator.add_new_animation_to_queue(running_animation.clone());
+
+      let animation_before = model_animator.current_animation.clone();
+
+      model_animator.overwrite_current_animation(replacing_animation.clone());
+
+      let animation_after = model_animator.current_animation.clone();
+
+      assert_eq!(animation_before, Some(running_animation));
+      assert_eq!(animation_after, Some(replacing_animation));
+    }
+
+    #[cfg(test)]
+    mod add_new_animation_to_queue {
+      use super::*;
+
+      #[test]
+      fn empty_queue() {
+        let model_data = get_test_model_data();
+        let mut model_animator = ModelAnimatorData::new(model_data);
+        let animation = get_test_animation_limited_run_count();
+
+        model_animator.add_new_animation_to_queue(animation.clone());
+
+        let current_animation = model_animator.current_animation.clone();
+
+        assert_eq!(current_animation, Some(animation));
+        assert!(model_animator.animation_queue.is_empty());
+      }
+
+      #[test]
+      fn existing_queue() {
+        let model_data = get_test_model_data();
+        let mut model_animator = ModelAnimatorData::new(model_data);
+        let animation_one = get_test_animation_limited_run_count();
+        let animation_two = get_test_animation_unlimited_run_count();
+        let animation_three = get_test_animation();
+
+        model_animator.add_new_animation_to_queue(animation_one.clone());
+        model_animator.add_new_animation_to_queue(animation_two.clone());
+        model_animator.add_new_animation_to_queue(animation_three.clone());
+
+        let current_animation_one = model_animator.current_animation.clone();
+
+        model_animator.overwrite_current_animation_with_first_in_queue().unwrap();
+        let current_animation_two = model_animator.current_animation.clone();
+
+        model_animator.overwrite_current_animation_with_first_in_queue().unwrap();
+        let current_animation_three = model_animator.current_animation.clone();
+
+        assert_eq!(current_animation_one, Some(animation_one));
+        assert_eq!(current_animation_two, Some(animation_two));
+        assert_eq!(current_animation_three, Some(animation_three));
+      }
+    }
+
+    #[cfg(test)]
+    mod increment_frame_iteration_counter_logic {
+      use super::*;
+
+      #[test]
+      fn existing_animation() {
+        let model_data = get_test_model_data();
+        let mut model_animator = ModelAnimatorData::new(model_data);
+        let animation = get_test_animation_limited_run_count();
+        model_animator.add_new_animation_to_queue(animation);
+
+        let expected_before_frame_counter = 0;
+        let expected_after_frame_counter = 1;
+
+        let before_frame_counter = model_animator.current_animation_iteration_counter;
+
+        model_animator.increment_frame_iteration_counter().unwrap();
+
+        let after_frame_counter = model_animator.current_animation_iteration_counter;
+
+        assert_eq!(before_frame_counter, expected_before_frame_counter);
+        assert_eq!(after_frame_counter, expected_after_frame_counter);
+      }
+
+      #[test]
+      fn no_current_animation() {
+        let model_data = get_test_model_data();
+        let mut model_animator = ModelAnimatorData::new(model_data);
+
+        let expected_result = Err(AnimationError::NoExistingAnimation);
+        let expected_before_frame_counter = 0;
+        let expected_after_frame_counter = 0;
+
+        let before_frame_counter = model_animator.current_animation_iteration_counter;
+
+        let result = model_animator.increment_frame_iteration_counter();
+
+        let after_frame_counter = model_animator.current_animation_iteration_counter;
+
+        assert_eq!(result, expected_result);
+        assert_eq!(before_frame_counter, expected_before_frame_counter);
+        assert_eq!(after_frame_counter, expected_after_frame_counter);
+      }
+    }
+
+    #[test]
+    fn update_when_last_frame_changed_logic() {
+      let model_data = get_test_model_data();
+      let mut model_animator = ModelAnimatorData::new(model_data);
+
+      let before_last_frame_change = model_animator.iteration_of_last_frame_change;
+
+      model_animator.update_when_last_frame_changed(10);
+
+      let after_last_frame_change = model_animator.iteration_of_last_frame_change;
+
+      assert_eq!(before_last_frame_change, 0);
+      assert_eq!(after_last_frame_change, 10);
+    }
   }
 
   // data for tests
@@ -688,5 +850,16 @@ mod tests {
     ];
 
     AnimationFrames::new(frames, AnimationLoopCount::Forever)
+  }
+
+  // This is temporary until animation file parsers are a thing.
+  fn get_test_animation() -> AnimationFrames {
+    let frames = vec![
+      AnimationFrame::new("rrrrr\nrrarr\nrrrrr".to_string(), 1, None),
+      AnimationFrame::new("sssss\nssass\nsssss".to_string(), 1, None),
+      AnimationFrame::new("ttttt\nttatt\nttttt".to_string(), 1, None),
+    ];
+
+    AnimationFrames::new(frames, AnimationLoopCount::Limited(3))
   }
 }

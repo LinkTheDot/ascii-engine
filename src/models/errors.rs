@@ -128,6 +128,9 @@ pub enum AnimationError {
 
   /// This error is returned when attempting to start the animation thread when it has already been started.
   AnimationThreadAlreadyStarted,
+
+  /// This error is returned when attempting to increment the changed frames on a model animator that has no current animation.
+  NoExistingAnimation,
 }
 
 #[derive(Debug, PartialEq, Eq)]
