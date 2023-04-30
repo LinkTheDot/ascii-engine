@@ -297,13 +297,9 @@ impl ScreenData {
     self.model_data.write().unwrap().insert(model_data)
   }
 
-  /// Removes the ModelData of the given key.
+  /// Removes the ModelData of the given key and returns it.
   ///
-  /// Returns The ModelData if it existed, otherwise returns None.
-  ///
-  /// # Errors (yes there's technically an error)
-  ///
-  /// Returns None when any existing model somehow has an impossible strata.
+  /// Returns None if there's no model with the given key.
   pub fn remove_model(&mut self, key: &u64) -> Option<ModelData> {
     self.model_data.write().unwrap().remove(key)
   }
@@ -331,7 +327,7 @@ impl ScreenData {
   /// Returns a copy of the AnimationRequest sender for animation threads.
   ///
   /// None is returned if [`screen_data.start_animation_thread()`](ScreenData::start_animation_thread) hasn't been called yet.
-  pub fn get_animation_connection(&self) -> Option<mpsc::Sender<AnimationRequest>> {
+  pub(crate) fn get_animation_connection(&self) -> Option<mpsc::Sender<AnimationRequest>> {
     Some(self.animation_thread_connection.as_ref()?.clone_sender())
   }
 
@@ -492,6 +488,30 @@ mod tests {
         left_of_index_in_frame.unwrap(),
         expected_left_of_expected_character
       );
+    }
+  }
+
+  #[cfg(test)]
+  mod get_animation_connection_logic {
+    use super::*;
+
+    #[test]
+    fn animation_not_started() {
+      let screen = ScreenData::new();
+
+      let result = screen.get_animation_connection();
+
+      assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn animation_is_started() {
+      let mut screen = ScreenData::new();
+      screen.start_animation_thread().await.unwrap();
+
+      let result = screen.get_animation_connection();
+
+      assert!(result.is_some());
     }
   }
 

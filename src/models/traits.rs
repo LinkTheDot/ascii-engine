@@ -3,7 +3,6 @@ pub use crate::models::{
   model_data::{ModelData, Strata},
   sprites::*,
 };
-pub use crate::screen::models::InternalModels;
 pub use model_macros::DisplayModel;
 pub use std::sync::{Arc, Mutex, RwLock};
 

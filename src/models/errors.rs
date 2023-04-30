@@ -41,8 +41,14 @@ pub enum ModelError {
   /// Contains a description of what went wrong.
   Other(String),
 
-  /// A wrapper for [`ModelCreationError`](crate::models::errors::ModelCreationError).
+  /// This error occurrs when attempting to assign an animation to a model that has already been assigned an animation.
+  ModelAlreadyHasAnimationData,
+
+  /// A wrapper for the [`ModelCreationError`](ModelCreationError) error type.
   ModelCreationError(ModelCreationError),
+
+  /// A wrapper for the [`AnimationError`](AnimationError) error type.
+  AnimationError(AnimationError),
 }
 
 /// This is used for the OutOfBounds error for models.

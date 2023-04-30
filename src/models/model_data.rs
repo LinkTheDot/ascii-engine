@@ -474,7 +474,7 @@ impl ModelData {
   }
 
   /// Assigns the list of existing models.
-  pub fn assign_model_list(&mut self, model_list: Arc<RwLock<InternalModels>>) {
+  pub(crate) fn assign_model_list(&mut self, model_list: Arc<RwLock<InternalModels>>) {
     let mut internal_data = self.get_internal_data();
 
     internal_data.existing_models = Some(model_list);
@@ -484,7 +484,7 @@ impl ModelData {
   ///
   /// If a model somehow has an assigned strata that is different from where it's internall stored.
   /// This method will fix that.
-  pub fn fix_model_strata(&self) -> Result<(), ModelError> {
+  pub(crate) fn fix_model_strata(&self) -> Result<(), ModelError> {
     let internal_data = self.get_internal_data();
 
     if internal_data.existing_models.is_none() {
@@ -508,7 +508,7 @@ impl ModelData {
   /// - Returns an error when the skin isn't rectangular.
   /// - Returns an error when the skin has more or less than 1 anchor.
   /// - Returns an error when the skin is empty.
-  pub fn change_sprite_appearance(
+  pub(crate) fn change_sprite_appearance(
     &mut self,
     new_appearance: &str,
     new_anchor_replacement: Option<char>,
@@ -525,6 +525,21 @@ impl ModelData {
       .recalculate_relative_top_left(new_skin_anchor_coordinates);
 
     internal_data.sprite_internal_anchor_coordinates = new_skin_anchor_coordinates;
+
+    Ok(())
+  }
+
+  pub(crate) fn assign_model_animation(
+    &mut self,
+    animation_data: ModelAnimationData,
+  ) -> Result<(), ModelError> {
+    let mut internal_data = self.get_internal_data();
+
+    if internal_data.animation_data.is_some() {
+      return Err(ModelError::ModelAlreadyHasAnimationData);
+    }
+
+    internal_data.animation_data = Some(Arc::new(TokioMutex::new(animation_data)));
 
     Ok(())
   }
@@ -556,6 +571,13 @@ impl ModelData {
     animation_data.send_request(model_hash, action).await?;
 
     Ok(())
+  }
+
+  /// # Errors
+  ///
+  /// - An error is returned if the model isn't currently animated.
+  pub async fn stop_animation(&mut self) -> Result<(), AnimationError> {
+    todo!()
   }
 
   pub async fn force_change_current_animation(
@@ -616,7 +638,7 @@ impl ModelData {
     Ok(())
   }
 
-  pub async fn delete_animation_queue(&mut self) -> Result<(), AnimationError> {
+  pub async fn clear_animation_queue(&mut self) -> Result<(), AnimationError> {
     let model_hash = self.get_unique_hash();
     let animation_data = self.get_animation_data()?;
     let mut animation_data = animation_data.lock().await;
@@ -679,13 +701,15 @@ impl InternalModelData {
   }
 
   /// Returns true if the model's hitbox is overlapping with the hitbox of the model passed in.
-  pub fn check_model_collision(&self, other_model: &Self, check_position: Option<usize>) -> bool {
+  fn check_model_collision(&self, other_model: &Self, check_position: Option<usize>) -> bool {
     if self.hitbox.is_empty() || other_model.hitbox.is_empty() {
       return false;
     }
 
     let (self_hitbox_x, self_hitbox_y) = if let Some(check_index) = check_position {
-      self.hitbox.get_position_based_on(check_index)
+      self
+        .hitbox
+        .get_position_based_on_model_position(check_index)
     } else {
       self.hitbox.get_hitbox_position(self.position_in_frame)
     };
@@ -797,97 +821,6 @@ mod tests {
   }
 
   #[test]
-  fn check_model_collision_not_in_screen() {
-    let test_model = TestModel::new();
-    let test_model_data = test_model.get_model_data();
-
-    let expected_collisions = vec![];
-
-    let collisions = test_model_data.check_collisions_against_all_models();
-
-    assert_eq!(collisions, expected_collisions);
-  }
-
-  #[tokio::test]
-  async fn collisions_empty_hitbox() {
-    let mut screen = ScreenData::new();
-    let test_model = TestModel::new();
-    let no_hitbox = TestModel::create_empty();
-    let test_model_data = test_model.get_model_data();
-    let no_hitbox_model_data = no_hitbox.get_model_data();
-
-    screen.add_model(&test_model).unwrap();
-    screen.add_model(&no_hitbox).unwrap();
-
-    let internal_test_data = test_model_data.get_internal_data();
-    let internal_no_hitbox_data = no_hitbox_model_data.get_internal_data();
-
-    let result = internal_test_data.check_model_collision(&internal_no_hitbox_data, None);
-
-    assert!(!result);
-  }
-
-  #[tokio::test]
-  async fn absolute_movement_collision_check_no_collision() {
-    let mut screen = ScreenData::new();
-    let test_model = TestModel::new();
-
-    screen.add_model(&test_model).unwrap();
-
-    let expected_collisions = vec![];
-
-    let collisions = test_model.absolute_movement_collision_check((20, 20));
-
-    assert_eq!(collisions, expected_collisions)
-  }
-
-  #[tokio::test]
-  async fn absolute_movement_collision_check_collided_model() {
-    let mut screen = ScreenData::new();
-    let test_model = TestModel::new();
-    let mut collided_model = TestModel::new();
-    let collided_model_data = collided_model.get_model_data();
-    collided_model.absolute_movement((20, 20));
-
-    screen.add_model(&test_model).unwrap();
-    screen.add_model(&collided_model).unwrap();
-
-    let expected_collisions = vec![collided_model_data];
-
-    let collisions = test_model.absolute_movement_collision_check((21, 21));
-
-    assert_eq!(collisions, expected_collisions)
-  }
-
-  #[tokio::test]
-  async fn relative_movement_collision_check_collided_model() {
-    let mut screen = ScreenData::new();
-    let test_model = TestModel::new();
-    let mut collided_model = TestModel::new();
-    let collided_model_data = collided_model.get_model_data();
-    collided_model.absolute_movement((15, 10));
-
-    screen.add_model(&test_model).unwrap();
-    screen.add_model(&collided_model).unwrap();
-
-    let expected_collisions = vec![collided_model_data];
-
-    let collisions = test_model.relative_movement_collision_check((1, 0));
-
-    assert_eq!(collisions, expected_collisions)
-  }
-
-  #[test]
-  fn eq_logic() {
-    let test_model = TestModel::new();
-    let test_model_data = test_model.get_model_data();
-
-    let cloned_model_data = test_model_data.clone();
-
-    assert_eq!(test_model_data, cloned_model_data);
-  }
-
-  #[test]
   fn change_sprite_appearance() {
     let test_model = TestModel::new();
     let mut model_data = test_model.get_model_data();
@@ -930,13 +863,6 @@ mod tests {
   impl TestModel {
     fn new() -> Self {
       let test_model_path = std::path::Path::new("tests/models/test_square.model");
-      let model_data = ModelData::from_file(test_model_path, WORLD_POSITION).unwrap();
-
-      Self { model_data }
-    }
-
-    fn create_empty() -> Self {
-      let test_model_path = std::path::Path::new("tests/models/test_model_no_hitbox.model");
       let model_data = ModelData::from_file(test_model_path, WORLD_POSITION).unwrap();
 
       Self { model_data }

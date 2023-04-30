@@ -14,7 +14,7 @@ use std::collections::{HashMap, HashSet};
 ///
 /// Two, models need to know about the existence of every other model for collision checks.
 #[derive(Debug)]
-pub struct InternalModels {
+pub(crate) struct InternalModels {
   model_stratas: HashMap<Strata, HashSet<u64>>,
   models: HashMap<u64, ModelData>,
 }
@@ -24,7 +24,7 @@ impl InternalModels {
   /// Creates a new instance of the InternalModels struct.
   ///
   /// This will only be called by the screen and is not needed anywhere else.
-  pub fn new() -> Self {
+  pub(crate) fn new() -> Self {
     Self {
       model_stratas: HashMap::new(),
       models: HashMap::new(),
@@ -36,7 +36,7 @@ impl InternalModels {
   /// # Errors
   ///
   /// - An error is returned when attempting to add a model that already exists.
-  pub fn insert(&mut self, model: ModelData) -> Result<(), ModelError> {
+  pub(crate) fn insert(&mut self, model: ModelData) -> Result<(), ModelError> {
     let key = model.get_unique_hash();
 
     if self.models.get(&key).is_none() {
@@ -59,7 +59,7 @@ impl InternalModels {
   /// # Errors (yes there's technically an error)
   ///
   /// Returns None when any existing model somehow has an impossible strata.
-  pub fn remove(&mut self, key: &u64) -> Option<ModelData> {
+  pub(crate) fn remove(&mut self, key: &u64) -> Option<ModelData> {
     if self.model_exists(key) {
       self.remove_mention_of(key)
     } else {
@@ -111,24 +111,25 @@ impl InternalModels {
   /// Returns a reference to the model hashes corresponding to the given Strata level.
   ///
   /// Returns None when no models in that Strata range exist.
-  pub fn get_strata_keys(&self, key: &Strata) -> Option<&HashSet<u64>> {
+  pub(crate) fn get_strata_keys(&self, key: &Strata) -> Option<&HashSet<u64>> {
     self.model_stratas.get(key)
   }
 
   /// Returns a copy of the requested ModelData.
   ///
   /// Returns None when the model doesn't exist.
-  pub fn get_model(&self, key: &u64) -> Option<ModelData> {
+  pub(crate) fn get_model(&self, key: &u64) -> Option<ModelData> {
     self.models.get(key).cloned()
   }
 
+  #[allow(unused)]
   /// Returns a HashSet which contains references to the hashes of every model that exists in the world.
-  pub fn get_model_keys(&self) -> HashSet<&u64> {
+  pub(crate) fn get_model_keys(&self) -> HashSet<&u64> {
     self.models.keys().collect()
   }
 
   /// Returns a reference to the internal HashMap of <hash, ModelData>.
-  pub fn get_model_list(&self) -> &HashMap<u64, ModelData> {
+  pub(crate) fn get_model_list(&self) -> &HashMap<u64, ModelData> {
     &self.models
   }
 
@@ -170,7 +171,7 @@ impl InternalModels {
   /// # Errors
   ///
   /// - Returns an error when a model somehow has an impossible strata.
-  pub fn fix_strata_list(&mut self) -> Result<(), ModelError> {
+  pub(crate) fn fix_strata_list(&mut self) -> Result<(), ModelError> {
     for strata_number in 0..=100 {
       let current_strata = Strata(strata_number);
 

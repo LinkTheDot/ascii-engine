@@ -4,8 +4,8 @@ use ascii_engine::prelude::*;
 mod display_logic {
   use super::*;
 
-  #[tokio::test]
-  async fn empty_screen() {
+  #[test]
+  fn empty_screen() {
     let screen = ScreenData::default();
     // adding the height - 1 is accounting for new lines
     let expected_pixel_count =
@@ -15,8 +15,8 @@ mod display_logic {
     assert_eq!(display.chars().count(), expected_pixel_count);
   }
 
-  #[tokio::test]
-  async fn with_model() {
+  #[test]
+  fn with_model() {
     let mut screen = ScreenData::new();
     let test_model = TestModel::new();
 
@@ -31,8 +31,8 @@ mod display_logic {
   }
 }
 
-#[tokio::test]
-async fn add_and_remove_model() {
+#[test]
+fn add_and_remove_model() {
   let mut screen = ScreenData::new();
   let test_model = TestModel::new();
 
@@ -45,35 +45,11 @@ async fn add_and_remove_model() {
   assert_eq!(result_data.get_unique_hash(), test_model_hash);
 }
 
-#[tokio::test]
-async fn printer_started() {
+#[test]
+fn printer_started() {
   let screen = ScreenData::new();
 
   assert!(!screen.printer_started());
-}
-
-#[cfg(test)]
-mod get_animation_connection_logic {
-  use super::*;
-
-  #[tokio::test]
-  async fn animation_not_started() {
-    let screen = ScreenData::new();
-
-    let result = screen.get_animation_connection();
-
-    assert!(result.is_none());
-  }
-
-  #[tokio::test]
-  async fn animation_is_started() {
-    let mut screen = ScreenData::new();
-    screen.start_animation_thread().await.unwrap();
-
-    let result = screen.get_animation_connection();
-
-    assert!(result.is_some());
-  }
 }
 
 #[cfg(test)]
@@ -104,8 +80,8 @@ mod start_animation_thread_logic {
   }
 }
 
-#[tokio::test]
-async fn get_event_sync_logic() {
+#[test]
+fn get_event_sync_logic() {
   let screen = ScreenData::new();
 
   let expected_elapsed_time_low = 23500;

@@ -1,3 +1,4 @@
+use crate::models::animation::ModelAnimationData;
 use crate::models::errors::*;
 use crate::models::{hitboxes::*, model_data::*};
 use log::error;
@@ -16,6 +17,8 @@ struct ModelDataBuilder {
   strata: Option<Strata>,
   appearance: Option<String>,
   hitbox_dimensions: Option<String>,
+
+  animation_file_path: Option<Box<std::path::Path>>,
 }
 
 /// Used for which section the parser is currently checking the data for.
@@ -139,9 +142,19 @@ impl ModelParser {
     }
 
     let file_string_rows: Vec<&str> = file_string_buffer.split('\n').collect();
-    let model_data_builder = ModelParser::parse_rows(file_string_rows)?;
+    let mut model_data_builder = ModelParser::parse_rows(file_string_rows)?;
 
-    model_data_builder.build(frame_position)
+    let model_animation_file_path = model_data_builder.animation_file_path.take();
+    let mut model_data = model_data_builder.build(frame_position)?;
+
+    if let Some(model_animation_file_path) = model_animation_file_path {
+      match ModelAnimationData::from_file(&model_animation_file_path) {
+        Ok(animation_data) => model_data.assign_model_animation(animation_data)?,
+        Err(animation_error) => return Err(ModelError::AnimationError(animation_error)),
+      }
+    }
+
+    Ok(model_data)
   }
 
   /// Takes the rows from the model file and adds the data to a ModelDataBuilder.

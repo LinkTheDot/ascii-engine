@@ -1,3 +1,5 @@
+pub use crate::models::animation::animation_frames_iterators::*;
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct AnimationFrames {
   frames: Vec<AnimationFrame>,
@@ -17,7 +19,7 @@ pub struct AnimationFrame {
 pub enum AnimationLoopCount {
   Forever,
   /// Contains how many times an animation should loop for.
-  Limited(u32),
+  Limited(u64),
 }
 
 impl AnimationFrames {
@@ -39,9 +41,15 @@ impl AnimationFrames {
   pub fn reached_loop_count(&self, frames_iterated_through: u64) -> bool {
     let animation_loops_occurred = frames_iterated_through / self.frame_count();
 
-    self
-      .loop_count
-      .reached_loop_count(animation_loops_occurred as u32)
+    self.loop_count.reached_loop_count(animation_loops_occurred)
+  }
+
+  pub fn get_frames(&self) -> &Vec<AnimationFrame> {
+    &self.frames
+  }
+
+  pub fn get_loop_count(&self) -> &AnimationLoopCount {
+    &self.loop_count
   }
 }
 
@@ -72,7 +80,7 @@ impl AnimationFrame {
 }
 
 impl AnimationLoopCount {
-  pub fn reached_loop_count(&self, current_loop_counter: u32) -> bool {
+  pub fn reached_loop_count(&self, current_loop_counter: u64) -> bool {
     match self {
       AnimationLoopCount::Forever => false,
       AnimationLoopCount::Limited(max_loop_count) => max_loop_count == &current_loop_counter,

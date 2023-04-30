@@ -106,7 +106,7 @@ impl Hitbox {
   /// Takes the frame position of the model and returns the hitbox's frame position.
   ///
   /// Returned as (x, y)
-  pub fn get_hitbox_position(&self, model_frame_position: usize) -> (isize, isize) {
+  pub(crate) fn get_hitbox_position(&self, model_frame_position: usize) -> (isize, isize) {
     let (model_x, model_y) =
       model_frame_position.index_to_coordinates(CONFIG.grid_width as usize + 1);
 
@@ -117,19 +117,19 @@ impl Hitbox {
   }
 
   /// Returns the (width, height) of the hitbox.
-  pub fn get_dimensions(&self) -> (isize, isize) {
+  pub(crate) fn get_dimensions(&self) -> (isize, isize) {
     (self.width, self.height)
   }
 
   /// Returns true if the hitbox is labeled as empty.
-  pub fn is_empty(&self) -> bool {
+  pub(crate) fn is_empty(&self) -> bool {
     self.empty_hitbox
   }
 
   /// Returns the (x, y) of the hitbox based on if the model was in the position of the new passed in value.
   ///
   /// The passed in value is based on frame index.
-  pub fn get_position_based_on(&self, new_position: usize) -> (isize, isize) {
+  pub(crate) fn get_position_based_on_model_position(&self, new_position: usize) -> (isize, isize) {
     let (model_x, model_y) = new_position.index_to_coordinates(CONFIG.grid_width as usize + 1);
 
     (
@@ -138,11 +138,12 @@ impl Hitbox {
     )
   }
 
-  pub fn get_relative_top_left(&self) -> (isize, isize) {
+  #[allow(unused)]
+  pub(crate) fn get_relative_top_left(&self) -> (isize, isize) {
     self.skin_top_left_to_hitbox_top_left
   }
 
-  pub fn recalculate_relative_top_left(&mut self, skin_anchor_coordinates: (isize, isize)) {
+  pub(crate) fn recalculate_relative_top_left(&mut self, skin_anchor_coordinates: (isize, isize)) {
     let new_relative_distance = HitboxCreationData::calculate_skin_top_left_to_hitbox_top_left(
       skin_anchor_coordinates,
       self.hitbox_anchor_index as f32,
@@ -243,7 +244,7 @@ impl HitboxCreationData {
   ///
   /// With this data, this method would return (0, 0).
   ///
-  /// ```
+  /// ```ignore
   /// use ascii_engine::models::hitboxes::HitboxCreationData;                        
   ///
   /// let skin_relative_anchor: (isize, isize) = (1, 1);
@@ -259,7 +260,7 @@ impl HitboxCreationData {
   ///
   /// assert_eq!(skin_to_hitbox_anchor, (0, 0));
   /// ```
-  pub fn calculate_skin_top_left_to_hitbox_top_left(
+  pub(crate) fn calculate_skin_top_left_to_hitbox_top_left(
     skin_anchor_to_top_left: (isize, isize),
     hitbox_anchor_index: f32,
     hitbox_width: f32,
@@ -286,7 +287,7 @@ impl HitboxCreationData {
 // Possibly change this to two different methods
 // valid_rectangle() and get_dimensions()
 // which both will rely on the same logic, just return different things
-pub fn valid_rectangle_check(rectangle_shape: &str) -> Result<(usize, usize), ModelError> {
+pub(crate) fn valid_rectangle_check(rectangle_shape: &str) -> Result<(usize, usize), ModelError> {
   if rectangle_shape.is_empty() {
     return Err(ModelError::NonRectangularShape);
   }
@@ -391,23 +392,4 @@ mod tests {
 
     assert_eq!(result, expected_result);
   }
-
-  // uncomment if needed
-  //
-  // -- Data for tests below --
-  //
-  //
-  // #[derive(DisplayModel)]
-  // struct TestModel {
-  //   model_data: ModelData,
-  // }
-  //
-  // impl TestModel {
-  //   fn new() -> Self {
-  //     let test_model_path = std::path::Path::new("tests/models/test_square.model");
-  //     let model_data = ModelData::from_file(test_model_path, WORLD_POSITION).unwrap();
-  //
-  //     Self { model_data }
-  //   }
-  // }
 }

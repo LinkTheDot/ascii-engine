@@ -20,7 +20,7 @@ guard = "0.5.1"
 termion = "2.0.1"
 lazy_static = "1.4.0"
 serde = { version = "1.0", features = ["derive"] }
-toml = "0.5.9"
+toml = "0.7.3"
 config = "0.13.2"
 rand = "0.8.5"
 log4rs = "1.2.0"

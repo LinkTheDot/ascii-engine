@@ -2,8 +2,8 @@ use ascii_engine::prelude::*;
 
 const WORLD_POSITION: (usize, usize) = (10, 10);
 
-#[tokio::test]
-async fn absolute_movement_logic() {
+#[test]
+fn absolute_movement_logic() {
   let mut screen = ScreenData::new();
   let mut test_model = TestModel::new();
 
@@ -20,8 +20,8 @@ async fn absolute_movement_logic() {
   assert_eq!(new_model_position, expected_position);
 }
 
-#[tokio::test]
-async fn relative_movement_logic() {
+#[test]
+fn relative_movement_logic() {
   let mut screen = ScreenData::new();
   let mut test_model = TestModel::new();
 
@@ -62,8 +62,8 @@ fn from_file_model_doesnt_exist() {
   assert_eq!(result, expected_result);
 }
 
-#[tokio::test]
-async fn change_strata() {
+#[test]
+fn change_strata() {
   let mut screen = ScreenData::new();
   let mut test_model = TestModel::new();
 
@@ -98,8 +98,8 @@ fn change_name() {
 mod check_collisions_against_all_models {
   use super::*;
 
-  #[tokio::test]
-  async fn no_other_models() {
+  #[test]
+  fn no_other_models() {
     let mut screen = ScreenData::new();
     let test_model = TestModel::new();
     let model_data = test_model.get_model_data();
@@ -113,8 +113,8 @@ mod check_collisions_against_all_models {
     assert_eq!(collisions, expected_collisions);
   }
 
-  #[tokio::test]
-  async fn one_other_model_no_collision() {
+  #[test]
+  fn one_other_model_no_collision() {
     let mut screen = ScreenData::new();
     let model_one = TestModel::new();
     let model_two = TestModel::new();
@@ -132,8 +132,8 @@ mod check_collisions_against_all_models {
     assert_eq!(collisions, expected_collisions);
   }
 
-  #[tokio::test]
-  async fn one_other_model_colliding() {
+  #[test]
+  fn one_other_model_colliding() {
     let mut screen = ScreenData::new();
     let model_one = TestModel::new();
     let model_two = TestModel::new();
@@ -150,8 +150,8 @@ mod check_collisions_against_all_models {
     assert_eq!(collisions, expected_collisions);
   }
 
-  #[tokio::test]
-  async fn two_other_models_colliding() {
+  #[test]
+  fn two_other_models_colliding() {
     let mut screen = ScreenData::new();
     let model_one = TestModel::new();
     let model_two = TestModel::new();
@@ -182,6 +182,95 @@ mod check_collisions_against_all_models {
   }
 }
 
+#[test]
+fn check_model_collision_not_in_screen() {
+  let test_model = TestModel::new();
+  let test_model_data = test_model.get_model_data();
+
+  let expected_collisions = vec![];
+
+  let collisions = test_model_data.check_collisions_against_all_models();
+
+  assert_eq!(collisions, expected_collisions);
+}
+
+#[test]
+fn collisions_empty_hitbox() {
+  let mut screen = ScreenData::new();
+  let test_model = TestModel::new();
+  let no_hitbox = TestModel::create_empty();
+  let test_model_data = test_model.get_model_data();
+
+  screen.add_model(&test_model).unwrap();
+  screen.add_model(&no_hitbox).unwrap();
+
+  let result = test_model_data.check_collisions_against_all_models();
+
+  assert!(result.is_empty());
+}
+
+#[test]
+fn absolute_movement_collision_check_no_collision() {
+  let mut screen = ScreenData::new();
+  let test_model = TestModel::new();
+
+  screen.add_model(&test_model).unwrap();
+
+  let expected_collisions = vec![];
+
+  let collisions = test_model.absolute_movement_collision_check((20, 20));
+
+  assert_eq!(collisions, expected_collisions)
+}
+
+#[test]
+fn absolute_movement_collision_check_collided_model() {
+  let mut screen = ScreenData::new();
+  let test_model = TestModel::new();
+  let mut collided_model = TestModel::new();
+  let collided_model_data = collided_model.get_model_data();
+  collided_model.absolute_movement((20, 20));
+
+  screen.add_model(&test_model).unwrap();
+  screen.add_model(&collided_model).unwrap();
+
+  let expected_collisions = vec![collided_model_data];
+
+  let collisions = test_model.absolute_movement_collision_check((21, 21));
+
+  assert_eq!(collisions, expected_collisions)
+}
+
+#[test]
+fn relative_movement_collision_check_collided_model() {
+  let mut screen = ScreenData::new();
+  let test_model = TestModel::new();
+  let mut collided_model = TestModel::new();
+  let collided_model_data = collided_model.get_model_data();
+  collided_model.absolute_movement((15, 10));
+
+  screen.add_model(&test_model).unwrap();
+  screen.add_model(&collided_model).unwrap();
+
+  let expected_collisions = vec![collided_model_data];
+
+  let collisions = test_model.relative_movement_collision_check((1, 0));
+
+  assert_eq!(collisions, expected_collisions)
+}
+
+#[test]
+fn eq_logic() {
+  let test_model = TestModel::new();
+  let test_model_data = test_model.get_model_data();
+
+  let cloned_model_data = test_model_data.clone();
+
+  assert_eq!(test_model_data, cloned_model_data);
+}
+
+// Data for tests below.
+
 #[derive(DisplayModel)]
 struct TestModel {
   model_data: ModelData,
@@ -190,6 +279,13 @@ struct TestModel {
 impl TestModel {
   fn new() -> Self {
     let test_model_path = std::path::Path::new("tests/models/test_square.model");
+    let model_data = ModelData::from_file(test_model_path, WORLD_POSITION).unwrap();
+
+    Self { model_data }
+  }
+
+  fn create_empty() -> Self {
+    let test_model_path = std::path::Path::new("tests/models/test_model_no_hitbox.model");
     let model_data = ModelData::from_file(test_model_path, WORLD_POSITION).unwrap();
 
     Self { model_data }

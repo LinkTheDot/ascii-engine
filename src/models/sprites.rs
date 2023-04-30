@@ -36,7 +36,7 @@ impl Sprite {
     })
   }
 
-  pub fn replace_appearance(
+  pub(crate) fn replace_appearance(
     &mut self,
     mut new_appearance: String,
     new_anchor_replacement: Option<char>,
