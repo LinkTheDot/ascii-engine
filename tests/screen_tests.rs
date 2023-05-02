@@ -105,6 +105,30 @@ fn get_event_sync_logic() {
   }
 }
 
+#[tokio::test]
+async fn start_and_stop_animation_thread() {
+  let mut screen = ScreenData::new();
+
+  screen.start_animation_thread().await.unwrap();
+
+  let started_state = screen.animation_thread_started();
+
+  screen.stop_animation_thread().await.unwrap();
+
+  let stopped_state = screen.animation_thread_started();
+
+  assert!(started_state);
+  assert!(!stopped_state);
+}
+
+#[tokio::test]
+#[should_panic]
+async fn stop_stopped_animation_thread() {
+  let mut screen = ScreenData::new();
+
+  screen.stop_animation_thread().await.unwrap();
+}
+
 //
 // -- Data for tests below --
 //

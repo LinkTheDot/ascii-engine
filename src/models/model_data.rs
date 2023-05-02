@@ -557,7 +557,11 @@ impl ModelData {
 
     let model_data_clone = self.clone();
     let model_hash = self.get_unique_hash();
-    let animation_data = self.get_animation_data()?;
+    let animation_data = self
+      .get_internal_data()
+      .animation_data
+      .take()
+      .ok_or(AnimationError::ModelHasNoAnimationData)?;
     let mut animation_data = animation_data.lock().await;
 
     if animation_data.is_started() {
@@ -568,16 +572,20 @@ impl ModelData {
 
     let action = AnimationAction::AddAnimator(model_data_clone);
 
-    animation_data.send_request(model_hash, action).await?;
-
-    Ok(())
+    animation_data.send_request(model_hash, action).await
   }
 
   /// # Errors
   ///
   /// - An error is returned if the model isn't currently animated.
   pub async fn stop_animation(&mut self) -> Result<(), AnimationError> {
-    todo!()
+    let model_hash = self.get_unique_hash();
+    let animation_data = self.get_animation_data()?;
+    let mut animation_data = animation_data.lock().await;
+
+    let request = AnimationAction::RemoveAnimatior;
+
+    animation_data.send_request(model_hash, request).await
   }
 
   pub async fn force_change_current_animation(
@@ -614,6 +622,17 @@ impl ModelData {
     let mut animation_data = animation_data.lock().await;
 
     animation_data.remove_animation_from_list(animation_name)
+  }
+
+  pub async fn stop_current_animation(&mut self) -> Result<(), AnimationError> {
+    let model_hash = self.get_unique_hash();
+    let animation_data = self.get_animation_data()?;
+    let mut animation_data = animation_data.lock().await;
+    let empty_animation = AnimationFrames::new(vec![], AnimationLoopCount::Limited(0));
+
+    let request = AnimationAction::OverwriteCurrentAnimation(empty_animation);
+
+    animation_data.send_request(model_hash, request).await
   }
 
   /// # Errors
@@ -656,10 +675,10 @@ impl ModelData {
   fn get_animation_data(&self) -> Result<Arc<TokioMutex<ModelAnimationData>>, AnimationError> {
     let internal_data = self.get_internal_data();
 
-    match &internal_data.animation_data {
-      Some(animation_data) => Ok(animation_data.clone()),
-      None => Err(AnimationError::ModelHasNoAnimationData),
-    }
+    internal_data
+      .animation_data
+      .clone()
+      .ok_or(AnimationError::ModelHasNoAnimationData)
   }
 }
 
@@ -789,7 +808,6 @@ impl PartialEq for InternalModelData {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::screen::screen_data::ScreenData;
 
   const WORLD_POSITION: (usize, usize) = (10, 10);
   const SHAPE: &str = "x-x\nxcx\nx-x";

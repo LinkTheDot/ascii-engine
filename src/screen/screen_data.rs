@@ -320,7 +320,21 @@ impl ScreenData {
     Ok(())
   }
 
-  pub fn animation_thread_already_started(&self) -> bool {
+  pub async fn stop_animation_thread(&mut self) -> Result<(), ScreenError> {
+    if !self.animation_thread_started() {
+      return Err(ScreenError::AnimationError(
+        AnimationError::AnimationThreadNotStarted,
+      ));
+    }
+
+    let animation_thread_connection = self.animation_thread_connection.take().unwrap();
+
+    animation_thread_connection.kill_thread().await;
+
+    Ok(())
+  }
+
+  pub fn animation_thread_started(&self) -> bool {
     self.animation_thread_connection.is_some()
   }
 

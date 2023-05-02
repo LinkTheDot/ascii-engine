@@ -7,10 +7,13 @@ use std::collections::{hash_map::Entry, HashMap, VecDeque};
 use std::ffi::OsStr;
 use std::fs::File;
 use tokio::sync::mpsc;
+use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
 pub mod animation_frames;
 pub mod animation_frames_iterators;
+
+static KILL_HASH: u64 = 0;
 
 pub(crate) struct ModelAnimationData {
   animations: HashMap<String, AnimationFrames>,
@@ -26,8 +29,9 @@ struct ModelAnimatorData {
 }
 
 pub(crate) struct AnimationConnection {
-  pub handle: JoinHandle<()>,
-  pub request_sender: mpsc::Sender<AnimationRequest>,
+  _handle: JoinHandle<()>,
+  request_sender: mpsc::Sender<AnimationRequest>,
+  kill_sender: oneshot::Sender<()>,
 }
 
 #[derive(Debug)]
@@ -43,6 +47,7 @@ pub(crate) enum AnimationAction {
   ClearQueue,
   AddAnimator(ModelData),
   RemoveAnimatior,
+  KillThread,
 }
 
 impl ModelAnimatorData {
@@ -72,6 +77,10 @@ impl ModelAnimatorData {
 
       AnimationAction::AddAnimator(_) => {
         log::error!("Attempted to add a model animator through another model.")
+      }
+
+      AnimationAction::KillThread => {
+        panic!("It shouldn't be possible to call KillThread from a model.");
       }
     }
 
@@ -207,6 +216,8 @@ impl ModelAnimationData {
     self.animation_communicator.is_some()
   }
 
+  // This will be used once the animation parser is implemented
+  #[allow(unused)]
   pub fn new() -> Self {
     Self {
       animations: HashMap::new(),
@@ -224,22 +235,33 @@ impl ModelAnimationData {
   pub(crate) async fn start_animation_thread(
     screen_data: &ScreenData,
   ) -> Result<AnimationConnection, AnimationError> {
-    if screen_data.animation_thread_already_started() {
+    if screen_data.animation_thread_started() {
       return Err(AnimationError::AnimationThreadAlreadyStarted);
     }
 
     // change this to be mpsc::unbounded_channel
     let (sender, mut receiver) = mpsc::channel::<AnimationRequest>(200);
+    let (kill_sender, mut kill_receiver) = oneshot::channel::<()>();
     let event_sync = screen_data.get_event_sync();
 
     let animation_thread_handle = tokio::spawn(async move {
       let mut model_animator_data_list: HashMap<u64, ModelAnimatorData> = HashMap::new();
 
       (0..u64::MAX).for_each(|iteration| {
+        if kill_receiver.try_recv().is_ok() {
+          return;
+        }
+
         event_sync.wait_for_tick();
 
         if Self::no_animators_are_running(&model_animator_data_list) {
           if let Some(request_data) = receiver.blocking_recv() {
+            if request_data.model_unique_hash == KILL_HASH
+              && request_data.request == AnimationAction::KillThread
+            {
+              return;
+            }
+
             Self::run_model_request(&mut model_animator_data_list, request_data);
           }
         } else {
@@ -289,8 +311,9 @@ impl ModelAnimationData {
     });
 
     Ok(AnimationConnection {
-      handle: animation_thread_handle,
+      _handle: animation_thread_handle,
       request_sender: sender,
+      kill_sender,
     })
   }
 
@@ -400,8 +423,22 @@ impl ModelAnimationData {
 }
 
 impl AnimationConnection {
-  pub fn clone_sender(&self) -> mpsc::Sender<AnimationRequest> {
+  pub(crate) fn clone_sender(&self) -> mpsc::Sender<AnimationRequest> {
     self.request_sender.clone()
+  }
+
+  /// # Errors
+  ///
+  /// - An error is returned when the animation thread doesn't exist.
+  pub(crate) async fn kill_thread(self) {
+    self.kill_sender.send(()).unwrap();
+
+    let kill_request = AnimationRequest {
+      model_unique_hash: KILL_HASH,
+      request: AnimationAction::KillThread,
+    };
+
+    self.request_sender.send(kill_request).await.unwrap();
   }
 }
 
