@@ -44,7 +44,6 @@ dependencies = [
  "config",
  "crossbeam-channel",
  "event_sync",
- "guard",
  "lazy_static",
  "log",
  "log4rs",
@@ -360,12 +359,6 @@ dependencies = [
  "libc",
  "wasi 0.11.0+wasi-snapshot-preview1",
 ]
-
-[[package]]
-name = "guard"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff893cc51ea04f8a3b73fbaf4376c06ebc5a0ccbe86d460896f805d9417c93ea"
 
 [[package]]
 name = "hashbrown"
@@ -933,7 +926,6 @@ name = "screen_printer"
 version = "0.1.3"
 dependencies = [
  "colored",
- "guard",
  "lazy_static",
  "log",
  "rand",

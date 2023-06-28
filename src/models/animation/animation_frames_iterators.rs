@@ -45,6 +45,13 @@ impl AnimationFramesIntoIter {
         .get_frame_duration() as u64,
     )
   }
+
+  pub fn get_current_frame(&self) -> Option<AnimationFrame> {
+    self
+      .frames
+      .get_frame(self.current_loop_counter % self.frames.frame_count())
+      .cloned()
+  }
 }
 
 #[cfg(test)]

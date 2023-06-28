@@ -1,6 +1,5 @@
 use crate::errors::*;
 use crate::models::model_data::*;
-use guard::guard;
 use log::{error, info, warn};
 use std::collections::{HashMap, HashSet};
 
@@ -141,9 +140,10 @@ impl InternalModels {
   // (I don't know if this below is possible or not. I'll leave it just incase something comes up in the future that makes it possible.)
   /// - Returns an error when a model somehow has an impossible strata range.
   fn insert_strata(&mut self, model_key: &u64) -> Result<(), ModelError> {
-    guard!( let Some(model) = self.get_model(model_key) else {
+    let Some(model) = self.get_model(model_key) else {
       return Err(ModelError::ModelDoesntExist)
-    });
+    };
+
     let model_strata = model.get_strata();
     let model_hash = model.get_unique_hash();
 
@@ -175,7 +175,7 @@ impl InternalModels {
     for strata_number in 0..=100 {
       let current_strata = Strata(strata_number);
 
-      guard!( let Some(strata_keys) = self.get_strata_keys(&current_strata) else { continue; } );
+      let Some(strata_keys) = self.get_strata_keys(&current_strata) else { continue; };
 
       let incorrect_strata_list: Vec<(Strata, u64)> = strata_keys
         .iter()

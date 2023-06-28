@@ -2,10 +2,9 @@ use crate::errors::*;
 use crate::general_data::file_logger;
 use crate::models::animation::{AnimationConnection, AnimationRequest, ModelAnimationData};
 use crate::models::model_data::*;
-use crate::screen::models::*;
+use crate::screen::model_storage::*;
 use crate::CONFIG;
 use event_sync::EventSync;
-use guard::guard;
 use log::error;
 use screen_printer::printer::*;
 use std::sync::{Arc, RwLock};
@@ -112,18 +111,18 @@ impl ScreenData {
     for strata_number in 0..=100 {
       let model_data = self.model_data.read().unwrap();
 
-      guard!( let Some(strata_keys) = model_data.get_strata_keys(&Strata(strata_number)) else { continue } );
+      let Some(strata_keys) = model_data.get_strata_keys(&Strata(strata_number)) else { continue };
 
       for model in strata_keys
         .iter()
         .map(|key| self.model_data.read().unwrap().get_model(key))
       {
-        guard!( let Some(model) = model else {
+        let Some(model) = model else {
           // This is left here just incase something comes up that allows it to happen.
           error!("A model in strata {strata_number} that doesn't exist was attempted to be run.");
 
           continue;
-        });
+        };
 
         Self::apply_model_in_frame(model, &mut frame);
       }
@@ -311,8 +310,8 @@ impl ScreenData {
   /// # Errors
   ///
   /// - An error is returned if the animation thread was already started.
-  pub async fn start_animation_thread(&mut self) -> Result<(), ScreenError> {
-    match ModelAnimationData::start_animation_thread(self).await {
+  pub fn start_animation_thread(&mut self) -> Result<(), ScreenError> {
+    match ModelAnimationData::start_animation_thread(self) {
       Ok(animation_connection) => self.animation_thread_connection = Some(animation_connection),
       Err(animation_error) => return Err(ScreenError::AnimationError(animation_error)),
     }
@@ -320,7 +319,7 @@ impl ScreenData {
     Ok(())
   }
 
-  pub async fn stop_animation_thread(&mut self) -> Result<(), ScreenError> {
+  pub fn stop_animation_thread(&mut self) -> Result<(), ScreenError> {
     if !self.animation_thread_started() {
       return Err(ScreenError::AnimationError(
         AnimationError::AnimationThreadNotStarted,
@@ -329,7 +328,7 @@ impl ScreenData {
 
     let animation_thread_connection = self.animation_thread_connection.take().unwrap();
 
-    animation_thread_connection.kill_thread().await;
+    animation_thread_connection.kill_thread();
 
     Ok(())
   }
@@ -341,7 +340,7 @@ impl ScreenData {
   /// Returns a copy of the AnimationRequest sender for animation threads.
   ///
   /// None is returned if [`screen_data.start_animation_thread()`](ScreenData::start_animation_thread) hasn't been called yet.
-  pub(crate) fn get_animation_connection(&self) -> Option<mpsc::Sender<AnimationRequest>> {
+  pub(crate) fn get_animation_connection(&self) -> Option<mpsc::UnboundedSender<AnimationRequest>> {
     Some(self.animation_thread_connection.as_ref()?.clone_sender())
   }
 
@@ -518,10 +517,10 @@ mod tests {
       assert!(result.is_none());
     }
 
-    #[tokio::test]
-    async fn animation_is_started() {
+    #[test]
+    fn animation_is_started() {
       let mut screen = ScreenData::new();
-      screen.start_animation_thread().await.unwrap();
+      screen.start_animation_thread().unwrap();
 
       let result = screen.get_animation_connection();
 

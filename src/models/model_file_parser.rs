@@ -30,6 +30,11 @@ enum Section {
   Unknown,
 }
 
+struct LineComponents<'a> {
+  data_type: &'a str,
+  line_contents: &'a str,
+}
+
 impl ModelDataBuilder {
   /// Used to build out the ModelData from the given data from the ModelDataBulder.
   ///
@@ -241,45 +246,49 @@ impl ModelParser {
     model_file_row: &str,
     line_number: usize,
   ) -> Result<(), ModelCreationError> {
-    let (data_type, row_contents) = Self::line_to_parts(model_file_row, line_number)?;
+    // let (data_type, row_contents) = Self::line_to_parts(model_file_row, line_number)?;
+    let LineComponents {
+      data_type,
+      line_contents,
+    } = Self::line_to_parts(model_file_row, line_number)?;
 
     match data_type.to_lowercase().trim() {
       "anchor" => {
-        let anchor_character = Self::contents_to_char(row_contents, line_number)?;
+        let anchor_character = Self::contents_to_char(line_contents, line_number)?;
 
         model_data_builder.anchor = Some(anchor_character);
       }
 
       "anchor_replacement" => {
-        let anchor_replacement = Self::contents_to_char(row_contents, line_number)?;
+        let anchor_replacement = Self::contents_to_char(line_contents, line_number)?;
 
         model_data_builder.anchor_replacement = Some(anchor_replacement);
       }
 
       "air" => {
-        let air_character = Self::contents_to_char(row_contents, line_number)?;
+        let air_character = Self::contents_to_char(line_contents, line_number)?;
 
         model_data_builder.air = Some(air_character);
       }
 
       "name" => {
-        if row_contents.is_empty() {
+        if line_contents.is_empty() {
           error!("Attempted to build an object with an empty name");
 
           return Err(ModelCreationError::InvalidStringSizeAtLine(line_number));
         }
 
-        model_data_builder.name = Some(row_contents.to_string());
+        model_data_builder.name = Some(line_contents.to_string());
       }
 
       "strata" => {
-        if row_contents.is_empty() {
+        if line_contents.is_empty() {
           error!("Attempted to build an object with an empty strata value");
 
           return Err(ModelCreationError::InvalidStringSizeAtLine(line_number));
         }
 
-        let strata = match row_contents.trim().parse() {
+        let strata = match line_contents.trim().parse() {
           Ok(strata_number) => Strata(strata_number),
           Err(_) => return Err(ModelCreationError::InvalidSyntax(line_number)),
         };
@@ -299,7 +308,7 @@ impl ModelParser {
     Ok(())
   }
 
-  /// Returns the (data_type, row_contents).
+  /// Returns the components of this line.
   ///
   /// # Errors
   ///
@@ -307,7 +316,7 @@ impl ModelParser {
   fn line_to_parts(
     model_file_row: &str,
     line_number: usize,
-  ) -> Result<(&str, &str), ModelCreationError> {
+  ) -> Result<LineComponents, ModelCreationError> {
     let (data_type, contained_row_contents) = match model_file_row.split_once('=') {
       Some(split_row) => split_row,
       None => return Err(ModelCreationError::InvalidSyntax(line_number)),
@@ -325,14 +334,14 @@ impl ModelParser {
 
     let row_contents = row_contents.unwrap();
 
-    Ok((data_type, row_contents))
+    Ok(LineComponents::new(data_type, row_contents))
   }
 
   /// Checks if the contents are 1 character, and converts it into a ``char``.
   ///
   /// # Errors
   ///
-  /// Returns an error when the contents >= 1 character.
+  /// Returns an error when contents > 1 character.
   fn contents_to_char(contents: &str, line_number: usize) -> Result<char, ModelCreationError> {
     if contents.len() > 1 {
       return Err(ModelCreationError::InvalidStringSizeAtLine(line_number));
@@ -342,6 +351,15 @@ impl ModelParser {
       .chars()
       .next()
       .ok_or(ModelCreationError::InvalidStringSizeAtLine(line_number))
+  }
+}
+
+impl<'a> LineComponents<'a> {
+  fn new(data_type: &'a str, line_contents: &'a str) -> Self {
+    Self {
+      data_type,
+      line_contents,
+    }
   }
 }
 

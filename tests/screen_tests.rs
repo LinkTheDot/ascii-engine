@@ -56,25 +56,25 @@ fn printer_started() {
 mod start_animation_thread_logic {
   use super::*;
 
-  #[tokio::test]
-  async fn starting_once() {
+  #[test]
+  fn starting_once() {
     let mut screen = ScreenData::new();
 
-    let result = screen.start_animation_thread().await;
+    let result = screen.start_animation_thread();
 
     assert!(result.is_ok());
   }
 
-  #[tokio::test]
-  async fn starting_multiple_times() {
+  #[test]
+  fn starting_multiple_times() {
     let mut screen = ScreenData::new();
-    screen.start_animation_thread().await.unwrap();
+    screen.start_animation_thread().unwrap();
 
     let expected_result = Err(ScreenError::AnimationError(
       AnimationError::AnimationThreadAlreadyStarted,
     ));
 
-    let result = screen.start_animation_thread().await;
+    let result = screen.start_animation_thread();
 
     assert_eq!(result, expected_result);
   }
@@ -105,15 +105,15 @@ fn get_event_sync_logic() {
   }
 }
 
-#[tokio::test]
-async fn start_and_stop_animation_thread() {
+#[test]
+fn start_and_stop_animation_thread() {
   let mut screen = ScreenData::new();
 
-  screen.start_animation_thread().await.unwrap();
+  screen.start_animation_thread().unwrap();
 
   let started_state = screen.animation_thread_started();
 
-  screen.stop_animation_thread().await.unwrap();
+  screen.stop_animation_thread().unwrap();
 
   let stopped_state = screen.animation_thread_started();
 
@@ -121,12 +121,12 @@ async fn start_and_stop_animation_thread() {
   assert!(!stopped_state);
 }
 
-#[tokio::test]
+#[test]
 #[should_panic]
-async fn stop_stopped_animation_thread() {
+fn stop_stopped_animation_thread() {
   let mut screen = ScreenData::new();
 
-  screen.stop_animation_thread().await.unwrap();
+  screen.stop_animation_thread().unwrap();
 }
 
 //

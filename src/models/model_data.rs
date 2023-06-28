@@ -4,14 +4,12 @@ use crate::models::errors::*;
 use crate::models::hitboxes::*;
 use crate::models::model_file_parser::ModelParser;
 pub use crate::models::traits::*;
-use crate::screen::models::InternalModels;
+use crate::screen::model_storage::InternalModels;
 use crate::screen::screen_data::ScreenData;
 use crate::CONFIG;
-use guard::guard;
 use std::ffi::OsStr;
-use std::sync::{Arc, Mutex as StdMutex, MutexGuard as StdMutexGuard, RwLock};
+use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 use std::{fs::File, path::Path};
-use tokio::sync::Mutex as TokioMutex;
 
 /// ModelData contains everything the screen needs to know for a model to be placed in the world.
 ///
@@ -159,7 +157,7 @@ use tokio::sync::Mutex as TokioMutex;
 /// This means if you put ``+- `` anywhere on a line in your model file, that line will be ignored by the parser.
 #[derive(Debug)]
 pub struct ModelData {
-  internal_data: Arc<StdMutex<InternalModelData>>,
+  internal_data: Arc<Mutex<InternalModelData>>,
 }
 
 /// This is the internal storage of ModelData.
@@ -183,7 +181,7 @@ struct InternalModelData {
   /// This is created when parsing a model.
   ///
   /// None if there was no `.animate` file in the same path of the model, or there was no alternative path given.
-  animation_data: Option<Arc<TokioMutex<ModelAnimationData>>>,
+  animation_data: Option<Arc<Mutex<ModelAnimationData>>>,
 }
 
 /// The Strata will be the priority on the screen.
@@ -211,7 +209,7 @@ impl Clone for ModelData {
 
 impl ModelData {
   /// Returns a MutexGuard of the [`InternalModelData`](InternalModelData).
-  fn get_internal_data(&self) -> StdMutexGuard<InternalModelData> {
+  fn get_internal_data(&self) -> MutexGuard<InternalModelData> {
     self.internal_data.lock().unwrap()
   }
 
@@ -231,7 +229,7 @@ impl ModelData {
       InternalModelData::new(model_position, sprite, hitbox_data, strata, assigned_name)?;
 
     Ok(Self {
-      internal_data: Arc::new(StdMutex::new(internal_data)),
+      internal_data: Arc::new(Mutex::new(internal_data)),
     })
   }
 
@@ -539,7 +537,7 @@ impl ModelData {
       return Err(ModelError::ModelAlreadyHasAnimationData);
     }
 
-    internal_data.animation_data = Some(Arc::new(TokioMutex::new(animation_data)));
+    internal_data.animation_data = Some(Arc::new(Mutex::new(animation_data)));
 
     Ok(())
   }
@@ -548,21 +546,17 @@ impl ModelData {
   ///
   /// - An error is returned when the [`animation thread`](crate::scree::screen_data::ScreenData::start_animation_thread) hasn't been started yet.
   /// - An error is returned when this model has already started it's animation.
-  pub async fn start_animation(&mut self, screen_data: &ScreenData) -> Result<(), AnimationError> {
-    guard!( let Some(animation_connection) = screen_data.get_animation_connection() else {
+  pub fn start_animation(&mut self, screen_data: &ScreenData) -> Result<(), AnimationError> {
+    let Some(animation_connection) = screen_data.get_animation_connection() else {
       log::error!("Attempted to start a model animation without starting the main animation thread");
 
       return Err(AnimationError::AnimationThreadNotStarted);
-    });
+    };
 
     let model_data_clone = self.clone();
     let model_hash = self.get_unique_hash();
-    let animation_data = self
-      .get_internal_data()
-      .animation_data
-      .take()
-      .ok_or(AnimationError::ModelHasNoAnimationData)?;
-    let mut animation_data = animation_data.lock().await;
+    let animation_data = self.get_animation_data()?;
+    let mut animation_data = animation_data.lock().unwrap();
 
     if animation_data.is_started() {
       return Err(AnimationError::AnimationAlreadyStarted);
@@ -572,67 +566,71 @@ impl ModelData {
 
     let action = AnimationAction::AddAnimator(model_data_clone);
 
-    animation_data.send_request(model_hash, action).await
+    animation_data.send_request(model_hash, action)
   }
 
   /// # Errors
   ///
   /// - An error is returned if the model isn't currently animated.
-  pub async fn stop_animation(&mut self) -> Result<(), AnimationError> {
+  pub fn stop_animation(&mut self) -> Result<(), AnimationError> {
     let model_hash = self.get_unique_hash();
-    let animation_data = self.get_animation_data()?;
-    let mut animation_data = animation_data.lock().await;
+    let animation_data = self
+      .get_internal_data()
+      .animation_data
+      .take()
+      .ok_or(AnimationError::ModelHasNoAnimationData)?;
+    let mut animation_data = animation_data.lock().unwrap();
 
     let request = AnimationAction::RemoveAnimatior;
 
-    animation_data.send_request(model_hash, request).await
+    animation_data.send_request(model_hash, request)
   }
 
-  pub async fn force_change_current_animation(
+  pub fn force_change_current_animation(
     &mut self,
     animation_name: String,
   ) -> Result<(), AnimationError> {
     let model_hash = self.get_unique_hash();
     let animation_data = self.get_animation_data()?;
-    let mut animation_data = animation_data.lock().await;
+    let mut animation_data = animation_data.lock().unwrap();
 
     let animation = animation_data.get_animation(animation_name)?;
 
     let action = AnimationAction::OverwriteCurrentAnimation(animation);
 
-    animation_data.send_request(model_hash, action).await
+    animation_data.send_request(model_hash, action)
   }
 
-  pub async fn store_new_possible_animation(
+  pub fn add_new_animation_to_list(
     &mut self,
     animation_name: String,
     animation: AnimationFrames,
   ) -> Result<(), AnimationError> {
     let animation_data = self.get_animation_data()?;
-    let mut animation_data = animation_data.lock().await;
+    let mut animation_data = animation_data.lock().unwrap();
 
     animation_data.add_new_animation_to_list(animation_name, animation)
   }
 
-  pub async fn remove_possible_animation(
+  pub fn remove_possible_animation(
     &mut self,
     animation_name: String,
   ) -> Result<AnimationFrames, AnimationError> {
     let animation_data = self.get_animation_data()?;
-    let mut animation_data = animation_data.lock().await;
+    let mut animation_data = animation_data.lock().unwrap();
 
     animation_data.remove_animation_from_list(animation_name)
   }
 
-  pub async fn stop_current_animation(&mut self) -> Result<(), AnimationError> {
+  pub fn stop_current_animation(&mut self) -> Result<(), AnimationError> {
     let model_hash = self.get_unique_hash();
     let animation_data = self.get_animation_data()?;
-    let mut animation_data = animation_data.lock().await;
+    let mut animation_data = animation_data.lock().unwrap();
     let empty_animation = AnimationFrames::new(vec![], AnimationLoopCount::Limited(0));
 
     let request = AnimationAction::OverwriteCurrentAnimation(empty_animation);
 
-    animation_data.send_request(model_hash, request).await
+    animation_data.send_request(model_hash, request)
   }
 
   /// # Errors
@@ -640,31 +638,26 @@ impl ModelData {
   /// - An error is returned when the model has no animation data.
   /// - An error is returned when the model has no animation of the passed in name.
   /// - An error is returned when the model hasn't started it's animation through [`start_animation()`](ModelData::start_animation).
-  pub async fn queue_next_animation(
-    &mut self,
-    animation_name: String,
-  ) -> Result<(), AnimationError> {
+  pub fn queue_next_animation(&mut self, animation_name: String) -> Result<(), AnimationError> {
     let model_hash = self.get_unique_hash();
     let animation_data = self.get_animation_data()?;
-    let mut animation_data = animation_data.lock().await;
+    let mut animation_data = animation_data.lock().unwrap();
 
     let animation_to_queue = animation_data.get_animation(animation_name)?;
 
     let action = AnimationAction::AddToQueue(animation_to_queue);
 
-    animation_data.send_request(model_hash, action).await?;
+    animation_data.send_request(model_hash, action)?;
 
     Ok(())
   }
 
-  pub async fn clear_animation_queue(&mut self) -> Result<(), AnimationError> {
+  pub fn clear_animation_queue(&mut self) -> Result<(), AnimationError> {
     let model_hash = self.get_unique_hash();
     let animation_data = self.get_animation_data()?;
-    let mut animation_data = animation_data.lock().await;
+    let mut animation_data = animation_data.lock().unwrap();
 
-    animation_data
-      .send_request(model_hash, AnimationAction::ClearQueue)
-      .await
+    animation_data.send_request(model_hash, AnimationAction::ClearQueue)
   }
 
   /// Returns a copy of the internal animation data for this model.
@@ -672,7 +665,7 @@ impl ModelData {
   /// # Errors
   ///
   /// - An error is returned when the model in question doesn't have any animation data.
-  fn get_animation_data(&self) -> Result<Arc<TokioMutex<ModelAnimationData>>, AnimationError> {
+  fn get_animation_data(&self) -> Result<Arc<Mutex<ModelAnimationData>>, AnimationError> {
     let internal_data = self.get_internal_data();
 
     internal_data
@@ -740,9 +733,9 @@ impl InternalModelData {
     let (self_hitbox_width, self_hitbox_height) = self.hitbox.get_dimensions();
     let (other_hitbox_width, other_hitbox_height) = other_model.hitbox.get_dimensions();
 
-    // x1 < x2 + w2
-    // x2 < x1 + w1
-    // y1 < y2 + h2
+    // x1 < x2 + w2 &&
+    // x2 < x1 + w1 &&
+    // y1 < y2 + h2 &&
     // y2 < y1 + h1
     self_hitbox_x < other_hitbox_x + other_hitbox_width
       && other_hitbox_x < self_hitbox_x + self_hitbox_width

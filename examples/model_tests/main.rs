@@ -4,7 +4,6 @@ use ascii_engine::general_data::coordinates::*;
 use ascii_engine::general_data::user_input::spawn_input_thread;
 // use ascii_engine::models::animation::*;
 use ascii_engine::prelude::*;
-use guard::guard;
 use log::{error, info, warn};
 use std::collections::VecDeque;
 use std::path::Path;
@@ -54,7 +53,7 @@ impl Square {
     let initial_square_action = CollisionAction::new(initial_square.clone(), square_movement);
     collision_chain.add_action(initial_square_action);
     while !collision_list.is_empty() {
-      guard!( let Some(mut collided_model) = collision_list.pop_back() else { break; });
+      let Some(collided_model) = collision_list.pop_back() else { break; };
 
       let model_name = collided_model.get_name().to_lowercase();
 
@@ -185,7 +184,7 @@ fn spawn_printing_task(screen: Arc<Mutex<ScreenData>>) {
   });
 }
 
-/// Gives a list of coordinates to place 50 square for testing placing a ton of models.
+/// Gives a list of coordinates to place 50 squares for testing placing a ton of models.
 fn get_50_square_coordinates() -> Vec<(usize, usize)> {
   let initial_square = (95, 1);
 
@@ -199,12 +198,33 @@ fn get_50_square_coordinates() -> Vec<(usize, usize)> {
     .collect()
 }
 
-/// Returns the hash for the player's square.
+/// Places 4 squares near each other and returns the hash to one of them.
 async fn add_squares(screen_config: &mut ScreenConfig) -> u64 {
   let mut square_world_position_list = vec![(20, 10), (25, 10), (20, 20), (15, 5)];
   square_world_position_list.append(&mut get_50_square_coordinates());
 
-  let square_list: Vec<Square> = square_world_position_list
+  // let square_list: Vec<Square> = square_world_position_list
+  //   .into_iter()
+  //   .enumerate()
+  //   .map(|(iteration, world_position)| {
+  //     let square_path = if (iteration + 1) % 4 == 0 {
+  //       Path::new("examples/models/air_square.model")
+  //     } else {
+  //       Path::new("examples/models/square.model")
+  //     };
+  //
+  //     Square::from_file(square_path, world_position)
+  //   })
+  //   .collect();
+  //
+  // let mut square_hash_list: Vec<u64> = square_list
+  //   .into_iter()
+  //   .flat_map(|square| screen_config.add_square(square))
+  //   .collect();
+  //
+  // square_hash_list.remove(0)
+
+  square_world_position_list
     .into_iter()
     .enumerate()
     .map(|(iteration, world_position)| {
@@ -214,28 +234,23 @@ async fn add_squares(screen_config: &mut ScreenConfig) -> u64 {
         Path::new("examples/models/square.model")
       };
 
-      Square::from_file(square_path, world_position)
+      screen_config
+        .add_square(Square::from_file(square_path, world_position))
+        .unwrap()
     })
-    .collect();
-
-  info!("{:#?}", square_list[0]);
-
-  let mut square_hash_list: Vec<u64> = square_list
-    .into_iter()
-    .flat_map(|square| screen_config.add_square(square))
-    .collect();
-
-  square_hash_list.remove(0)
+    // .flat_map(|square| screen_config.add_square(square))
+    .next()
+    .unwrap()
 }
 
 fn add_walls(screen_config: &mut ScreenConfig) {
   let wall_path = Path::new("examples/models/wall.model");
 
   vec![
-    // Left side.
+    // Left walls.
     (30, 15),
     (40, 15),
-    // Right side.
+    // Right walls.
     (80, 15),
     (90, 15),
   ]

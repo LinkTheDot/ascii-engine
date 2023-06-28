@@ -1,23 +1,31 @@
 use crate::errors::*;
+use crate::general_data::hasher::get_unique_hash;
 use crate::models::animation_file_parser::*;
 use crate::models::model_data::ModelData;
 use crate::screen::screen_data::ScreenData;
 pub use animation_frames::*;
+use lazy_static::lazy_static;
 use std::collections::{hash_map::Entry, HashMap, VecDeque};
 use std::ffi::OsStr;
 use std::fs::File;
+use std::thread::JoinHandle;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
-use tokio::task::JoinHandle;
 
 pub mod animation_frames;
 pub mod animation_frames_iterators;
 
-static KILL_HASH: u64 = 0;
+lazy_static! {
+  /// This is the hash that will be passed in when requesting to kill the animation thread.
+  ///
+  /// The only way to access this should be through an [`AnimationConnection`](AnimationConnection), which will only
+  ///  ever be owned by the screen.
+  static ref KILL_HASH: u64 = get_unique_hash();
+}
 
 pub(crate) struct ModelAnimationData {
   animations: HashMap<String, AnimationFrames>,
-  animation_communicator: Option<mpsc::Sender<AnimationRequest>>,
+  animation_communicator: Option<mpsc::UnboundedSender<AnimationRequest>>,
 }
 
 #[derive(Debug)]
@@ -30,7 +38,7 @@ struct ModelAnimatorData {
 
 pub(crate) struct AnimationConnection {
   _handle: JoinHandle<()>,
-  request_sender: mpsc::Sender<AnimationRequest>,
+  request_sender: mpsc::UnboundedSender<AnimationRequest>,
   kill_sender: oneshot::Sender<()>,
 }
 
@@ -164,6 +172,9 @@ impl ModelAnimatorData {
     self.iteration_of_last_frame_change = current_iteration;
   }
 
+  /// Gets the next animation frame and returns it.
+  ///
+  /// None is returned if there is no currently assigned animation.
   fn next_frame(&mut self) -> Option<AnimationFrame> {
     self.current_animation.as_mut()?.next()
   }
@@ -181,11 +192,11 @@ impl ModelAnimatorData {
   /// Returns true if the current frame's duration is over.
   ///
   /// If there is no currently running animation `false` is returned.
-  fn current_frame_duration_is_up(&self, current_iteration: u64) -> bool {
+  fn current_frame_duration_is_finished(&self, current_iteration: u64) -> bool {
     if let Some(current_frame_tick_duration) = self.get_current_animation_frame_duration() {
-      self.iteration_of_last_frame_change + current_frame_tick_duration == current_iteration
+      self.iteration_of_last_frame_change + current_frame_tick_duration <= current_iteration
     } else {
-      false
+      true
     }
   }
 }
@@ -211,18 +222,19 @@ impl ModelAnimationData {
     }
   }
 
-  /// Returns true if this animation_data has started it's animation thread.
-  pub fn is_started(&self) -> bool {
-    self.animation_communicator.is_some()
-  }
-
-  // This will be used once the animation parser is implemented
-  #[allow(unused)]
+  #[allow(dead_code)]
+  // TODO
+  //   This method will be used once the animation file parser is implemented.
   pub fn new() -> Self {
     Self {
       animations: HashMap::new(),
       animation_communicator: None,
     }
+  }
+
+  /// Returns true if this animation_data has been added to the animation thread.
+  pub fn is_started(&self) -> bool {
+    self.animation_communicator.is_some()
   }
 
   /// Starts the thread that will handle model animations
@@ -232,34 +244,39 @@ impl ModelAnimationData {
   /// # Errors
   ///
   /// - Returns an error when the model animation thread already exists.
-  pub(crate) async fn start_animation_thread(
+  pub(crate) fn start_animation_thread(
     screen_data: &ScreenData,
   ) -> Result<AnimationConnection, AnimationError> {
     if screen_data.animation_thread_started() {
       return Err(AnimationError::AnimationThreadAlreadyStarted);
     }
 
-    // change this to be mpsc::unbounded_channel
-    let (sender, mut receiver) = mpsc::channel::<AnimationRequest>(200);
+    let (sender, mut receiver) = mpsc::unbounded_channel::<AnimationRequest>();
     let (kill_sender, mut kill_receiver) = oneshot::channel::<()>();
     let event_sync = screen_data.get_event_sync();
 
-    let animation_thread_handle = tokio::spawn(async move {
+    let animation_thread_handle = std::thread::spawn(move || {
       let mut model_animator_data_list: HashMap<u64, ModelAnimatorData> = HashMap::new();
+      let mut iteration = 0;
 
-      (0..u64::MAX).for_each(|iteration| {
-        if kill_receiver.try_recv().is_ok() {
-          return;
-        }
+      while kill_receiver.try_recv().is_err() {
+        iteration += 1;
 
         event_sync.wait_for_tick();
 
         if Self::no_animators_are_running(&model_animator_data_list) {
+          log::info!("No animators running, animation thread waiting for a request.");
+
           if let Some(request_data) = receiver.blocking_recv() {
-            if request_data.model_unique_hash == KILL_HASH
-              && request_data.request == AnimationAction::KillThread
-            {
-              return;
+            log::info!("No animators running, animation thread got a request!");
+            log::info!("The request was from {}", request_data.model_unique_hash);
+
+            if request_data.model_unique_hash == *KILL_HASH {
+              if request_data.request != AnimationAction::KillThread {
+                log::error!("Attempted to make a request through the screen with the kill hash.");
+              } else {
+                break;
+              }
             }
 
             Self::run_model_request(&mut model_animator_data_list, request_data);
@@ -270,9 +287,11 @@ impl ModelAnimationData {
           }
         }
 
+        // TODO Stop the user from making an animation with 0 frames, that will cause a divide by 0.
+        // TODO Force at least 1 tick wait times between frames when parsing the animation file.
         model_animator_data_list
           .values_mut()
-          .filter_map(|animation_data| {
+          .for_each(|animation_data| {
             if animation_data.has_animations_to_run() {
               if animation_data.current_animation.is_none() {
                 animation_data
@@ -280,34 +299,29 @@ impl ModelAnimationData {
                   .unwrap();
               }
 
-              return Some(animation_data);
-            }
-
-            None
-          })
-          // TODO Stop the user from making an animation with 0 frames, that will cause a divide by 0.
-          // TODO Force at least 1 tick wait times between frames when parsing the animation file.
-          .for_each(|animator_data| {
-            if animator_data.current_frame_duration_is_up(iteration) {
-              let new_model_frame = match animator_data.next_frame() {
-                Some(animation_frame) => animation_frame,
-                None => {
-                  if animator_data
-                    .overwrite_current_animation_with_first_in_queue()
-                    .is_err()
-                  {
-                    return;
-                  } else {
-                    animator_data.next_frame().unwrap()
+              if animation_data.current_frame_duration_is_finished(iteration) {
+                let new_model_frame = match animation_data.next_frame() {
+                  Some(animation_frame) => animation_frame,
+                  None => {
+                    if animation_data
+                      .overwrite_current_animation_with_first_in_queue()
+                      .is_err()
+                    {
+                      return;
+                    } else {
+                      animation_data.next_frame().unwrap()
+                    }
                   }
-                }
-              };
+                };
 
-              animator_data.update_when_last_frame_changed(iteration);
-              animator_data.change_model_frame(new_model_frame);
+                animation_data.update_when_last_frame_changed(iteration);
+                animation_data.change_model_frame(new_model_frame);
+              }
             }
           });
-      });
+      }
+
+      log::warn!("Animation thread has ended.");
     });
 
     Ok(AnimationConnection {
@@ -320,7 +334,7 @@ impl ModelAnimationData {
   /// # Errors
   ///
   /// - An error is returned when the model hasn't started it's animations.
-  pub(crate) async fn send_request(
+  pub(crate) fn send_request(
     &mut self,
     model_hash: u64,
     request: AnimationAction,
@@ -331,10 +345,7 @@ impl ModelAnimationData {
         request,
       };
 
-      animation_sender
-        .send(animation_action_request)
-        .await
-        .unwrap();
+      animation_sender.send(animation_action_request).unwrap();
     } else {
       return Err(AnimationError::AnimationNotStarted);
     }
@@ -387,7 +398,7 @@ impl ModelAnimationData {
   /// - An error is returned when the model hasn't started it's animations.
   pub(crate) fn assign_communicator(
     &mut self,
-    communicator: mpsc::Sender<AnimationRequest>,
+    communicator: mpsc::UnboundedSender<AnimationRequest>,
   ) -> Result<(), AnimationError> {
     if self.animation_communicator.is_none() {
       self.animation_communicator = Some(communicator);
@@ -423,22 +434,22 @@ impl ModelAnimationData {
 }
 
 impl AnimationConnection {
-  pub(crate) fn clone_sender(&self) -> mpsc::Sender<AnimationRequest> {
+  pub(crate) fn clone_sender(&self) -> mpsc::UnboundedSender<AnimationRequest> {
     self.request_sender.clone()
   }
 
   /// # Errors
   ///
   /// - An error is returned when the animation thread doesn't exist.
-  pub(crate) async fn kill_thread(self) {
+  pub(crate) fn kill_thread(self) {
     self.kill_sender.send(()).unwrap();
 
     let kill_request = AnimationRequest {
-      model_unique_hash: KILL_HASH,
+      model_unique_hash: *KILL_HASH,
       request: AnimationAction::KillThread,
     };
 
-    self.request_sender.send(kill_request).await.unwrap();
+    self.request_sender.send(kill_request).unwrap();
   }
 }
 
@@ -456,24 +467,20 @@ mod tests {
   mod start_animation_thread_logic {
     use super::*;
 
-    #[tokio::test]
-    async fn start_thread_once() {
+    #[test]
+    fn start_thread_once() {
       let screen_data = ScreenData::new();
 
-      ModelAnimationData::start_animation_thread(&screen_data)
-        .await
-        .unwrap();
+      ModelAnimationData::start_animation_thread(&screen_data).unwrap();
     }
 
-    #[tokio::test]
+    #[test]
     #[should_panic]
-    async fn start_thread_multiple_times() {
+    fn start_thread_multiple_times() {
       let mut screen_data = ScreenData::new();
 
-      screen_data.start_animation_thread().await.unwrap();
-      ModelAnimationData::start_animation_thread(&screen_data)
-        .await
-        .unwrap();
+      screen_data.start_animation_thread().unwrap();
+      ModelAnimationData::start_animation_thread(&screen_data).unwrap();
     }
   }
 
@@ -777,7 +784,7 @@ mod tests {
         let mut model_animator = ModelAnimatorData::new(model_data);
         let animation_one = get_test_animation_limited_run_count();
         let animation_two = get_test_animation_unlimited_run_count();
-        let animation_three = get_test_animation();
+        let animation_three = get_test_animation(3);
 
         model_animator.add_new_animation_to_queue(animation_one.clone());
         model_animator.add_new_animation_to_queue(animation_two.clone());
@@ -824,6 +831,181 @@ mod tests {
       assert_eq!(before_last_frame_change, 0);
       assert_eq!(after_last_frame_change, 10);
     }
+
+    #[cfg(test)]
+    mod get_current_animation_logic {
+      use super::*;
+
+      #[test]
+      fn running_animation() {
+        let model_data = get_test_model_data();
+        let mut model_animator = ModelAnimatorData::new(model_data);
+        let model_animation = get_test_animation(3);
+        model_animator.add_new_animation_to_queue(model_animation.clone());
+
+        let expected_first_frame = model_animation.get_frame(0).cloned();
+
+        let current_animation = model_animator.get_current_animation().unwrap();
+        let first_frame_of_current = current_animation.get_current_frame();
+
+        assert_eq!(first_frame_of_current, expected_first_frame);
+      }
+
+      #[test]
+      fn no_running_animation() {
+        let model_data = get_test_model_data();
+        let model_animator = ModelAnimatorData::new(model_data);
+
+        let current_animation = model_animator.get_current_animation();
+
+        assert!(current_animation.is_none());
+      }
+    }
+
+    #[cfg(test)]
+    mod current_frame_duration_is_finished_logic {
+      use super::*;
+
+      #[test]
+      fn running_frame_not_finished() {
+        let model_data = get_test_model_data();
+        let mut model_animator = ModelAnimatorData::new(model_data);
+        let model_animation = get_test_animation(1);
+        model_animator.add_new_animation_to_queue(model_animation);
+
+        assert!(!model_animator.current_frame_duration_is_finished(0));
+      }
+
+      #[test]
+      fn running_frame_finished() {
+        let model_data = get_test_model_data();
+        let mut model_animator = ModelAnimatorData::new(model_data);
+        let model_animation = get_test_animation(1);
+        model_animator.add_new_animation_to_queue(model_animation);
+
+        let current_frame_duration = model_animator
+          .get_current_animation_frame_duration()
+          .unwrap();
+
+        assert!(model_animator.current_frame_duration_is_finished(current_frame_duration));
+      }
+
+      #[test]
+      fn no_running_animation() {
+        let model_data = get_test_model_data();
+        let model_animator = ModelAnimatorData::new(model_data);
+
+        // This method will return true if there is no animation.
+        assert!(model_animator.current_frame_duration_is_finished(0));
+      }
+    }
+
+    #[test]
+    #[should_panic]
+    fn kill_thread_through_model() {
+      let model_data = get_test_model_data();
+      let mut model_animator = ModelAnimatorData::new(model_data);
+
+      let request = AnimationAction::KillThread;
+
+      model_animator.run_request(request);
+    }
+  }
+
+  #[cfg(test)]
+  mod model_animation_data_tests {
+    use super::*;
+
+    #[cfg(test)]
+    mod from_file_logic {
+      // use super::*;
+
+      #[test]
+      #[ignore]
+      fn empty_path() {}
+
+      #[test]
+      #[ignore]
+      fn invalid_extension() {}
+    }
+
+    #[cfg(test)]
+    mod animation_thread_logic {
+      use super::*;
+
+      // how to test the animation thread
+      //   check if it's waiting properly
+      //     > start the thread
+      //     > add 2 models
+      //     > wait 2 ticks for it to sit and wait
+      //     > send in 2 animation requests for both models at the same time
+      //     > if only one of the models changed after that, it waited properly
+      //   check if it's running all animations
+      //     > start the thread
+      //     > add 2 models
+      //     > send requests to add animations
+      //     > if they both changed, it's running requests properly
+
+      // This test is a bit complicated.
+      //
+      // Basically, we start the thread and add two models to the animator list.
+      // If no animations are running, the thread should be sitting and waiting for a request.
+      // During this state, once it receives a request it only runs one of the requests queued.
+      //
+      // This means if we send in two animation requests while it's waiting, only one gets run.
+      // So after getting it to a state of waiting, we send an animation request for each model.
+      // If only one of the models changed, then we know that the thread was waiting because
+      //   it only ran one of those animation requests.
+      #[test]
+      fn thread_is_awaiting_requests() {
+        let mut screen = ScreenData::new();
+        let mut model_one = get_test_model_data();
+        let mut model_two = get_test_model_data();
+        let model_animation = get_test_animation(5);
+        log::info!("I am running test \"thread is awaiting requests\"");
+
+        // THIS IS TEMPORARY UNTIL MODEL ANIMATION FILES ARE IMPLEMENTED
+        {
+          model_one
+            .assign_model_animation(ModelAnimationData::new())
+            .unwrap();
+          model_two
+            .assign_model_animation(ModelAnimationData::new())
+            .unwrap();
+
+          model_one
+            .add_new_animation_to_list("test_animation".into(), model_animation.clone())
+            .unwrap();
+          model_two
+            .add_new_animation_to_list("test_animation".into(), model_animation)
+            .unwrap();
+        }
+        // THIS IS TEMPORARY UNTIL MODEL ANIMATION FILES ARE IMPLEMENTED
+
+        screen.start_animation_thread().unwrap();
+
+        model_one.start_animation(&screen).unwrap();
+        model_two.start_animation(&screen).unwrap();
+
+        screen.get_event_sync().wait_for_x_ticks(3);
+
+        model_one
+          .queue_next_animation("test_animation".into())
+          .unwrap();
+        model_two
+          .queue_next_animation("test_animation".into())
+          .unwrap();
+        // Wait for it to process the first animation request before killing the thread.
+        screen.get_event_sync().wait_for_x_ticks(1);
+
+        screen.stop_animation_thread().unwrap();
+
+        let model_one_appearance = model_one.get_sprite();
+        let model_two_appearance = model_two.get_sprite();
+
+        assert_ne!(model_one_appearance, model_two_appearance);
+      }
+    }
   }
 
   // data for tests
@@ -859,13 +1041,13 @@ mod tests {
   }
 
   // This is temporary until animation file parsers are a thing.
-  fn get_test_animation() -> AnimationFrames {
+  fn get_test_animation(loop_count: u64) -> AnimationFrames {
     let frames = vec![
       AnimationFrame::new("rrrrr\nrrarr\nrrrrr".to_string(), 1, None),
       AnimationFrame::new("sssss\nssass\nsssss".to_string(), 1, None),
       AnimationFrame::new("ttttt\nttatt\nttttt".to_string(), 1, None),
     ];
 
-    AnimationFrames::new(frames, AnimationLoopCount::Limited(3))
+    AnimationFrames::new(frames, AnimationLoopCount::Limited(loop_count))
   }
 }

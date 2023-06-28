@@ -8,7 +8,7 @@ use std::sync::mpsc::{channel, Receiver};
 use std::thread;
 use termios::{tcsetattr, Termios, ECHO, ICANON, TCSANOW};
 
-const ERROR_CHARACTER: &str = "|";
+pub const ERROR_CHARACTER: &str = "|";
 
 /// Gets a user's input without canonical mode.
 ///

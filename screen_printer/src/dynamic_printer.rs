@@ -1,5 +1,4 @@
 use crate::printer::*;
-use guard::guard;
 use log::info;
 use std::{io, io::Write};
 use termion::cursor::DetectCursorPos;
@@ -202,7 +201,7 @@ impl DynamicPrinterMethods for Printer {
 
     let mut new_grid_split = grid.rsplit('\n');
 
-    guard!(let Some(old_grid_row) = self.previous_grid.rsplit('\n').next() else { return false; });
+    let Some(old_grid_row) = self.previous_grid.rsplit('\n').next() else { return false; };
     let old_grid_row_width = old_grid_row.chars().count();
 
     new_grid_height == old_grid_height
