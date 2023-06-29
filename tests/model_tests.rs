@@ -198,7 +198,7 @@ fn check_model_collision_not_in_screen() {
 fn collisions_empty_hitbox() {
   let mut screen = ScreenData::new();
   let test_model = TestModel::new();
-  let no_hitbox = TestModel::create_with_no_hitbox();
+  let no_hitbox = TestModel::create_no_hitbox();
   let test_model_data = test_model.get_model_data();
 
   screen.add_model(&test_model).unwrap();
@@ -264,6 +264,7 @@ fn eq_logic() {
   let test_model = TestModel::new();
   let test_model_data = test_model.get_model_data();
 
+  #[allow(clippy::redundant_clone)]
   let cloned_model_data = test_model_data.clone();
 
   assert_eq!(test_model_data, cloned_model_data);
@@ -284,7 +285,7 @@ impl TestModel {
     Self { model_data }
   }
 
-  fn create_with_no_hitbox() -> Self {
+  fn create_no_hitbox() -> Self {
     let test_model_path = std::path::Path::new("tests/models/test_model_no_hitbox.model");
     let model_data = ModelData::from_file(test_model_path, WORLD_POSITION).unwrap();
 

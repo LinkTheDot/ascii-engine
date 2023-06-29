@@ -933,19 +933,6 @@ mod tests {
     mod animation_thread_logic {
       use super::*;
 
-      // how to test the animation thread
-      //   check if it's waiting properly
-      //     > start the thread
-      //     > add 2 models
-      //     > wait 2 ticks for it to sit and wait
-      //     > send in 2 animation requests for both models at the same time
-      //     > if only one of the models changed after that, it waited properly
-      //   check if it's running all animations
-      //     > start the thread
-      //     > add 2 models
-      //     > send requests to add animations
-      //     > if they both changed, it's running requests properly
-
       // This test is a bit complicated.
       //
       // Basically, we start the thread and add two models to the animator list.
@@ -957,6 +944,7 @@ mod tests {
       // If only one of the models changed, then we know that the thread was waiting because
       //   it only ran one of those animation requests.
       #[test]
+      // Chance of failing due to time sensitivity
       fn thread_is_awaiting_requests() {
         let mut screen = ScreenData::new();
         let mut model_one = get_test_model_data();
@@ -1004,6 +992,61 @@ mod tests {
         let model_two_appearance = model_two.get_sprite();
 
         assert_ne!(model_one_appearance, model_two_appearance);
+      }
+
+      #[test]
+      // Chance of failing due to time sensitivity
+      fn thread_is_running_animations() {
+        let mut screen = ScreenData::new();
+        let mut model_one = get_test_model_data();
+        let mut model_two = get_test_model_data();
+        let model_animation = get_test_animation(5);
+        log::info!("I am running test \"thread is running animations\"");
+
+        let base_model_appearance = model_one.get_sprite();
+
+        // THIS IS TEMPORARY UNTIL MODEL ANIMATION FILES ARE IMPLEMENTED
+        {
+          model_one
+            .assign_model_animation(ModelAnimationData::new())
+            .unwrap();
+          model_two
+            .assign_model_animation(ModelAnimationData::new())
+            .unwrap();
+
+          model_one
+            .add_new_animation_to_list("test_animation".into(), model_animation.clone())
+            .unwrap();
+          model_two
+            .add_new_animation_to_list("test_animation".into(), model_animation)
+            .unwrap();
+        }
+        // THIS IS TEMPORARY UNTIL MODEL ANIMATION FILES ARE IMPLEMENTED
+
+        screen.start_animation_thread().unwrap();
+
+        model_one.start_animation(&screen).unwrap();
+        model_two.start_animation(&screen).unwrap();
+
+        model_one
+          .queue_next_animation("test_animation".into())
+          .unwrap();
+        model_two
+          .queue_next_animation("test_animation".into())
+          .unwrap();
+        // Wait for it to process the animation requests before checking for changes.
+        screen.get_event_sync().wait_for_x_ticks(5);
+
+        let model_one_appearance = model_one.get_sprite();
+        let model_two_appearance = model_two.get_sprite();
+
+        println!("{}", model_one_appearance);
+        println!("{}", model_two_appearance);
+
+        assert_ne!(model_one_appearance, base_model_appearance);
+        assert_ne!(model_two_appearance, base_model_appearance);
+
+        screen.stop_animation_thread().unwrap();
       }
     }
   }

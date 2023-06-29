@@ -33,7 +33,7 @@ pub enum ModelError {
   /// Returns the list of indexes the anchor was found in.
   MultipleAnchorsFound(Vec<usize>),
 
-  /// [`ModelData::from_file()`](crate::models::ModelData::from_file) was called with a path that has the wrong extension.
+  /// [`ModelData::from_file()`](crate::models::model_data::ModelData::from_file) was called with a path that has the wrong extension.
   NonModelFile,
 
   /// When something went wrong but it wasn't enough to warrent it's own type.

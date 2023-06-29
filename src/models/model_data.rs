@@ -544,7 +544,7 @@ impl ModelData {
 
   /// # Errors
   ///
-  /// - An error is returned when the [`animation thread`](crate::scree::screen_data::ScreenData::start_animation_thread) hasn't been started yet.
+  /// - An error is returned when the [`animation thread`](crate::screen::screen_data::ScreenData::start_animation_thread) hasn't been started yet.
   /// - An error is returned when this model has already started it's animation.
   pub fn start_animation(&mut self, screen_data: &ScreenData) -> Result<(), AnimationError> {
     let Some(animation_connection) = screen_data.get_animation_connection() else {
