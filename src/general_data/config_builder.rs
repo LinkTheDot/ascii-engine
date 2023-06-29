@@ -75,9 +75,9 @@ trait ConfigTraits {
   /// If the program is running off of a "test" build, then the config will
   /// only be built with the default data.
   ///
-  /// #Errors
+  /// # Errors
   ///
-  /// An error is returned when one of the default config names contains non-ascii characters.
+  /// - An error is returned when one of the default config names contains non-ascii characters.
   fn set_data(self, default_data: ConfigData, path: &str) -> Result<Self, ConfigError>
   where
     Self: Sized;
@@ -89,7 +89,7 @@ trait ConfigTraits {
   ///
   /// # Errors
   ///
-  /// An error is returned when one of the default config names contains non-ascii characters.
+  /// - An error is returned when one of the default config names contains non-ascii characters.
   fn set_defaults(self, default_data: ConfigData) -> Result<Self, ConfigError>
   where
     Self: Sized;

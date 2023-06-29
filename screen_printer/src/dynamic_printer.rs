@@ -74,16 +74,15 @@ pub trait DynamicPrinter {
   ///
   /// # Errors
   ///
-  /// An error is returned when;
-  /// - Origin is not set and stdin is blocked.
-  /// - The passed in grid does not match the expected size.
+  /// - When origin is not set and stdin is blocked.
+  /// - When the passed in grid does not match the expected size.
   fn dynamic_print(&mut self, grid: String) -> Result<(), PrintingError>;
 
   /// Manually assigns origin without having to print.
   ///
   /// # Errors
   ///
-  /// An error is returned if stdin is being blocked.
+  /// - An error is returned if stdin is being blocked.
   fn manual_set_origin(&mut self) -> Result<(), PrintingError>;
 
   /// Resets all data for the printer and optionally assigns it a new size.
@@ -178,14 +177,14 @@ trait DynamicPrinterMethods {
   ///
   /// # Errors
   ///
-  /// An error is returned if stdin is being blocked.
+  /// - An error is returned if stdin is being blocked.
   fn set_origin(&mut self) -> Result<(), PrintingError>;
 
   /// Returns the current position of the cursor
   ///
   /// # Errors
   ///
-  /// An error is returned if stdin is being blocked.
+  /// - An error is returned if stdin is being blocked.
   fn get_current_cursor_position() -> Result<(usize, usize), PrintingError>;
 
   /// Converts a list of PixelDifference and pairs Escape Sequences for moving the cursor

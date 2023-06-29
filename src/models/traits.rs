@@ -41,7 +41,7 @@ pub trait DisplayModel {
   ///
   /// # Errors
   ///
-  /// An error is returned when an incorrect strata level is used.
+  /// - An error is returned when an incorrect strata level is used.
   fn change_strata(&mut self, new_strata: Strata) -> Result<(), ModelError>;
 
   /// Returns a copy of the given name of the model.

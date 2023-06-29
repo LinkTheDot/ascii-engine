@@ -241,9 +241,9 @@ impl ModelData {
   ///
   /// # Errors
   ///
-  /// Returns an error when the file has the wrong extension.
-  /// Returns an error when the file didn't exist.
-  /// Returns an error when the model file was build incorrectly. [`Errors when parsing model files`](crate::models::errors::ModelCreationError).
+  /// - Returns an error when the file has the wrong extension.
+  /// - Returns an error when the file didn't exist.
+  /// - Returns an error when the model file was build incorrectly. [`Errors when parsing model files`](crate::models::errors::ModelCreationError).
   pub fn from_file(
     model_file_path: &Path,
     frame_position: (usize, usize),
@@ -403,8 +403,8 @@ impl ModelData {
   ///
   /// # Errors
   ///
-  /// Returns an error when the new given strata is beyond the possible range.
-  /// Returns an error when a model's currently assigned strata is also impossible.
+  /// - Returns an error when the new given strata is beyond the possible range.
+  /// - Returns an error when a model's currently assigned strata is also impossible.
   pub fn change_strata(&mut self, new_strata: Strata) -> Result<(), ModelError> {
     if !new_strata.correct_range() {
       return Err(ModelError::IncorrectStrataRange(new_strata));

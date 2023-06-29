@@ -40,8 +40,8 @@ impl ModelDataBuilder {
   ///
   /// # Errors
   ///
-  /// Returns an error when the ModelDataBuilder is missing one or more fields of data.
-  /// Returns an error when the Appearance data had no anchor.
+  /// - Returns an error when the ModelDataBuilder is missing one or more fields of data.
+  /// - Returns an error when the Appearance data had no anchor.
   fn build(self, frame_position: (usize, usize)) -> Result<ModelData, ModelError> {
     if let Err(error) = self.check_if_all_data_exists() {
       return Err(ModelError::ModelCreationError(error));
@@ -63,7 +63,7 @@ impl ModelDataBuilder {
   ///
   /// # Errors
   ///
-  /// Returns an error when no anchor was found on the appearance of the model.
+  /// - Returns an error when no anchor was found on the appearance of the model.
   fn build_sprite(&self) -> Result<Sprite, ModelError> {
     Sprite::new(
       self.appearance.as_ref().unwrap(),
@@ -88,8 +88,8 @@ impl ModelDataBuilder {
   ///
   /// Returns the ModelCreationError::MissingData() error.
   ///
-  /// This will contain a list of every missing field as strings.
-  /// These strings will describe everything that was missing.
+  /// - This will contain a list of every missing field as strings.
+  /// - These strings will describe everything that was missing.
   fn check_if_all_data_exists(&self) -> Result<(), ModelCreationError> {
     let mut error_list = vec![];
 
@@ -132,7 +132,7 @@ impl ModelParser {
   ///
   /// # Errors
   ///
-  /// Returns an error when any data within the model file is invalid. (Yes that includes when it's empty.)
+  /// - Returns an error when any data within the model file is invalid. (Yes that includes when it's empty.)
   pub fn parse(
     mut model_file: std::fs::File,
     frame_position: (usize, usize),
@@ -168,7 +168,7 @@ impl ModelParser {
   ///
   /// # Errors
   ///
-  /// Returns an error when the syntax on any line was invalid.
+  /// - Returns an error when the syntax on any line was invalid.
   fn parse_rows(model_file_lines: Vec<&str>) -> Result<ModelDataBuilder, ModelError> {
     let mut model_data_builder = ModelDataBuilder::default();
     let mut section = Section::Unknown;
@@ -240,7 +240,7 @@ impl ModelParser {
   ///
   /// # Errors
   ///
-  /// Returns an error when the row had invalid syntax.
+  /// - Returns an error when the row had invalid syntax.
   fn skin_checks(
     model_data_builder: &mut ModelDataBuilder,
     model_file_row: &str,
@@ -312,7 +312,7 @@ impl ModelParser {
   ///
   /// # Errors
   ///
-  /// Returns an error when the syntax on this line was incorrect.
+  /// - Returns an error when the syntax on this line was incorrect.
   fn line_to_parts(
     model_file_row: &str,
     line_number: usize,
@@ -341,7 +341,7 @@ impl ModelParser {
   ///
   /// # Errors
   ///
-  /// Returns an error when contents > 1 character.
+  /// - Returns an error when contents > 1 character.
   fn contents_to_char(contents: &str, line_number: usize) -> Result<char, ModelCreationError> {
     if contents.len() > 1 {
       return Err(ModelCreationError::InvalidStringSizeAtLine(line_number));

@@ -57,7 +57,7 @@ impl InternalModels {
   ///
   /// # Errors (yes there's technically an error)
   ///
-  /// Returns None when any existing model somehow has an impossible strata.
+  /// - Returns None when any existing model somehow has an impossible strata.
   pub(crate) fn remove(&mut self, key: &u64) -> Option<ModelData> {
     if self.model_exists(key) {
       self.remove_mention_of(key)

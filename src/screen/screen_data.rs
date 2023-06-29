@@ -157,9 +157,8 @@ impl ScreenData {
   ///
   /// # Errors
   ///
-  /// Returns an error if;
-  /// - The printer hasn't been started yet.
-  /// - A model is overlapping on the edge of the grid.
+  /// - Returns an error if the printer hasn't been started yet.
+  /// - Returns an error if a model is overlapping on the edge of the grid.
   pub fn print_screen(&mut self) -> Result<(), ScreenError> {
     if !self.printer_started {
       return Err(ScreenError::PrinterNotStarted);
