@@ -1,3 +1,5 @@
+// Rename ModelAnimatorData to something else.
+// It sounds and looks too similar to ModelAnimationData
 use crate::errors::*;
 use crate::general_data::hasher::get_unique_hash;
 use crate::models::animation_file_parser::*;
@@ -7,7 +9,7 @@ pub use animation_frames::*;
 use lazy_static::lazy_static;
 use std::collections::{hash_map::Entry, HashMap, VecDeque};
 use std::ffi::OsStr;
-use std::fs::File;
+use std::path::PathBuf;
 use std::thread::JoinHandle;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
@@ -18,8 +20,7 @@ pub mod animation_frames_iterators;
 lazy_static! {
   /// This is the hash that will be passed in when requesting to kill the animation thread.
   ///
-  /// The only way to access this should be through an [`AnimationConnection`](AnimationConnection), which will only
-  ///  ever be owned by the screen.
+  /// The only way to access this should be through an [`AnimationConnection`](AnimationConnection), which will only ever be owned by the screen.
   static ref KILL_HASH: u64 = get_unique_hash();
 }
 
@@ -202,29 +203,39 @@ impl ModelAnimatorData {
 }
 
 impl ModelAnimationData {
-  pub fn from_file(animation_file_path: &std::path::Path) -> Result<Self, AnimationError> {
-    if animation_file_path.extension() != Some(OsStr::new("animate")) {
-      return Err(AnimationError::NonAnimationFile);
+  pub fn from_file(animation_directory: std::path::PathBuf) -> Result<Self, AnimationError> {
+    if !animation_directory.is_dir() {
+      log::error!(
+        "Attempted to build an object with an animation file instead of an animation directory"
+      );
+
+      let animation_path = animation_directory.into_os_string();
+
+      return Err(AnimationError::AnimationDirectoryIsFile(animation_path));
+    } else if !animation_directory.exists() {
+      log::error!("Attempted to build an object with an invalid defined animation path");
+
+      let animation_path = animation_directory.into_os_string();
+
+      return Err(AnimationError::AnimationDirectoryDoesntExist(
+        animation_path,
+      ));
     }
 
-    let animation_file = File::open(animation_file_path);
+    let Ok(animation_directory_contents) = animation_directory.read_dir() else {
+      let error = AnimationParserError::CouldntGetAnimationPath(animation_directory.into_os_string());
 
-    match animation_file {
-      Ok(file) => AnimationParser::parse(file),
-      Err(_) => {
-        let file_path = animation_file_path
-          .file_name()
-          // Unwrap and convert the OsStr to an OsString.
-          .map(|path_string| path_string.to_owned());
+      return Err(AnimationError::AnimationParserError(error));
+    };
 
-        Err(AnimationError::AnimationFileDoesntExist(file_path))
-      }
-    }
+    let animation_directory_contents: Vec<PathBuf> = animation_directory_contents
+      .filter_map(|file_dir_entry| Some(file_dir_entry.ok()?.path()))
+      .filter(|file_path| file_path.extension() == Some(OsStr::new("animate")))
+      .collect();
+
+    AnimationParser::parse(animation_directory_contents)
   }
 
-  #[allow(dead_code)]
-  // TODO
-  //   This method will be used once the animation file parser is implemented.
   pub fn new() -> Self {
     Self {
       animations: HashMap::new(),
@@ -235,6 +246,10 @@ impl ModelAnimationData {
   /// Returns true if this animation_data has been added to the animation thread.
   pub fn is_started(&self) -> bool {
     self.animation_communicator.is_some()
+  }
+
+  pub fn contains_animation(&self, animation_name: &str) -> bool {
+    self.animations.contains_key(animation_name)
   }
 
   /// Starts the thread that will handle model animations
@@ -265,11 +280,11 @@ impl ModelAnimationData {
         event_sync.wait_for_tick();
 
         if Self::no_animators_are_running(&model_animator_data_list) {
-          log::info!("No animators running, animation thread waiting for a request.");
+          log::debug!("No animators running, animation thread waiting for a request.");
 
           if let Some(request_data) = receiver.blocking_recv() {
-            log::info!("No animators running, animation thread got a request!");
-            log::info!("The request was from {}", request_data.model_unique_hash);
+            log::debug!("No animators running, animation thread got a request!");
+            log::debug!("The request was from {}", request_data.model_unique_hash);
 
             if request_data.model_unique_hash == *KILL_HASH {
               if request_data.request != AnimationAction::KillThread {
@@ -368,6 +383,9 @@ impl ModelAnimationData {
     }
   }
 
+  /// # Errors
+  ///
+  /// - An error is returned when the given animation already exists.
   pub(crate) fn add_new_animation_to_list(
     &mut self,
     animation_name: String,
@@ -626,13 +644,11 @@ mod tests {
       #[should_panic]
       fn invalid_frame_shape() {
         let model_data = get_test_model_data();
-        let mut model_animator = ModelAnimatorData::new(model_data.clone());
+        let mut model_animator = ModelAnimatorData::new(model_data);
         let frame_appearance = "--\n--a--\n-----".to_string();
         let new_frame = AnimationFrame::new(frame_appearance, 1, Some('-'));
 
         model_animator.change_model_frame(new_frame);
-
-        println!("{}", model_data.get_sprite());
       }
     }
 

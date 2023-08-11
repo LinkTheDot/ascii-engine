@@ -30,7 +30,7 @@ pub enum ModelError {
 
   /// There were multiple anchors found in the object's appearance and or hitbox.
   ///
-  /// Returns the list of indexes the anchor was found in.
+  /// Returns the list of indices the anchor was found in.
   MultipleAnchorsFound(Vec<usize>),
 
   /// [`ModelData::from_file()`](crate::models::model_data::ModelData::from_file) was called with a path that has the wrong extension.
@@ -113,8 +113,6 @@ pub enum AnimationError {
   /// This is returned when AnimationData was called with a filepath that wasn't an animation file.
   NonAnimationFile,
 
-  AnimationFileDoesntExist(Option<OsString>),
-
   /// Used internally to signify when the animation queue has run out of animations
   EmptyQueue,
 
@@ -137,9 +135,58 @@ pub enum AnimationError {
 
   /// This error is returned when attempting to increment the changed frames on a model animator that has no current animation.
   NoExistingAnimation,
+
+  /// This error is returned when attempting to parse an animation directory for a model, but the path
+  /// defined in the model's file doesn't exist.
+  AnimationDirectoryDoesntExist(OsString),
+
+  /// This error is returned when attempting to parse an animation directory for a model, but the path
+  /// defined in the model's file leads to a file instead of a directory containing animation files.
+  AnimationDirectoryIsFile(OsString),
 }
 
+/// Since almost no error is returned to the user from the animation parser, most errors here will only ever
+/// be logged during parsing.
+/// This means that it is up to the animation parser to log both the file and error if anything goes wrong,
+/// and not up to the error to hold a copy of the file's name.
 #[derive(Debug, PartialEq, Eq)]
 pub enum AnimationParserError {
-  //
+  /// This error is returned when the animation file parser failed to get a handle on an animation file in a
+  /// model's directory.
+  CouldntGetAnimationPath(OsString),
+
+  /// This error is returned when the animation file parser attempts to parse an empty animation file.
+  AnimationFileIsEmpty,
+
+  /// This error is returned when an error was returned after attempting to read the contents of an
+  /// animation file. This could've been caused by something like invalid UTF-8 being contained in the file.
+  CouldntReadAnimationFile,
+
+  /// Invalid syntax was found with the line it was on being contained in the error.
+  InvalidSyntax(usize),
+
+  /// This error is returned when the contents of a variable were incorrect.
+  /// The line in which this happened is contained in the error.
+  InvalidLineContents(usize),
+
+  /// This error is returned when a duplicate variable was found during animation file parsing.
+  /// The line in which this happened is contained in the error.
+  DuplicateVariable(usize),
+
+  /// This error is returned when an animation hasn't defined how many times it should run.
+  MissingLoopCount,
+
+  /// This error is returned when an animation has a frame defined with a duration of 0.
+  /// The line this happens is contained in the error.
+  FrameDurationOfZero(usize),
+
+  /// This error is returned when an animation has a frame with an invalid shape.
+  /// This means the animation's frame is NOT a rectangle.
+  InvalidFrameDimensions(usize),
+
+  /// This error is returned when the first animation has defined it's duration two times.
+  FrameDurationDefinedTwice(usize),
+
+  /// This error is returned when attempting to initialize a frame that has no appearance.
+  FrameHasNoAppearance,
 }

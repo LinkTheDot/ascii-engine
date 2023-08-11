@@ -45,13 +45,6 @@ fn add_and_remove_model() {
   assert_eq!(result_data.get_unique_hash(), test_model_hash);
 }
 
-#[test]
-fn printer_started() {
-  let screen = ScreenData::new();
-
-  assert!(!screen.printer_started());
-}
-
 #[cfg(test)]
 mod start_animation_thread_logic {
   use super::*;

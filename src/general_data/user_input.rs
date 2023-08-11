@@ -1,4 +1,4 @@
-use crate::screen::{errors::ScreenError, screen_data::ScreenData};
+use crate::screen::errors::ScreenError;
 use log::error;
 use log::info;
 use oneshot::Sender;
@@ -44,13 +44,7 @@ fn get_user_input() -> String {
 ///
 /// DO NOT use "|", as that character is a character SPECIFICALLY USED for when something unexpected happened.
 /// Sometimes "|" is used for dropping the lock the thread holds on stdio, so don't panic when "|" is returned.
-pub fn spawn_input_thread(
-  screen: &ScreenData,
-) -> Result<(Receiver<String>, Sender<()>), ScreenError> {
-  if !screen.printer_started() {
-    return Err(ScreenError::PrinterNotStarted);
-  }
-
+pub fn spawn_input_thread() -> Result<(Receiver<String>, Sender<()>), ScreenError> {
   let (input_sender, input_receiver) = channel();
   let (kill_sender, kill_receiver) = oneshot::channel();
 

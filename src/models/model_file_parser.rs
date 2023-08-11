@@ -1,8 +1,11 @@
+// Maybe make some sort of error struct for parse errors that contains data like the line and path of the error.
+
 use crate::models::animation::ModelAnimationData;
 use crate::models::errors::*;
 use crate::models::{hitboxes::*, model_data::*};
 use log::error;
 use std::io::Read;
+use std::path::{Path, PathBuf};
 
 /// The namespace for the ModelParser methods.
 pub struct ModelParser;
@@ -18,7 +21,7 @@ struct ModelDataBuilder {
   appearance: Option<String>,
   hitbox_dimensions: Option<String>,
 
-  animation_file_path: Option<Box<std::path::Path>>,
+  animation_file_path: Option<Box<PathBuf>>,
 }
 
 /// Used for which section the parser is currently checking the data for.
@@ -30,9 +33,9 @@ enum Section {
   Unknown,
 }
 
-struct LineComponents<'a> {
-  data_type: &'a str,
-  line_contents: &'a str,
+pub(crate) struct LineComponents<'a> {
+  pub(crate) data_type: &'a str,
+  pub(crate) line_contents: &'a str,
 }
 
 impl ModelDataBuilder {
@@ -137,23 +140,25 @@ impl ModelParser {
     mut model_file: std::fs::File,
     frame_position: (usize, usize),
   ) -> Result<ModelData, ModelError> {
-    let mut file_string_buffer = String::new();
-    model_file.read_to_string(&mut file_string_buffer).unwrap();
+    let mut file_contents_buffer = String::new();
+    model_file
+      .read_to_string(&mut file_contents_buffer)
+      .unwrap();
 
-    if file_string_buffer.is_empty() {
+    if file_contents_buffer.is_empty() {
       return Err(ModelError::ModelCreationError(
         ModelCreationError::ModelFileIsEmpty,
       ));
     }
 
-    let file_string_rows: Vec<&str> = file_string_buffer.split('\n').collect();
-    let mut model_data_builder = ModelParser::parse_rows(file_string_rows)?;
+    let file_rows: Vec<&str> = file_contents_buffer.split('\n').collect();
+    let mut model_data_builder = ModelParser::parse_rows(file_rows)?;
 
     let model_animation_file_path = model_data_builder.animation_file_path.take();
     let mut model_data = model_data_builder.build(frame_position)?;
 
     if let Some(model_animation_file_path) = model_animation_file_path {
-      match ModelAnimationData::from_file(&model_animation_file_path) {
+      match ModelAnimationData::from_file(*model_animation_file_path) {
         Ok(animation_data) => model_data.assign_model_animation(animation_data)?,
         Err(animation_error) => return Err(ModelError::AnimationError(animation_error)),
       }
@@ -250,7 +255,7 @@ impl ModelParser {
     let LineComponents {
       data_type,
       line_contents,
-    } = Self::line_to_parts(model_file_row, line_number)?;
+    } = line_to_parts(model_file_row, line_number)?;
 
     match data_type.to_lowercase().trim() {
       "anchor" => {
@@ -302,39 +307,25 @@ impl ModelParser {
         model_data_builder.strata = Some(strata);
       }
 
+      // TODO Add a custom error for animation files that hold a path.
+      "animation_path" => {
+        if line_contents.is_empty() {
+          error!("Attempted to build an object with an empty animation path");
+
+          return Err(ModelCreationError::InvalidSyntax(line_number));
+        }
+
+        let animation_path = Path::new(line_contents);
+
+        Self::animation_path_checks(animation_path, line_number)?;
+
+        model_data_builder.animation_file_path = Some(Box::new(animation_path.to_owned()));
+      }
+
       _ => return Err(ModelCreationError::InvalidSyntax(line_number)),
     }
 
     Ok(())
-  }
-
-  /// Returns the components of this line.
-  ///
-  /// # Errors
-  ///
-  /// - Returns an error when the syntax on this line was incorrect.
-  fn line_to_parts(
-    model_file_row: &str,
-    line_number: usize,
-  ) -> Result<LineComponents, ModelCreationError> {
-    let (data_type, contained_row_contents) = match model_file_row.split_once('=') {
-      Some(split_row) => split_row,
-      None => return Err(ModelCreationError::InvalidSyntax(line_number)),
-    };
-
-    let mut row_contents = contained_row_contents.split('\'').nth(1);
-
-    if row_contents.is_none() {
-      if let Some(real_contents) = contained_row_contents.split('\"').nth(1) {
-        row_contents = Some(real_contents)
-      } else {
-        return Err(ModelCreationError::InvalidSyntax(line_number));
-      }
-    }
-
-    let row_contents = row_contents.unwrap();
-
-    Ok(LineComponents::new(data_type, row_contents))
   }
 
   /// Checks if the contents are 1 character, and converts it into a ``char``.
@@ -352,6 +343,54 @@ impl ModelParser {
       .next()
       .ok_or(ModelCreationError::InvalidStringSizeAtLine(line_number))
   }
+
+  fn animation_path_checks(
+    animation_path: &Path,
+    line_number: usize,
+  ) -> Result<(), ModelCreationError> {
+    if !animation_path.is_dir() {
+      error!(
+        "Attempted to build an object with an animation file instead of an animation directory"
+      );
+
+      Err(ModelCreationError::InvalidSyntax(line_number))
+    } else if !animation_path.exists() {
+      error!("Attempted to build an object with an invalid defined animation path");
+
+      Err(ModelCreationError::InvalidSyntax(line_number))
+    } else {
+      Ok(())
+    }
+  }
+}
+
+/// Returns the components of this line.
+///
+/// # Errors
+///
+/// - Returns an error when the syntax on this line was incorrect.
+pub(crate) fn line_to_parts(
+  model_file_row: &str,
+  line_number: usize,
+) -> Result<LineComponents, ModelCreationError> {
+  let (data_type, contained_row_contents) = match model_file_row.split_once('=') {
+    Some(split_row) => split_row,
+    None => return Err(ModelCreationError::InvalidSyntax(line_number)),
+  };
+
+  let mut row_contents = contained_row_contents.split('\'').nth(1);
+
+  if row_contents.is_none() {
+    if let Some(real_contents) = contained_row_contents.split('\"').nth(1) {
+      row_contents = Some(real_contents)
+    } else {
+      return Err(ModelCreationError::InvalidSyntax(line_number));
+    }
+  }
+
+  let row_contents = row_contents.unwrap();
+
+  Ok(LineComponents::new(data_type, row_contents))
 }
 
 impl<'a> LineComponents<'a> {

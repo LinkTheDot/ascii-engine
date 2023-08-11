@@ -156,11 +156,7 @@ impl TeleportPad {
 
 #[tokio::main]
 async fn main() {
-  let mut screen = ScreenData::new();
-  screen.start_printer().unwrap();
-  // screen.start_animation_thread().await.unwrap();
-
-  let mut screen_config = ScreenConfig::new(screen);
+  let mut screen_config = ScreenConfig::new(ScreenData::new());
 
   spawn_printing_task(screen_config.screen.clone());
 
@@ -266,8 +262,7 @@ fn add_teleport_pads(screen_config: &mut ScreenConfig) {
 }
 
 async fn user_move(screen_config: &mut ScreenConfig, player_hash: u64) {
-  let (user_input, input_kill_sender) =
-    spawn_input_thread(&screen_config.screen.lock().unwrap()).unwrap();
+  let (user_input, input_kill_sender) = spawn_input_thread().unwrap();
   let player_model_data = screen_config
     .get_square(&player_hash)
     .unwrap()

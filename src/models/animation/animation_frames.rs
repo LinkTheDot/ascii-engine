@@ -87,3 +87,50 @@ impl AnimationLoopCount {
     }
   }
 }
+
+impl std::convert::From<(AnimationLoopCount, Vec<(u32, String)>)> for AnimationFrames {
+  fn from(item: (AnimationLoopCount, Vec<(u32, String)>)) -> Self {
+    let (loop_count, frames) = item;
+    let frames: Vec<AnimationFrame> = frames
+      .into_iter()
+      .map(|(frame_duration, frame)| AnimationFrame::new(frame, frame_duration, None))
+      .collect();
+
+    AnimationFrames::new(frames, loop_count)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn get_frame_logic() {
+    let test_animation = get_test_animation(999);
+
+    let expected_frame = AnimationFrame::new("rrrrr\nrrarr\nrrrrr".to_string(), 1, None);
+
+    let obtained_frame = test_animation.get_frame(0);
+
+    assert_eq!(obtained_frame, Some(&expected_frame));
+  }
+
+  #[test]
+  fn frame_count_logic() {
+    let test_animation = get_test_animation(999);
+
+    let test_animation_frame_count = test_animation.frame_count();
+
+    assert_eq!(test_animation_frame_count, 3);
+  }
+
+  fn get_test_animation(loop_count: u64) -> AnimationFrames {
+    let frames = vec![
+      AnimationFrame::new("rrrrr\nrrarr\nrrrrr".to_string(), 1, None),
+      AnimationFrame::new("sssss\nssass\nsssss".to_string(), 1, None),
+      AnimationFrame::new("ttttt\nttatt\nttttt".to_string(), 1, None),
+    ];
+
+    AnimationFrames::new(frames, AnimationLoopCount::Limited(loop_count))
+  }
+}

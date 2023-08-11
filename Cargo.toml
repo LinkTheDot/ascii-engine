@@ -5,29 +5,25 @@ edition = "2021"
 
 members = [
   "model_macros",
-  "screen_printer",
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-crossbeam-channel = "0.5.6"
-event_sync = "0.1.0"
 termios = "0.3.3"
-oneshot = "0.1.5"
-anyhow = "1.0.66"
 termion = "2.0.1"
+oneshot = "0.1.*"
+anyhow = "1.*"
 lazy_static = "1.4.0"
-serde = { version = "1.0", features = ["derive"] }
-toml = "0.7.3"
-config = "0.13.2"
+serde = { version = "1.0.*", features = ["derive"] }
+toml = "0.7.*"
+config = "0.13.*"
 rand = "0.8.5"
 log4rs = "1.2.0"
-log = "0.4.17"
-chrono = "0.4.23"
-tokio = { version = "1.24.1", features = ["full"] }
-async-trait = "0.1.68"
-tokio-stream = "0.1.12"
+log = "0.4.*"
+chrono = "0.4.*"
+tokio = { version = "1.*", features = ["full"] }
+event_sync = "0.1.*"
+screen_printer = "0.2.*"
 
 model_macros = { path = "model_macros" }
-screen_printer = { path = "screen_printer"}

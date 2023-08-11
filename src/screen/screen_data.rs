@@ -41,8 +41,6 @@ pub struct ScreenData {
   model_data: Arc<RwLock<InternalModels>>,
   printer: Printer,
   event_sync: EventSync,
-  first_print: bool,
-  printer_started: bool,
 
   /// Hides the cursor as long as this lives
   _cursor_hider: termion::cursor::HideCursor<std::io::Stdout>,
@@ -79,17 +77,19 @@ impl ScreenData {
   /// To create your own models refer to [`ModelData`](crate::models::model_data::ModelData).
   /// For adding them to the screen look to [add_model()](crate::screen::screen_data::ScreenData::add_model()).
   pub fn new() -> ScreenData {
+    print!("{}", termion::clear::All);
+
     // The handle for the file logger, isn't needed right now
     let _ = file_logger::setup_file_logger();
     let cursor_hider = termion::cursor::HideCursor::from(std::io::stdout());
     let model_data = Arc::new(RwLock::new(InternalModels::new()));
+    let printing_position =
+      PrintingPosition::new(XPrintingPosition::Middle, YPrintingPosition::Middle);
 
     ScreenData {
       model_data,
-      printer: Printer::new(CONFIG.grid_width as usize, CONFIG.grid_height as usize),
+      printer: Printer::new_with_printing_position(printing_position),
       event_sync: EventSync::new(CONFIG.tick_duration),
-      first_print: true,
-      printer_started: false,
       _cursor_hider: cursor_hider,
       animation_thread_connection: None,
     }
@@ -157,15 +157,8 @@ impl ScreenData {
   ///
   /// # Errors
   ///
-  /// - Returns an error if the printer hasn't been started yet.
   /// - Returns an error if a model is overlapping on the edge of the grid.
   pub fn print_screen(&mut self) -> Result<(), ScreenError> {
-    if !self.printer_started {
-      return Err(ScreenError::PrinterNotStarted);
-    } else if self.first_print {
-      self.first_print = false;
-    }
-
     let frame = self.display();
 
     if let Err(error) = self.printer.dynamic_print(frame) {
@@ -183,73 +176,9 @@ impl ScreenData {
   ///
   /// - Returns an error if the printer hasn't been started with [`start_printer()`](crate::screen::screen_data::ScreenData::start_printer).
   pub fn clear_screen(&mut self) -> Result<(), ScreenError> {
-    if !self.printer_started() {
-      return Err(ScreenError::PrinterNotStarted);
-    }
-
-    // Any errors this returns shouldn't be able to happen with a started screen.
     self.printer.clear_grid().unwrap();
 
     Ok(())
-  }
-
-  /// This shouldn't be a main way of printing text, but it's here if needed.
-  ///
-  /// Prints a message at the top of the terminal.
-  pub fn print_text<T>(&mut self, message: T)
-  where
-    T: std::fmt::Display + std::ops::Deref,
-  {
-    print!("\x1B[1;1H");
-    println!("{message}");
-  }
-
-  /// Starts the printer allowing you to use the
-  /// [`print_screen()`](crate::screen::screen_data::ScreenData::print_screen) method.
-  ///
-  /// This should be called before starting the user_input thread or any instance of blocking stdin.
-  ///
-  /// # Usage
-  /// ```ignore
-  /// use ascii_engine::prelude::*;
-  ///
-  /// let mut screen_data = ScreenData::new();
-  /// screen_data.start_printer().unwrap();
-  /// ```
-  ///
-  /// # Errors
-  ///
-  /// - An error is returned when stdin is being block upon calling this method.
-  pub fn start_printer(&mut self) -> Result<(), ScreenError> {
-    if self.printer_started {
-      return Err(ScreenError::PrinterAlreadyStarted);
-    }
-
-    println!("{}", termion::clear::All);
-    println!("{}", "\n".repeat(CONFIG.grid_height as usize + 10));
-
-    if let Err(printing_error) = self.printer.manual_set_origin() {
-      return Err(ScreenError::PrintingError(printing_error));
-    }
-
-    self.printer_started = true;
-
-    Ok(())
-  }
-
-  /// Returns true if the printer has been started or not.
-  ///
-  /// # Example
-  ///
-  /// ```
-  /// use ascii_engine::prelude::*;
-  ///
-  /// let screen_data = ScreenData::new();
-  ///
-  /// assert!(!screen_data.printer_started());
-  /// ```
-  pub fn printer_started(&self) -> bool {
-    self.printer_started
   }
 
   /// This is how you let the screen know a model exists.
