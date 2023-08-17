@@ -14,9 +14,7 @@ pub mod prelude;
 
 pub mod general_data {
   pub mod config_builder;
-  pub mod coordinates;
   pub mod file_logger;
-  pub mod hasher;
   pub mod user_input;
 }
 

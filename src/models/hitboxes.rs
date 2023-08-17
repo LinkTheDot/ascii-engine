@@ -1,6 +1,6 @@
-use crate::general_data::coordinates::*;
 use crate::models::errors::*;
 use crate::CONFIG;
+use engine_math::coordinates::*;
 use log::error;
 use std::cmp::Ordering;
 
@@ -66,7 +66,7 @@ impl Hitbox {
   /// Creates a new hitbox from the passed in data and anchor to the skin.
   ///
   /// NOTE
-  /// "anchor_skin_coordinates" is the internal coordinates of the anchor within the model's current appearance.
+  /// "skin_anchor_coordinates" is the internal coordinates of the anchor within the model's current appearance.
   ///
   /// That would mean if you had a skin like such:
   /// ```no_run,bash,ignore
@@ -82,9 +82,9 @@ impl Hitbox {
   /// - Returns an error if multiple anchors were found on the shape of the hitbox.
   pub fn from(
     hitbox_data: HitboxCreationData,
-    anchor_skin_coordinates: (isize, isize),
+    skin_anchor_coordinates: (isize, isize),
   ) -> Result<Self, ModelError> {
-    hitbox_data.get_hitbox_data(anchor_skin_coordinates)
+    hitbox_data.get_hitbox(skin_anchor_coordinates)
   }
 
   /// Returns an empty hitbox.
@@ -178,7 +178,7 @@ impl HitboxCreationData {
   ///
   /// - Returns an error when no anchor was found on the shape of the hitbox.
   /// - Returns an error if multiple anchors were found on the shape of the hitbox.
-  fn get_hitbox_data(self, anchor_skin_coordinates: (isize, isize)) -> Result<Hitbox, ModelError> {
+  fn get_hitbox(self, anchor_skin_coordinates: (isize, isize)) -> Result<Hitbox, ModelError> {
     if self.shape.trim() == "" {
       return Ok(Hitbox::create_empty());
     }

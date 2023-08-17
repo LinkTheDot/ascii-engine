@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use ascii_engine::prelude::*;
 
 const WORLD_POSITION: (usize, usize) = (10, 10);

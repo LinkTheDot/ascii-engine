@@ -1,11 +1,11 @@
 // Rename ModelAnimatorData to something else.
 // It sounds and looks too similar to ModelAnimationData
 use crate::errors::*;
-use crate::general_data::hasher::get_unique_hash;
 use crate::models::animation_file_parser::*;
 use crate::models::model_data::ModelData;
 use crate::screen::screen_data::ScreenData;
 pub use animation_frames::*;
+use engine_math::hasher::get_unique_hash;
 use lazy_static::lazy_static;
 use std::collections::{hash_map::Entry, HashMap, VecDeque};
 use std::ffi::OsStr;

@@ -1,4 +1,3 @@
-use crate::general_data::{coordinates::*, hasher};
 use crate::models::animation::*;
 use crate::models::errors::*;
 use crate::models::hitboxes::*;
@@ -7,8 +6,10 @@ pub use crate::models::traits::*;
 use crate::screen::model_storage::InternalModels;
 use crate::screen::screen_data::ScreenData;
 use crate::CONFIG;
+use engine_math::coordinates::*;
+use engine_math::hasher;
 use std::ffi::OsStr;
-use std::sync::{Arc, Mutex, MutexGuard, RwLock};
+use std::sync::MutexGuard;
 use std::{fs::File, path::Path};
 
 /// ModelData contains everything the screen needs to know for a model to be placed in the world.

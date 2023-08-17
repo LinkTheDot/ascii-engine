@@ -71,10 +71,12 @@ dependencies = [
  "anyhow",
  "chrono",
  "config",
+ "engine_math",
  "event_sync",
  "lazy_static",
  "log",
  "log4rs",
+ "model_data_structures",
  "model_macros",
  "oneshot",
  "rand",
@@ -257,6 +259,17 @@ name = "dlv-list"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0688c2a7f92e427f44895cd63841bff7b29f8d7a1648b9e7e07a4a365b2e1257"
+
+[[package]]
+name = "engine_math"
+version = "0.1.0"
+dependencies = [
+ "num-traits",
+ "rand",
+ "screen_printer",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "equivalent"
@@ -534,6 +547,15 @@ dependencies = [
  "libc",
  "wasi 0.11.0+wasi-snapshot-preview1",
  "windows-sys",
+]
+
+[[package]]
+name = "model_data_structures"
+version = "0.1.0"
+dependencies = [
+ "engine_math",
+ "log",
+ "screen_printer",
 ]
 
 [[package]]

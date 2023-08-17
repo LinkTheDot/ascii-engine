@@ -1,7 +1,7 @@
 use crate::collision_data::*;
 use crate::screen_config::*;
-use ascii_engine::general_data::coordinates::*;
 use ascii_engine::general_data::user_input::spawn_input_thread;
+use engine_math::coordinates::*;
 // use ascii_engine::models::animation::*;
 use ascii_engine::prelude::*;
 use log::{error, info, warn};

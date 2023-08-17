@@ -352,7 +352,7 @@ fn out_of_bounds_check(
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::general_data::coordinates::*;
+  use engine_math::coordinates::*;
 
   const WORLD_POSITION: (usize, usize) = (10, 10);
   const SHAPE: &str = "xxxxx\nxxaxx\nxxxxx";
