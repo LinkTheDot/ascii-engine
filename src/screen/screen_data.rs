@@ -7,6 +7,7 @@ use crate::CONFIG;
 use event_sync::EventSync;
 use log::error;
 use screen_printer::printer::*;
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tokio::sync::mpsc;
 
@@ -38,9 +39,9 @@ use tokio::sync::mpsc;
 /// To create your own models refer to [`ModelData`](crate::models::model_data::ModelData).
 /// For adding them to the screen look to [add_model()](crate::screen::screen_data::ScreenData::add_model()).
 pub struct ScreenData {
-  model_data: Arc<RwLock<InternalModels>>,
   printer: Printer,
   event_sync: EventSync,
+  model_storage: Arc<RwLock<ModelStorage>>,
 
   /// Hides the cursor as long as this lives
   _cursor_hider: termion::cursor::HideCursor<std::io::Stdout>,
@@ -82,14 +83,14 @@ impl ScreenData {
     // The handle for the file logger, isn't needed right now
     let _ = file_logger::setup_file_logger();
     let cursor_hider = termion::cursor::HideCursor::from(std::io::stdout());
-    let model_data = Arc::new(RwLock::new(InternalModels::new()));
     let printing_position =
       PrintingPosition::new(XPrintingPosition::Middle, YPrintingPosition::Middle);
+    let model_storage: Arc<RwLock<ModelStorage>> = Default::default();
 
     ScreenData {
-      model_data,
       printer: Printer::new_with_printing_position(printing_position),
       event_sync: EventSync::new(CONFIG.tick_duration),
+      model_storage,
       _cursor_hider: cursor_hider,
       animation_thread_connection: None,
     }
@@ -109,16 +110,12 @@ impl ScreenData {
     let mut frame = Self::create_blank_frame();
 
     for strata_number in 0..=100 {
-      let model_data = self.model_data.read().unwrap();
+      let existing_models = self.model_storage.read().unwrap();
 
-      let Some(strata_keys) = model_data.get_strata_keys(&Strata(strata_number)) else { continue };
+      let Some(strata_keys) = existing_models.get_strata_keys(&Strata(strata_number)) else { continue };
 
-      for model in strata_keys
-        .iter()
-        .map(|key| self.model_data.read().unwrap().get_model(key))
-      {
+      for model in strata_keys.iter().map(|key| existing_models.get_model(key)) {
         let Some(model) = model else {
-          // This is left here just incase something comes up that allows it to happen.
           error!("A model in strata {strata_number} that doesn't exist was attempted to be run.");
 
           continue;
@@ -216,19 +213,28 @@ impl ScreenData {
   /// # Errors
   ///
   /// - An error is returned when attempting to add a model that already exists.
-  pub fn add_model<M: DisplayModel>(&mut self, model: &M) -> Result<(), ModelError> {
-    let mut model_data = model.get_model_data();
+  pub fn add_model<D: DisplayModel>(&mut self, model: &D) -> Result<(), ModelError> {
+    let model_data = model.get_model_data();
 
-    model_data.assign_model_list(self.model_data.clone());
-
-    self.model_data.write().unwrap().insert(model_data)
+    self.model_storage.write().unwrap().insert(model_data)
   }
 
   /// Removes the ModelData of the given key and returns it.
   ///
   /// Returns None if there's no model with the given key.
   pub fn remove_model(&mut self, key: &u64) -> Option<ModelData> {
-    self.model_data.write().unwrap().remove(key)
+    self.model_storage.write().unwrap().remove(key)
+  }
+
+  /// Replaces the currently existing list of all models that exist in the world with a new, empty list.
+  ///
+  /// Returns the list of all models that existed prior to calling this method.
+  pub fn reset_world(&mut self) -> HashMap<u64, ModelData> {
+    let mut existing_models = self.model_storage.write().unwrap();
+
+    let old_world_models = std::mem::take(&mut *existing_models);
+
+    old_world_models.extract_model_list()
   }
 
   /// Starts the animation thread for the screen.
@@ -285,10 +291,6 @@ impl ScreenData {
     let model_shape = model.get_sprite().replace('\n', "");
     let model_characters = model_shape.chars();
 
-    // Error returned here to prevent the program from crashing when a model is found to be out of bounds.
-    // Uncomment when it's fully implemented.
-    // out_of_bounds_check(model_position, model_width, model_height)?;
-
     for (index, character) in model_characters.enumerate() {
       if character != air_character {
         let current_row_count = index / model_width;
@@ -314,78 +316,18 @@ impl ScreenData {
     let pixel_row = CONFIG.empty_pixel.repeat(CONFIG.grid_width as usize) + "\n";
 
     let mut frame = pixel_row.repeat(CONFIG.grid_height as usize);
-    frame.pop(); // remove new line
+    frame.pop(); // Removes the new line left at the end.
 
     frame
   }
 }
 
-#[allow(dead_code)]
-// This will be remade completely once a "collision check" method is added to models.
-fn out_of_bounds_check(
-  model_frame_position: usize,
-  model_width: usize,
-  model_height: usize,
-) -> Result<(), ScreenError> {
-  // Implement all directions
-  // possibly just calculate the x value for this
-  // for out of bounds left,
-  //   if x == grid_width then say it went out of bounds left
-
-  if model_width + (model_frame_position % (CONFIG.grid_width as usize + 1))
-    >= CONFIG.grid_width as usize + 1
-  {
-    return Err(ScreenError::ModelError(ModelError::OutOfBounds(
-      Direction::Right,
-    )));
-  } else if model_height + (model_frame_position / (CONFIG.grid_width as usize + 1))
-    >= CONFIG.grid_height as usize
-  {
-    return Err(ScreenError::ModelError(ModelError::OutOfBounds(
-      Direction::Down,
-    )));
-  }
-
-  Ok(())
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;
-  use engine_math::coordinates::*;
 
   const WORLD_POSITION: (usize, usize) = (10, 10);
   const SHAPE: &str = "xxxxx\nxxaxx\nxxxxx";
-
-  #[test]
-  fn change_position_out_of_bounds_right() {
-    let frame_position = ((CONFIG.grid_width - 1) as usize, 15);
-    let frame_position = frame_position.coordinates_to_index(CONFIG.grid_width as usize + 1);
-    let (width, height) = (3, 3);
-
-    let expected_result = Err(ScreenError::ModelError(ModelError::OutOfBounds(
-      Direction::Right,
-    )));
-
-    let check_result = out_of_bounds_check(frame_position, width, height);
-
-    assert_eq!(check_result, expected_result);
-  }
-
-  #[test]
-  fn change_position_out_of_bounds_down() {
-    let frame_position = (15, CONFIG.grid_width as usize + 1);
-    let frame_position = frame_position.coordinates_to_index(CONFIG.grid_width as usize);
-    let (width, height) = (3, 3);
-
-    let expected_result = Err(ScreenError::ModelError(ModelError::OutOfBounds(
-      Direction::Down,
-    )));
-
-    let check_result = out_of_bounds_check(frame_position, width, height);
-
-    assert_eq!(check_result, expected_result);
-  }
 
   #[test]
   fn create_blank_frame() {

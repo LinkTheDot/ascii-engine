@@ -3,12 +3,16 @@ use engine_math::rectangle::Rectangle;
 use std::cmp::Ordering;
 
 /// The ``Sprite`` contains the data for how a model looks on the screen.
+///
+/// Also holds the anchor for how the appearance in placed on the screen and where the hitbox is placed
+/// relative to the appearance.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Sprite {
   shape: String,
   anchor_character: char,
   anchor_replacement_character: char,
   air_character: char,
+
   /// Doesn't count new lines
   anchor_character_index: usize,
 }

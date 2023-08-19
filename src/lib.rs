@@ -31,6 +31,7 @@ pub mod models {
 
 pub mod screen {
   pub mod errors;
+  pub mod model_manager;
   pub mod model_storage;
   pub mod screen_data;
 }

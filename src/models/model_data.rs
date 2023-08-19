@@ -3,7 +3,7 @@ use crate::models::errors::*;
 use crate::models::hitboxes::*;
 use crate::models::model_file_parser::ModelParser;
 pub use crate::models::traits::*;
-use crate::screen::model_storage::InternalModels;
+use crate::screen::model_manager::ModelManager;
 use crate::screen::screen_data::ScreenData;
 use crate::CONFIG;
 use engine_math::coordinates::*;
@@ -177,8 +177,6 @@ struct InternalModelData {
   strata: Strata,
   sprite: Sprite,
   hitbox: Hitbox,
-  /// Exists only when models are placed on the screen
-  existing_models: Option<Arc<RwLock<InternalModels>>>,
   /// This is created when parsing a model.
   ///
   /// None if there was no `.animate` file in the same path of the model, or there was no alternative path given.
@@ -292,38 +290,51 @@ impl ModelData {
   /// Moves a model to the given world position.
   ///
   /// Returns a list of references to model collisions that occurred in the new location.
-  pub fn absolute_movement(&mut self, new_position: (usize, usize)) -> Vec<ModelData> {
+  pub fn absolute_movement(
+    &mut self,
+    new_position: (usize, usize),
+    model_manager: &ModelManager,
+  ) -> Vec<ModelData> {
     let new_index = self.calculate_absolute_movement_frame_position(new_position);
 
     self.change_position(new_index);
 
-    self.check_collisions_against_all_models()
+    self.check_collisions_against_all_models(model_manager)
   }
 
   /// Moves a relative amount based on the values passed in.
   ///
   /// Returns a list of references to model collisions that occurred in the new location.
-  pub fn relative_movement(&mut self, added_position: (isize, isize)) -> Vec<ModelData> {
+  pub fn relative_movement(
+    &mut self,
+    added_position: (isize, isize),
+    model_manager: &ModelManager,
+  ) -> Vec<ModelData> {
     let new_index = self.calculate_relative_movement_frame_position(added_position);
 
     self.change_position(new_index);
 
-    self.check_collisions_against_all_models()
+    self.check_collisions_against_all_models(model_manager)
   }
 
-  pub fn absolute_movement_collision_check(&self, new_position: (usize, usize)) -> Vec<ModelData> {
+  pub fn absolute_movement_collision_check(
+    &self,
+    new_position: (usize, usize),
+    model_manager: &ModelManager,
+  ) -> Vec<ModelData> {
     let check_index = self.calculate_absolute_movement_frame_position(new_position);
 
-    self.check_collisions_in_different_position(check_index)
+    self.check_collisions_in_different_position(check_index, model_manager)
   }
 
   pub fn relative_movement_collision_check(
     &self,
     added_position: (isize, isize),
+    model_manager: &ModelManager,
   ) -> Vec<ModelData> {
     let check_index = self.calculate_relative_movement_frame_position(added_position);
 
-    self.check_collisions_in_different_position(check_index)
+    self.check_collisions_in_different_position(check_index, model_manager)
   }
 
   fn calculate_absolute_movement_frame_position(&self, new_position: (usize, usize)) -> usize {
@@ -406,14 +417,18 @@ impl ModelData {
   ///
   /// - Returns an error when the new given strata is beyond the possible range.
   /// - Returns an error when a model's currently assigned strata is also impossible.
-  pub fn change_strata(&mut self, new_strata: Strata) -> Result<(), ModelError> {
+  pub fn change_strata(
+    &mut self,
+    new_strata: Strata,
+    model_manager: &mut ModelManager,
+  ) -> Result<(), ModelError> {
     if !new_strata.correct_range() {
       return Err(ModelError::IncorrectStrataRange(new_strata));
     }
 
     self.internal_data.lock().unwrap().strata = new_strata;
 
-    self.fix_model_strata()
+    model_manager.fix_strata_list()
   }
 
   /// Changes the name of the model to the one passed in.
@@ -433,12 +448,19 @@ impl ModelData {
   /// Checks the hitbox of every model that exists against the model's own hitbox.
   ///
   /// Returns the list of hitboxes that are colliding with the model's hitbox.
-  pub fn check_collisions_against_all_models(&self) -> Vec<ModelData> {
-    self.collisions_against_all_models(None)
+  pub fn check_collisions_against_all_models(
+    &self,
+    model_manager: &ModelManager,
+  ) -> Vec<ModelData> {
+    self.collisions_against_all_models(None, model_manager)
   }
 
-  fn check_collisions_in_different_position(&self, check_position: usize) -> Vec<ModelData> {
-    self.collisions_against_all_models(Some(check_position))
+  fn check_collisions_in_different_position(
+    &self,
+    check_position: usize,
+    model_manager: &ModelManager,
+  ) -> Vec<ModelData> {
+    self.collisions_against_all_models(Some(check_position), model_manager)
   }
 
   /// Internal check for collisions against all models that exist in the world.
@@ -448,15 +470,16 @@ impl ModelData {
   fn collisions_against_all_models(
     &self,
     new_self_hitbox_position: Option<usize>,
+    model_manager: &ModelManager,
   ) -> Vec<ModelData> {
     let internal_data = self.get_internal_data();
 
     let mut collision_list = vec![];
 
-    if let Some(existing_models) = &internal_data.existing_models {
-      let existing_models_read_lock = existing_models.read().unwrap();
+    if model_manager.model_exists(&internal_data.unique_hash) {
+      let (_read_guard, model_list) = model_manager.get_model_list();
 
-      for (hash, model_data) in existing_models_read_lock.get_model_list() {
+      for (hash, model_data) in model_list {
         if hash == &internal_data.unique_hash {
           continue;
         }
@@ -470,32 +493,6 @@ impl ModelData {
     }
 
     collision_list
-  }
-
-  /// Assigns the list of existing models.
-  pub(crate) fn assign_model_list(&mut self, model_list: Arc<RwLock<InternalModels>>) {
-    let mut internal_data = self.get_internal_data();
-
-    internal_data.existing_models = Some(model_list);
-  }
-
-  /// Fixes the strata for every model that exists in the InternalModels list.
-  ///
-  /// If a model somehow has an assigned strata that is different from where it's internall stored.
-  /// This method will fix that.
-  pub(crate) fn fix_model_strata(&self) -> Result<(), ModelError> {
-    let internal_data = self.get_internal_data();
-
-    if internal_data.existing_models.is_none() {
-      return Err(ModelError::ModelDoesntExist);
-    }
-
-    let model_list = internal_data.existing_models.clone().unwrap();
-    drop(internal_data);
-
-    let mut model_list_guard = model_list.write().unwrap();
-
-    model_list_guard.fix_strata_list()
   }
 
   /// Changes the current appearance of the skin.
@@ -708,7 +705,6 @@ impl InternalModelData {
       sprite,
       position_in_frame: position_data.0,
       hitbox,
-      existing_models: None,
       animation_data: None,
     })
   }
@@ -818,18 +814,6 @@ mod tests {
     let relative_position = get_frame_index_to_world_placement_anchor(&sprite);
 
     assert_eq!(relative_position, expected_position);
-  }
-
-  #[test]
-  fn fix_model_strata_model_not_in_screen() {
-    let test_model = TestModel::new();
-    let model_data = test_model.get_model_data();
-
-    let expected_result = Err(ModelError::ModelDoesntExist);
-
-    let result = model_data.fix_model_strata();
-
-    assert_eq!(result, expected_result);
   }
 
   #[test]

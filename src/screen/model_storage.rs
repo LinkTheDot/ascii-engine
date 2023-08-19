@@ -3,39 +3,20 @@ use crate::models::model_data::*;
 use log::{error, info, warn};
 use std::collections::{HashMap, HashSet};
 
-/// This the the struct that contains a reference to every model that exists in the world.
-/// InternalModels contains a list of stratas 0-100 and the hashes of which objects correspond to those stratas.
-///
-/// The user will never create this, it will merely be apart of the screen.
-/// Every model will also hold a reference to this for two reasons.
-///
-/// One, when a model changes it's strata it needs to reflect that internally. and;
-///
-/// Two, models need to know about the existence of every other model for collision checks.
-#[derive(Debug)]
-pub(crate) struct InternalModels {
+/// This is the struct that contains a reference to every model that exists in the world.
+#[derive(Debug, Default)]
+pub(crate) struct ModelStorage {
   model_stratas: HashMap<Strata, HashSet<u64>>,
   models: HashMap<u64, ModelData>,
 }
 
-impl InternalModels {
-  #[allow(clippy::new_without_default)]
-  /// Creates a new instance of the InternalModels struct.
-  ///
-  /// This will only be called by the screen and is not needed anywhere else.
-  pub(crate) fn new() -> Self {
-    Self {
-      model_stratas: HashMap::new(),
-      models: HashMap::new(),
-    }
-  }
-
+impl ModelStorage {
   /// Creates a reference to the passed in ModelData and stores it.
   ///
   /// # Errors
   ///
   /// - An error is returned when attempting to add a model that already exists.
-  pub(crate) fn insert(&mut self, model: ModelData) -> Result<(), ModelError> {
+  pub fn insert(&mut self, model: ModelData) -> Result<(), ModelError> {
     let key = model.get_unique_hash();
 
     if self.models.get(&key).is_none() {
@@ -58,7 +39,7 @@ impl InternalModels {
   /// # Errors (yes there's technically an error)
   ///
   /// - Returns None when any existing model somehow has an impossible strata.
-  pub(crate) fn remove(&mut self, key: &u64) -> Option<ModelData> {
+  pub fn remove(&mut self, key: &u64) -> Option<ModelData> {
     if self.model_exists(key) {
       self.remove_mention_of(key)
     } else {
@@ -68,22 +49,13 @@ impl InternalModels {
     }
   }
 
-  /// Returns true if the model exists in both the ModelData list, and the Strata list pertaining to it's currently assigned strata.
+  /// Returns true if the model exists in both the ModelData list,
+  /// and the Strata list pertaining to it's currently assigned strata.
   ///
   /// Returns false if the model's strata is somehow incorrect.
   /// Returns false if the model didn't exist internally.
-  fn model_exists(&self, key: &u64) -> bool {
-    if let Some(model) = self.get_model(key) {
-      let model_strata = model.get_strata();
-
-      if let Some(model_stratas) = self.get_strata_keys(&model_strata) {
-        if model_stratas.contains(key) {
-          return true;
-        }
-      }
-    }
-
-    false
+  pub fn model_exists(&self, key: &u64) -> bool {
+    self.models.contains_key(key)
   }
 
   /// Removes any mention the model corresponding to the passed in key.
@@ -110,26 +82,31 @@ impl InternalModels {
   /// Returns a reference to the model hashes corresponding to the given Strata level.
   ///
   /// Returns None when no models in that Strata range exist.
-  pub(crate) fn get_strata_keys(&self, key: &Strata) -> Option<&HashSet<u64>> {
+  pub fn get_strata_keys(&self, key: &Strata) -> Option<&HashSet<u64>> {
     self.model_stratas.get(key)
   }
 
   /// Returns a copy of the requested ModelData.
   ///
   /// Returns None when the model doesn't exist.
-  pub(crate) fn get_model(&self, key: &u64) -> Option<ModelData> {
+  pub fn get_model(&self, key: &u64) -> Option<ModelData> {
     self.models.get(key).cloned()
   }
 
   #[allow(unused)]
   /// Returns a HashSet which contains references to the hashes of every model that exists in the world.
-  pub(crate) fn get_model_keys(&self) -> HashSet<&u64> {
+  pub fn get_model_keys(&self) -> HashSet<&u64> {
     self.models.keys().collect()
   }
 
   /// Returns a reference to the internal HashMap of <hash, ModelData>.
-  pub(crate) fn get_model_list(&self) -> &HashMap<u64, ModelData> {
+  pub fn get_model_list(&self) -> &HashMap<u64, ModelData> {
     &self.models
+  }
+
+  /// Consumes self and returns the internally stored list of models.
+  pub fn extract_model_list(self) -> HashMap<u64, ModelData> {
+    self.models
   }
 
   /// Insert a model_hash to the model's currently assigned strata.
@@ -137,7 +114,6 @@ impl InternalModels {
   /// # Errors
   ///
   /// - Returns an error when the given model_hash doesn't exist in the world.
-  // (I don't know if this below is possible or not. I'll leave it just incase something comes up in the future that makes it possible.)
   /// - Returns an error when a model somehow has an impossible strata range.
   fn insert_strata(&mut self, model_key: &u64) -> Result<(), ModelError> {
     let Some(model) = self.get_model(model_key) else {
@@ -171,7 +147,7 @@ impl InternalModels {
   /// # Errors
   ///
   /// - Returns an error when a model somehow has an impossible strata.
-  pub(crate) fn fix_strata_list(&mut self) -> Result<(), ModelError> {
+  pub fn fix_strata_list(&mut self) -> Result<(), ModelError> {
     for strata_number in 0..=100 {
       let current_strata = Strata(strata_number);
 
@@ -248,7 +224,7 @@ mod tests {
 
     #[test]
     fn insert_once() {
-      let mut model_list = InternalModels::new();
+      let mut model_list = ModelStorage::default();
       let test_model = TestModel::new();
       let model_data = test_model.get_model_data();
 
@@ -259,7 +235,7 @@ mod tests {
 
     #[test]
     fn insert_twice() {
-      let mut model_list = InternalModels::new();
+      let mut model_list = ModelStorage::default();
       let test_model = TestModel::new();
       let model_data = test_model.get_model_data();
 
@@ -274,7 +250,7 @@ mod tests {
 
     #[test]
     fn insert_then_remove() {
-      let mut model_list = InternalModels::new();
+      let mut model_list = ModelStorage::default();
       let test_model = TestModel::new();
       let model_data = test_model.get_model_data();
 
@@ -288,7 +264,7 @@ mod tests {
 
     #[test]
     fn remove_model_that_doesnt_exist() {
-      let mut model_list = InternalModels::new();
+      let mut model_list = ModelStorage::default();
       let fake_key: u64 = 0;
 
       let result = model_list.remove(&fake_key);
@@ -303,7 +279,7 @@ mod tests {
 
     #[test]
     fn get_strata_keys_invalid_strata() {
-      let model_list = InternalModels::new();
+      let model_list = ModelStorage::default();
 
       let result = model_list.get_strata_keys(&Strata(0));
 
@@ -312,7 +288,7 @@ mod tests {
 
     #[test]
     fn get_strata_keys_valid_strata() {
-      let mut model_list = InternalModels::new();
+      let mut model_list = ModelStorage::default();
       let test_model = TestModel::new();
       let model_hash = test_model.get_unique_hash();
       let model_strata = test_model.get_strata();
@@ -326,7 +302,7 @@ mod tests {
 
     #[test]
     fn get_existing_model() {
-      let mut model_list = InternalModels::new();
+      let mut model_list = ModelStorage::default();
       let test_model = TestModel::new();
       let model_hash = test_model.get_unique_hash();
 
@@ -339,7 +315,7 @@ mod tests {
 
     #[test]
     fn get_model_doesnt_exist() {
-      let model_list = InternalModels::new();
+      let model_list = ModelStorage::default();
       let fake_hash: u64 = 0;
 
       let result = model_list.get_model(&fake_hash);
@@ -349,7 +325,7 @@ mod tests {
 
     #[test]
     fn get_model_keys() {
-      let mut model_list = InternalModels::new();
+      let mut model_list = ModelStorage::default();
       let test_model = TestModel::new();
       let model_hash = test_model.get_unique_hash();
 
@@ -362,7 +338,7 @@ mod tests {
 
     #[test]
     fn get_model_list() {
-      let mut model_list = InternalModels::new();
+      let mut model_list = ModelStorage::default();
       let test_model = TestModel::new();
       let model_hash = test_model.get_unique_hash();
 
@@ -380,7 +356,7 @@ mod tests {
 
     #[test]
     fn model_exists() {
-      let mut model_list = InternalModels::new();
+      let mut model_list = ModelStorage::default();
       let test_model = TestModel::new();
 
       let model_data = test_model.get_model_data();
@@ -398,7 +374,7 @@ mod tests {
 
     #[test]
     fn list_already_exists() {
-      let mut model_list = InternalModels::new();
+      let mut model_list = ModelStorage::default();
       let test_model = TestModel::new();
       let other_test_model = TestModel::new();
 
@@ -421,7 +397,7 @@ mod tests {
 
     #[test]
     fn model_doesnt_exist() {
-      let mut model_list = InternalModels::new();
+      let mut model_list = ModelStorage::default();
 
       let fake_hash: u64 = 0;
 
@@ -437,7 +413,7 @@ mod tests {
 
     #[test]
     fn misplaced_strata() {
-      let mut model_list = InternalModels::new();
+      let mut model_list = ModelStorage::default();
       let test_model = TestModel::new();
       let model_hash = test_model.get_unique_hash();
       let model_strata = test_model.get_strata();
@@ -463,7 +439,7 @@ mod tests {
 
     #[test]
     fn model_list_is_empty() {
-      let mut model_list = InternalModels::new();
+      let mut model_list = ModelStorage::default();
 
       let result = model_list.fix_strata_list();
 
@@ -472,7 +448,7 @@ mod tests {
 
     #[test]
     fn fix_model_strata_fake_old_strata() {
-      let mut model_list = InternalModels::new();
+      let mut model_list = ModelStorage::default();
 
       let expected_result = Err(ModelError::ModelDoesntExist);
 

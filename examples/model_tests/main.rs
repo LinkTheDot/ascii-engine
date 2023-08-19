@@ -173,7 +173,7 @@ async fn main() {
 fn spawn_printing_task(screen: Arc<Mutex<ScreenData>>) {
   let _printing_handle = tokio::task::spawn(async move {
     loop {
-      std::thread::sleep(std::time::Duration::from_millis(12));
+      tokio::thread::sleep(std::time::Duration::from_millis(12));
 
       screen.lock().unwrap().print_screen().log_if_err();
     }
