@@ -1,7 +1,8 @@
 #![doc = include_str!("../README.md")]
 
-use crate::general_data::config_builder;
+// use crate::general_data::config_builder;
 use lazy_static::lazy_static;
+use model_data_structures::config_builder;
 
 lazy_static! {
   // Only way this can cause an error is if the code for the config builder was done wrong.
@@ -13,15 +14,13 @@ pub mod errors;
 pub mod prelude;
 
 pub mod general_data {
-  pub mod config_builder;
   pub mod file_logger;
   pub mod user_input;
 }
 
 pub mod models {
-  pub mod animation;
   pub mod animation_file_parser;
-  pub mod errors;
+  pub mod animation_thread;
   pub mod hitboxes;
   pub mod model_data;
   pub mod model_file_parser;
@@ -30,7 +29,6 @@ pub mod models {
 }
 
 pub mod screen {
-  pub mod errors;
   pub mod model_manager;
   pub mod model_storage;
   pub mod screen_data;

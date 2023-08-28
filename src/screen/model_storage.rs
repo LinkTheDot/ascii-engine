@@ -1,6 +1,7 @@
 use crate::errors::*;
-use crate::models::model_data::*;
 use log::{error, info, warn};
+use model_data_structures::models::model_data::*;
+use model_data_structures::models::strata::*;
 use std::collections::{HashMap, HashSet};
 
 /// This is the struct that contains a reference to every model that exists in the world.
@@ -17,7 +18,7 @@ impl ModelStorage {
   ///
   /// - An error is returned when attempting to add a model that already exists.
   pub fn insert(&mut self, model: ModelData) -> Result<(), ModelError> {
-    let key = model.get_unique_hash();
+    let key = model.get_hash();
 
     if self.models.get(&key).is_none() {
       self.models.insert(key, model);
@@ -121,7 +122,7 @@ impl ModelStorage {
     };
 
     let model_strata = model.get_strata();
-    let model_hash = model.get_unique_hash();
+    let model_hash = model.get_hash();
 
     if let Some(strata_keys) = self.model_stratas.get_mut(&model_strata) {
       strata_keys.insert(model_hash);
@@ -158,7 +159,7 @@ impl ModelStorage {
         .map(|key| self.get_model(key).unwrap())
         .filter_map(|model| {
           let model_strata = model.get_strata();
-          let model_hash = model.get_unique_hash();
+          let model_hash = model.get_hash();
 
           if model_strata != current_strata {
             Some((current_strata, model_hash))
@@ -225,8 +226,7 @@ mod tests {
     #[test]
     fn insert_once() {
       let mut model_list = ModelStorage::default();
-      let test_model = TestModel::new();
-      let model_data = test_model.get_model_data();
+      let model_data = new_test_model();
 
       let result = model_list.insert(model_data);
 
@@ -236,8 +236,7 @@ mod tests {
     #[test]
     fn insert_twice() {
       let mut model_list = ModelStorage::default();
-      let test_model = TestModel::new();
-      let model_data = test_model.get_model_data();
+      let model_data = new_test_model();
 
       let expected_result = Err(ModelError::ModelAlreadyExists);
 
@@ -251,15 +250,14 @@ mod tests {
     #[test]
     fn insert_then_remove() {
       let mut model_list = ModelStorage::default();
-      let test_model = TestModel::new();
-      let model_data = test_model.get_model_data();
+      let model_data = new_test_model();
 
-      model_list.insert(model_data).unwrap();
+      model_list.insert(model_data.clone()).unwrap();
 
-      let model_hash = test_model.get_unique_hash();
+      let model_hash = model_data.get_hash();
       let removed_data = model_list.remove(&model_hash).unwrap();
 
-      assert_eq!(removed_data.get_unique_hash(), model_hash);
+      assert_eq!(removed_data.get_hash(), model_hash);
     }
 
     #[test]
@@ -289,28 +287,26 @@ mod tests {
     #[test]
     fn get_strata_keys_valid_strata() {
       let mut model_list = ModelStorage::default();
-      let test_model = TestModel::new();
-      let model_hash = test_model.get_unique_hash();
-      let model_strata = test_model.get_strata();
+      let model_data = new_test_model();
+      let model_strata = model_data.get_strata();
 
-      model_list.insert(test_model.get_model_data()).unwrap();
+      model_list.insert(model_data.clone()).unwrap();
 
       let strata_keys = model_list.get_strata_keys(&model_strata).unwrap();
 
-      assert!(strata_keys.contains(&model_hash));
+      assert!(strata_keys.contains(&model_data.get_hash()));
     }
 
     #[test]
     fn get_existing_model() {
       let mut model_list = ModelStorage::default();
-      let test_model = TestModel::new();
-      let model_hash = test_model.get_unique_hash();
+      let model_data = new_test_model();
 
-      model_list.insert(test_model.get_model_data()).unwrap();
+      model_list.insert(model_data.clone()).unwrap();
 
-      let result = model_list.get_model(&model_hash).unwrap();
+      let result = model_list.get_model(&model_data.get_hash()).unwrap();
 
-      assert_eq!(result.get_unique_hash(), model_hash);
+      assert_eq!(result.get_hash(), model_data.get_hash());
     }
 
     #[test]
@@ -326,27 +322,25 @@ mod tests {
     #[test]
     fn get_model_keys() {
       let mut model_list = ModelStorage::default();
-      let test_model = TestModel::new();
-      let model_hash = test_model.get_unique_hash();
+      let model_data = new_test_model();
 
-      model_list.insert(test_model.get_model_data()).unwrap();
+      model_list.insert(model_data.clone()).unwrap();
 
       let model_keys = model_list.get_model_keys();
 
-      assert!(model_keys.contains(&model_hash));
+      assert!(model_keys.contains(&model_data.get_hash()));
     }
 
     #[test]
     fn get_model_list() {
       let mut model_list = ModelStorage::default();
-      let test_model = TestModel::new();
-      let model_hash = test_model.get_unique_hash();
+      let model_data = new_test_model();
 
-      model_list.insert(test_model.get_model_data()).unwrap();
+      model_list.insert(model_data.clone()).unwrap();
 
       let model_keys = model_list.get_model_list();
 
-      assert!(model_keys.contains_key(&model_hash));
+      assert!(model_keys.contains_key(&model_data.get_hash()));
     }
   }
 
@@ -357,11 +351,9 @@ mod tests {
     #[test]
     fn model_exists() {
       let mut model_list = ModelStorage::default();
-      let test_model = TestModel::new();
-
-      let model_data = test_model.get_model_data();
-      let model_hash = test_model.get_unique_hash();
-      let model_strata = test_model.get_strata();
+      let model_data = new_test_model();
+      let model_hash = model_data.get_hash();
+      let model_strata = model_data.get_strata();
 
       model_list.models.insert(model_hash, model_data);
 
@@ -375,16 +367,12 @@ mod tests {
     #[test]
     fn list_already_exists() {
       let mut model_list = ModelStorage::default();
-      let test_model = TestModel::new();
-      let other_test_model = TestModel::new();
+      let model_data = new_test_model();
+      let model_data_with_same_strata = new_test_model();
+      let model_hash = model_data.get_hash();
+      let model_strata = model_data.get_strata();
 
-      model_list
-        .insert(other_test_model.get_model_data())
-        .unwrap();
-
-      let model_data = test_model.get_model_data();
-      let model_hash = test_model.get_unique_hash();
-      let model_strata = test_model.get_strata();
+      model_list.insert(model_data_with_same_strata).unwrap();
 
       model_list.models.insert(model_hash, model_data);
 
@@ -414,16 +402,14 @@ mod tests {
     #[test]
     fn misplaced_strata() {
       let mut model_list = ModelStorage::default();
-      let test_model = TestModel::new();
-      let model_hash = test_model.get_unique_hash();
-      let model_strata = test_model.get_strata();
+      let model_data = new_test_model();
+      let model_hash = model_data.get_hash();
+      let model_strata = model_data.get_strata();
 
       let fake_strata = Strata(0);
       let fake_strata_list = HashSet::from([(model_hash)]);
 
-      model_list
-        .models
-        .insert(model_hash, test_model.get_model_data());
+      model_list.models.insert(model_hash, model_data);
       model_list
         .model_stratas
         .insert(fake_strata, fake_strata_list);
@@ -466,17 +452,8 @@ mod tests {
   // -- Data for tests below --
   //
 
-  #[derive(DisplayModel)]
-  struct TestModel {
-    model_data: ModelData,
-  }
-
-  impl TestModel {
-    fn new() -> Self {
-      let test_model_path = std::path::Path::new("tests/models/test_square.model");
-      let model_data = ModelData::from_file(test_model_path, WORLD_POSITION).unwrap();
-
-      Self { model_data }
-    }
+  fn new_test_model() -> ModelData {
+    let test_model_path = std::path::Path::new("tests/models/test_square.model");
+    ModelData::from_file(test_model_path, WORLD_POSITION).unwrap()
   }
 }

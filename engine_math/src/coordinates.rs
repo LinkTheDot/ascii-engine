@@ -11,6 +11,9 @@ pub trait CoordinateMethods {
   ///
   /// Self - Other
   fn subtract(&self, subtract: Coordinates) -> (isize, isize);
+
+  /// Converts the coordinates (usize, usize) into (isize, isize).
+  fn to_isize(&self) -> (isize, isize);
 }
 
 #[allow(non_camel_case_types)]
@@ -39,6 +42,10 @@ impl CoordinateMethods for Coordinates {
       self.0 as isize - subtract.0 as isize,
       self.1 as isize - subtract.1 as isize,
     )
+  }
+
+  fn to_isize(&self) -> (isize, isize) {
+    (self.0 as isize, self.1 as isize)
   }
 }
 

@@ -61,14 +61,9 @@ impl HitboxCreationData {
   ///
   ///
   /// If the skin string is empty, returns an [`empty hitbox`](Hitbox::create_empty).
-  ///
-  /// # Errors
-  ///
-  /// - Returns an error when no anchor was found on the shape of the hitbox.
-  /// - Returns an error if multiple anchors were found on the shape of the hitbox.
-  fn get_hitbox(self, anchor_skin_coordinates: (isize, isize)) -> Result<Hitbox, ModelError> {
+  fn get_hitbox(self, anchor_skin_coordinates: (isize, isize)) -> Hitbox {
     if self.dimensions.area() == 0 {
-      return Ok(Hitbox::create_empty());
+      return Hitbox::create_empty();
     }
 
     let skin_top_left_to_hitbox_top_left =
@@ -78,12 +73,12 @@ impl HitboxCreationData {
         self.dimensions.x as f32,
       );
 
-    Ok(Hitbox {
+    Hitbox {
       skin_top_left_to_hitbox_top_left,
       hitbox_anchor_index: self.anchor_index,
       dimensions: self.dimensions,
       empty_hitbox: false,
-    })
+    }
   }
 
   /// This returns the relative position of the skin's top left to the hitbox's top left
@@ -186,15 +181,7 @@ impl Hitbox {
   /// xxx
   /// ```
   /// you would pass in (1, 1).
-  ///
-  /// # Errors
-  ///
-  /// - Returns an error when no anchor was found on the shape of the hitbox.
-  /// - Returns an error if multiple anchors were found on the shape of the hitbox.
-  pub fn from(
-    hitbox_data: HitboxCreationData,
-    skin_anchor_coordinates: (isize, isize),
-  ) -> Result<Self, ModelError> {
+  pub fn from(hitbox_data: HitboxCreationData, skin_anchor_coordinates: (isize, isize)) -> Self {
     hitbox_data.get_hitbox(skin_anchor_coordinates)
   }
 
@@ -231,5 +218,14 @@ impl Hitbox {
     self.dimensions = new_dimensions;
 
     Ok(())
+  }
+
+  pub fn get_hitbox_dimensions(&self) -> &Rectangle {
+    &self.dimensions
+  }
+
+  // This will be changed once all movement logic is cleaned up.
+  pub fn sprite_to_hitbox_anchor_difference(&self) -> (isize, isize) {
+    self.skin_top_left_to_hitbox_top_left
   }
 }

@@ -6,7 +6,7 @@ use std::cmp::Ordering;
 ///
 /// Also holds the anchor for how the appearance in placed on the screen and where the hitbox is placed
 /// relative to the appearance.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Sprite {
   shape: String,
   anchor_character: char,
@@ -46,12 +46,15 @@ impl Sprite {
     &mut self,
     new_shape: String,
     new_anchor_character: Option<char>,
+    new_anchor_replacement_character: Option<char>,
   ) -> Result<(), ModelError> {
     if !Rectangle::string_is_valid_rectangle(&new_shape) {
       return Err(ModelError::NonRectangularShape);
     }
 
     let anchor_character = new_anchor_character.unwrap_or(self.anchor_character);
+    let anchor_replacement_character =
+      new_anchor_replacement_character.unwrap_or(self.anchor_replacement_character);
 
     if anchor_character == self.air_character {
       return Err(ModelError::SpriteAnchorMatchesAirCharacter);
@@ -62,6 +65,7 @@ impl Sprite {
     self.shape = new_shape;
     self.anchor_character_index = new_index;
     self.anchor_character = anchor_character;
+    self.anchor_replacement_character = anchor_replacement_character;
 
     Ok(())
   }
@@ -113,6 +117,21 @@ impl Sprite {
     self.anchor_replacement_character = new_anchor_replacement;
   }
 
+  /// Returns the index of the anchor character in the sprite's current appearance.
+  pub fn get_anchor_index(&self) -> usize {
+    self.anchor_character_index
+  }
+
+  /// Returns the actual appearance of the sprite.
+  ///
+  /// This will be the appearance of the model without the replacement anchor character.
+  pub fn get_appearance(&self) -> String {
+    self.shape.clone().replace(
+      self.anchor_character,
+      self.anchor_replacement_character.to_string().as_str(),
+    )
+  }
+
   /// Calculates the index for the anchor_character in the shape and returns it.
   /// Does NOT account for new lines in the shape string.
   ///
@@ -120,7 +139,7 @@ impl Sprite {
   ///
   /// - The stored shape doesn't have an anchor.
   /// - The stored shape has multiple anchors.
-  fn calculate_anchor_index(shape: &str, anchor_character: char) -> Result<usize, ModelError> {
+  pub fn calculate_anchor_index(shape: &str, anchor_character: char) -> Result<usize, ModelError> {
     let shape_anchor_indices: Vec<usize> = shape
       .chars()
       .enumerate()
@@ -142,4 +161,53 @@ impl Sprite {
       }
     }
   }
+
+  /// Checks if the sprite is valid or not.
+  /// Returns the list of error(s) that may have been detected with the sprite's data.
+  ///
+  /// # Errors
+  ///
+  /// - The stored shape isn't rectangular.
+  /// - The stored shape doesn't have an anchor.
+  /// - The stored shape has multiple anchors.
+  pub fn validity_check(&self) -> Result<(), Vec<ModelError>> {
+    let mut error_list = vec![];
+
+    if !Rectangle::string_is_valid_rectangle(&self.shape) {
+      error_list.push(ModelError::NonRectangularShape);
+    }
+
+    if let Err(anchor_error) = Self::calculate_anchor_index(&self.shape, self.anchor_character) {
+      error_list.push(anchor_error);
+    }
+
+    if self.anchor_character == self.air_character {
+      error_list.push(ModelError::SpriteAnchorMatchesAirCharacter);
+    }
+
+    if !error_list.is_empty() {
+      Err(error_list)
+    } else {
+      Ok(())
+    }
+  }
+
+  /// Returns the dimensions for the string of the sprite's shape.
+  ///
+  /// Does NOT include new lines.
+  pub fn get_dimensions(&self) -> Rectangle {
+    // The shape should always be valid
+    Rectangle::get_string_dimensions(&self.shape).unwrap()
+  }
+
+  /// Returns a copy of the current air character.
+  pub fn air_character(&self) -> char {
+    self.air_character
+  }
 }
+
+// impl From<(String, char, char, char)> for Sprite {
+//   fn from(item: (String, char, char, char)) -> Result<Self, ModelError> {
+//     todo!()
+//   }
+// }

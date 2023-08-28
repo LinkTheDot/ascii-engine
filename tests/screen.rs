@@ -20,12 +20,12 @@ mod display_logic {
   #[test]
   fn with_model() {
     let mut screen = ScreenData::new();
-    let test_model = TestModel::new();
+    let test_model = new_test_model();
 
     let expected_pixel_count =
       ((CONFIG.grid_width * CONFIG.grid_height) + CONFIG.grid_height - 1) as usize;
 
-    screen.add_model(&test_model).unwrap();
+    screen.add_model(test_model).unwrap();
 
     let display = screen.display();
 
@@ -36,11 +36,10 @@ mod display_logic {
 #[test]
 fn add_and_remove_model() {
   let mut screen = ScreenData::new();
-  let test_model = TestModel::new();
-
-  screen.add_model(&test_model).unwrap();
-
+  let test_model = new_test_model();
   let test_model_hash = test_model.get_unique_hash();
+
+  screen.add_model(test_model).unwrap();
 
   let result_data = screen.remove_model(&test_model_hash).unwrap();
 
@@ -130,16 +129,7 @@ fn stop_stopped_animation_thread() {
 
 const WORLD_POSITION: (usize, usize) = (10, 10);
 
-#[derive(DisplayModel)]
-struct TestModel {
-  model_data: ModelData,
-}
-
-impl TestModel {
-  fn new() -> Self {
-    let test_model_path = std::path::Path::new("tests/models/test_square.model");
-    let model_data = ModelData::from_file(test_model_path, WORLD_POSITION).unwrap();
-
-    Self { model_data }
-  }
+fn new_test_model() -> ModelData {
+  let test_model_path = std::path::Path::new("tests/models/test_square.model");
+  ModelData::from_file(test_model_path, WORLD_POSITION).unwrap()
 }

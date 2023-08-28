@@ -1,6 +1,6 @@
-use crate::screen::errors::ScreenError;
 use log::error;
 use log::info;
+use model_data_structures::screen::errors::ScreenError;
 use oneshot::Sender;
 use std::io;
 use std::io::{Read, Write};

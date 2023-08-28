@@ -3,6 +3,7 @@ name = "ascii_engine"
 version = "0.1.0"
 edition = "2021"
 
+[workspace]
 members = [
   "model_macros",
   "model_data_structures",

@@ -3,8 +3,6 @@ use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::{fs::OpenOptions, path::Path};
 
-// log_file_message_size = "Long"
-
 /// The list of options for the config.
 #[derive(Deserialize, Serialize)]
 pub struct ConfigData {

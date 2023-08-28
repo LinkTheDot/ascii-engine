@@ -1,15 +1,15 @@
 use crate::errors::*;
 use crate::general_data::file_logger;
-use crate::models::animation::{AnimationConnection, AnimationRequest, ModelAnimationData};
-use crate::models::model_data::*;
+use crate::models::animation_thread;
+use crate::screen::model_manager::*;
 use crate::screen::model_storage::*;
 use crate::CONFIG;
 use event_sync::EventSync;
 use log::error;
+use model_data_structures::models::{animation::*, model_data::*, strata::*};
 use screen_printer::printer::*;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use tokio::sync::mpsc;
 
 /// ScreenData is where all the internal information required to create frames is held.
 ///
@@ -46,7 +46,7 @@ pub struct ScreenData {
   /// Hides the cursor as long as this lives
   _cursor_hider: termion::cursor::HideCursor<std::io::Stdout>,
 
-  animation_thread_connection: Option<AnimationConnection>,
+  animation_thread_connection: Option<AnimationThreadConnection>,
 }
 
 impl ScreenData {
@@ -133,10 +133,6 @@ impl ScreenData {
   /// This will use a built in printer to efficiently print to the screen.
   /// This prevents any flickers that normally appear in the terminal when printing a lot in a given time frame.
   ///
-  /// To use this method you must first call the [`start_printer()`](crate::screen::screen_data::ScreenData::start_printer) method
-  /// to activate the printer.
-  /// It's recommended to do this right after creating the screen, and before you do anything else.
-  ///
   /// # Usage
   ///
   /// ```ignore
@@ -168,55 +164,21 @@ impl ScreenData {
   /// Prints whitespace over the screen.
   ///
   /// This can be used to reset the grid if things get desynced from possible bugs.
-  ///
-  /// # Errors
-  ///
-  /// - Returns an error if the printer hasn't been started with [`start_printer()`](crate::screen::screen_data::ScreenData::start_printer).
-  pub fn clear_screen(&mut self) -> Result<(), ScreenError> {
+  pub fn clear_screen(&mut self) {
     self.printer.clear_grid().unwrap();
-
-    Ok(())
   }
 
-  /// This is how you let the screen know a model exists.
+  /// Adds the passed in model to the list of all models in the world.
+  ///
+  /// Returns the hash of that model
   ///
   /// Refer to [`ModelData`](crate::models::model_data::ModelData) on how to create your own model.
-  ///
-  /// # Usage
-  /// ```
-  /// use ascii_engine::prelude::*;
-  /// use std::path::Path;
-  ///
-  /// #[derive(DisplayModel)]
-  /// struct MyModel {
-  ///   model_data: ModelData,
-  /// }
-  ///
-  /// impl MyModel {
-  ///   fn new(world_position: (usize, usize)) -> Self {
-  ///     let model_path = Path::new("examples/models/square.model");
-  ///
-  ///     Self {
-  ///       model_data: ModelData::from_file(model_path, world_position).unwrap(),
-  ///     }
-  ///   }
-  /// }
-  ///
-  /// let mut screen_data = ScreenData::new();
-  /// // screen_data.start_printer().unwrap(); crashes when running in tests
-  ///
-  /// let my_model = MyModel::new((10, 10));
-  ///
-  /// screen_data.add_model(&my_model).unwrap();
-  /// ```
   ///
   /// # Errors
   ///
   /// - An error is returned when attempting to add a model that already exists.
-  pub fn add_model<D: DisplayModel>(&mut self, model: &D) -> Result<(), ModelError> {
-    let model_data = model.get_model_data();
-
-    self.model_storage.write().unwrap().insert(model_data)
+  pub fn add_model(&mut self, model: ModelData) -> Result<(), ModelError> {
+    self.model_storage.write().unwrap().insert(model)
   }
 
   /// Removes the ModelData of the given key and returns it.
@@ -237,6 +199,18 @@ impl ScreenData {
     old_world_models.extract_model_list()
   }
 
+  pub fn get_model_manager(&self) -> ModelManager {
+    ModelManager::new(self.model_storage.clone())
+  }
+
+  pub fn connect_model_manager_to_animation_thread(&self, model_manager: &mut ModelManager) {
+    let Some(animation_thread_connection) = &self.animation_thread_connection else {
+      return;
+    };
+
+    model_manager.add_animation_connection(animation_thread_connection.clone_sender());
+  }
+
   /// Starts the animation thread for the screen.
   ///
   /// This allows for the use of animation methods on Models.
@@ -245,7 +219,7 @@ impl ScreenData {
   ///
   /// - An error is returned if the animation thread was already started.
   pub fn start_animation_thread(&mut self) -> Result<(), ScreenError> {
-    match ModelAnimationData::start_animation_thread(self) {
+    match animation_thread::start_animation_thread(self) {
       Ok(animation_connection) => self.animation_thread_connection = Some(animation_connection),
       Err(animation_error) => return Err(ScreenError::AnimationError(animation_error)),
     }
@@ -271,34 +245,31 @@ impl ScreenData {
     self.animation_thread_connection.is_some()
   }
 
-  /// Returns a copy of the AnimationRequest sender for animation threads.
-  ///
-  /// None is returned if [`screen_data.start_animation_thread()`](ScreenData::start_animation_thread) hasn't been called yet.
-  pub(crate) fn get_animation_connection(&self) -> Option<mpsc::UnboundedSender<AnimationRequest>> {
-    Some(self.animation_thread_connection.as_ref()?.clone_sender())
-  }
-
   pub fn get_event_sync(&self) -> EventSync {
     self.event_sync.clone()
   }
 
   /// Places the appearance of the model in the given frame.
   fn apply_model_in_frame(model: ModelData, current_frame: &mut String) {
-    let model_frame_position = model.top_left();
-    let (model_width, _model_height) = model.get_sprite_dimensions();
-    let air_character = model.get_air_char();
+    let model_frame_position = model.get_frame_position();
+    let model_sprite = model.get_sprite();
+    let model_sprite = model_sprite.read().unwrap();
+    let sprite_width = model_sprite.get_dimensions().x;
+    let air_character = model_sprite.air_character();
 
-    let model_shape = model.get_sprite().replace('\n', "");
+    let model_shape = model_sprite.get_appearance().replace('\n', "");
     let model_characters = model_shape.chars();
+
+    drop(model_sprite);
 
     for (index, character) in model_characters.enumerate() {
       if character != air_character {
-        let current_row_count = index / model_width;
+        let current_row_count = index / sprite_width;
 
         // (top_left_index + (row_adder + column_adder)) - column_correction
         let character_index = (model_frame_position
           + (((CONFIG.grid_width as usize + 1) * current_row_count) + index))
-          - (current_row_count * model_width);
+          - (current_row_count * sprite_width);
 
         current_frame.replace_range(
           character_index..(character_index + 1),
@@ -349,10 +320,9 @@ mod tests {
     // Checks if the first character in the model is equal to the first character
     // of where the model was expected to be in the frame.
     fn correct_input() {
-      let model = TestModel::new();
-      let model_data = model.get_model_data();
+      let model_data = new_test_model();
       let find_character = SHAPE.chars().next().unwrap();
-      let top_left_index = model_data.top_left();
+      let top_left_index = model_data.get_frame_position();
       let mut current_frame = ScreenData::create_blank_frame();
 
       let expected_top_left_character = find_character;
@@ -402,17 +372,8 @@ mod tests {
   // -- Data for tests below --
   //
 
-  #[derive(DisplayModel)]
-  struct TestModel {
-    model_data: ModelData,
-  }
-
-  impl TestModel {
-    fn new() -> Self {
-      let test_model_path = std::path::Path::new("tests/models/test_square.model");
-      let model_data = ModelData::from_file(test_model_path, WORLD_POSITION).unwrap();
-
-      Self { model_data }
-    }
+  fn new_test_model() -> ModelData {
+    let test_model_path = std::path::Path::new("tests/models/test_square.model");
+    ModelData::from_file(test_model_path, WORLD_POSITION).unwrap()
   }
 }

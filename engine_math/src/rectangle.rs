@@ -1,7 +1,7 @@
 use screen_printer::printer::Printer;
 use serde::{Deserialize, Serialize};
 
-#[derive(Default, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Eq, PartialEq, Serialize, Deserialize, Clone, Copy)]
 pub struct Rectangle {
   pub x: usize,
   pub y: usize,
@@ -35,6 +35,23 @@ impl Rectangle {
   /// Returns true if the index is within the range of the rectangle stored in self.
   pub fn index_is_valid(&self, index: usize) -> bool {
     self.area() > index || self.area() == 0 && index == 0
+  }
+
+  /// Returns true if the two rectangles are colliding.
+  pub fn is_colliding(
+    &self,
+    self_position: (isize, isize),
+    other: &Self,
+    other_position: (isize, isize),
+  ) -> bool {
+    // x1 < x2 + w2 &&
+    // x2 < x1 + w1 &&
+    // y1 < y2 + h2 &&
+    // y2 < y1 + h1
+    self_position.0 < other_position.0 + other.x as isize
+      && other_position.0 < self_position.0 + self.x as isize
+      && self_position.1 < other_position.1 + other.y as isize
+      && other_position.1 < self_position.1 + self.y as isize
   }
 }
 

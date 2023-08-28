@@ -123,12 +123,13 @@ pub enum AnimationError {
   AnimationDataAlreadyHasConnection,
 
   /// This error happens when attempting to start a model's animation without ever starting the animation thread.
-  ///
-  /// To start the animation thread use [`screen_data.start_animation_thread()`](crate::screen::screen_data::ScreenData::start_animation_thread).
   AnimationThreadNotStarted,
 
   /// This error is returned when attempting to start the animation thread when it has already been started.
   AnimationThreadAlreadyStarted,
+
+  /// The connection was severed when attempting to send a request to the animation thread.
+  AnimationThreadClosed,
 
   /// This error is returned when attempting to increment the changed frames on a model animator that has no current animation.
   NoExistingAnimation,
@@ -140,6 +141,9 @@ pub enum AnimationError {
   /// This error is returned when attempting to parse an animation directory for a model, but the path
   /// defined in the model's file leads to a file instead of a directory containing animation files.
   AnimationDirectoryIsFile(OsString),
+
+  /// Attempted to add a model to the animation thread through the model manager, but there was no connection.
+  NoExistingAnimationConnection,
 }
 
 /// Since almost no error is returned to the user from the animation parser, most errors here will only ever

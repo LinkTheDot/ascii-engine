@@ -553,9 +553,15 @@ dependencies = [
 name = "model_data_structures"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "config",
  "engine_math",
+ "lazy_static",
  "log",
  "screen_printer",
+ "serde",
+ "tokio",
+ "toml 0.7.6",
 ]
 
 [[package]]
