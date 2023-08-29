@@ -21,15 +21,12 @@ pub mod general_data {
 pub mod models {
   pub mod animation_file_parser;
   pub mod animation_thread;
-  pub mod hitboxes;
-  pub mod model_data;
-  pub mod model_file_parser;
-  pub mod sprites;
   pub mod traits;
 }
 
 pub mod screen {
   pub mod model_manager;
   pub mod model_storage;
+  pub mod printer;
   pub mod screen_data;
 }

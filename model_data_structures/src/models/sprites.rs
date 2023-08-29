@@ -55,12 +55,13 @@ impl Sprite {
     let anchor_character = new_anchor_character.unwrap_or(self.anchor_character);
     let anchor_replacement_character =
       new_anchor_replacement_character.unwrap_or(self.anchor_replacement_character);
+    let new_anchor_character = new_anchor_character.unwrap_or(self.anchor_character);
 
     if anchor_character == self.air_character {
       return Err(ModelError::SpriteAnchorMatchesAirCharacter);
     }
 
-    let new_index = Self::calculate_anchor_index(&new_shape, self.anchor_character)?;
+    let new_index = Self::calculate_anchor_index(&new_shape, new_anchor_character)?;
 
     self.shape = new_shape;
     self.anchor_character_index = new_index;

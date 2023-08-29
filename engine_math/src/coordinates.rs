@@ -1,3 +1,5 @@
+// Clean up this entire thing to work with generics.
+
 /// (x, y)
 pub type Coordinates = (usize, usize);
 
@@ -14,15 +16,18 @@ pub trait CoordinateMethods {
 
   /// Converts the coordinates (usize, usize) into (isize, isize).
   fn to_isize(&self) -> (isize, isize);
+
+  /// Converts a tuple of (isize, isize) and converts it to (usize, usize)
+  fn from_isize(coords: (isize, isize)) -> Self;
 }
 
 #[allow(non_camel_case_types)]
-pub trait usizeMethods {
+pub trait UsizeMethods {
   /// Converts the given index to a set of coordinates of the passed in grid width.
   fn index_to_coordinates(&self, width: usize) -> (usize, usize);
 }
 
-impl usizeMethods for usize {
+impl UsizeMethods for usize {
   fn index_to_coordinates(&self, width: usize) -> (usize, usize) {
     (self % width, self / width)
   }
@@ -46,6 +51,10 @@ impl CoordinateMethods for Coordinates {
 
   fn to_isize(&self) -> (isize, isize) {
     (self.0 as isize, self.1 as isize)
+  }
+
+  fn from_isize(coords: (isize, isize)) -> Self {
+    (coords.0 as usize, coords.1 as usize)
   }
 }
 

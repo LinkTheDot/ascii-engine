@@ -226,16 +226,17 @@ impl InternalModelData {
     assigned_name: String,
   ) -> Result<Self, ModelError> {
     // Where the anchor is inside the sprite's appearance.
-    let (sprite_anchor_x, sprite_anchor_y) = sprite
+    let sprite_anchor_coordinates = sprite
       .get_anchor_index()
-      .index_to_coordinates(CONFIG.grid_width as usize + 1);
-    let (sprite_anchor_x, sprite_anchor_y) = (sprite_anchor_x as isize, sprite_anchor_y as isize);
+      .index_to_coordinates(sprite.get_dimensions().x);
 
-    let position_in_frame = get_position_data(
-      model_position.coordinates_to_index(CONFIG.grid_width as usize + 1),
-      (sprite_anchor_x, sprite_anchor_y),
-    );
-    let hitbox = Hitbox::from(hitbox_data, (sprite_anchor_x, sprite_anchor_y));
+    let position_in_frame = model_position
+      .add((1, 0)) // account for the new lines in a frame
+      .subtract(sprite_anchor_coordinates);
+    let position_in_frame = Coordinates::from_isize(position_in_frame)
+      .coordinates_to_index(CONFIG.grid_width as usize + 1);
+
+    let hitbox = Hitbox::from(hitbox_data, sprite_anchor_coordinates.to_isize());
 
     // Will be removed once replaced with a Z axis.
     if !strata.correct_range() {

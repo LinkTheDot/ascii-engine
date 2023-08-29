@@ -3,12 +3,18 @@ use log::{error, info, warn};
 use model_data_structures::models::model_data::*;
 use model_data_structures::models::strata::*;
 use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 /// This is the struct that contains a reference to every model that exists in the world.
 #[derive(Debug, Default)]
 pub(crate) struct ModelStorage {
   model_stratas: HashMap<Strata, HashSet<u64>>,
   models: HashMap<u64, ModelData>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ReadOnlyModelStorage {
+  model_storage: Arc<RwLock<ModelStorage>>,
 }
 
 impl ModelStorage {
@@ -210,6 +216,20 @@ impl ModelStorage {
     }
 
     Err(ModelError::ModelDoesntExist)
+  }
+
+  pub(crate) fn create_read_only(model_storage: Arc<RwLock<Self>>) -> ReadOnlyModelStorage {
+    ReadOnlyModelStorage { model_storage }
+  }
+}
+
+impl ReadOnlyModelStorage {
+  pub fn new(model_storage: Arc<RwLock<ModelStorage>>) -> Self {
+    Self { model_storage }
+  }
+
+  pub fn read_model_storage(&self) -> RwLockReadGuard<ModelStorage> {
+    self.model_storage.read().unwrap()
   }
 }
 

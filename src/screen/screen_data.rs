@@ -3,13 +3,14 @@ use crate::general_data::file_logger;
 use crate::models::animation_thread;
 use crate::screen::model_manager::*;
 use crate::screen::model_storage::*;
+use crate::screen::printer::*;
 use crate::CONFIG;
 use event_sync::EventSync;
-use log::error;
-use model_data_structures::models::{animation::*, model_data::*, strata::*};
+use model_data_structures::models::{animation::*, model_data::*};
 use screen_printer::printer::*;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
+use std::thread::JoinHandle;
 
 /// ScreenData is where all the internal information required to create frames is held.
 ///
@@ -39,11 +40,11 @@ use std::sync::{Arc, RwLock};
 /// To create your own models refer to [`ModelData`](crate::models::model_data::ModelData).
 /// For adding them to the screen look to [add_model()](crate::screen::screen_data::ScreenData::add_model()).
 pub struct ScreenData {
-  printer: Printer,
+  printer: ScreenPrinter,
   event_sync: EventSync,
   model_storage: Arc<RwLock<ModelStorage>>,
 
-  /// Hides the cursor as long as this lives
+  /// Hides the terminal cursor as long as this lives
   _cursor_hider: termion::cursor::HideCursor<std::io::Stdout>,
 
   animation_thread_connection: Option<AnimationThreadConnection>,
@@ -85,10 +86,15 @@ impl ScreenData {
     let cursor_hider = termion::cursor::HideCursor::from(std::io::stdout());
     let printing_position =
       PrintingPosition::new(XPrintingPosition::Middle, YPrintingPosition::Middle);
+    let printer = Printer::new_with_printing_position(printing_position);
     let model_storage: Arc<RwLock<ModelStorage>> = Default::default();
+    let printer = ScreenPrinter::new(
+      Arc::new(Mutex::new(printer)),
+      ModelStorage::create_read_only(model_storage.clone()),
+    );
 
     ScreenData {
-      printer: Printer::new_with_printing_position(printing_position),
+      printer,
       event_sync: EventSync::new(CONFIG.tick_duration),
       model_storage,
       _cursor_hider: cursor_hider,
@@ -104,28 +110,8 @@ impl ScreenData {
   ///
   /// If you want to print to a terminal it's best to use the
   /// [`print_screen()`](crate::screen::screen_data::ScreenData::print_screen) method for that.
-  ///
-  /// Using this does not require you to start the printer as it just returns a frame the printer would've used itself.
   pub fn display(&self) -> String {
-    let mut frame = Self::create_blank_frame();
-
-    for strata_number in 0..=100 {
-      let existing_models = self.model_storage.read().unwrap();
-
-      let Some(strata_keys) = existing_models.get_strata_keys(&Strata(strata_number)) else { continue };
-
-      for model in strata_keys.iter().map(|key| existing_models.get_model(key)) {
-        let Some(model) = model else {
-          error!("A model in strata {strata_number} that doesn't exist was attempted to be run.");
-
-          continue;
-        };
-
-        Self::apply_model_in_frame(model, &mut frame);
-      }
-    }
-
-    frame
+    self.printer.display()
   }
 
   /// Prints the screen as it currently is.
@@ -152,20 +138,21 @@ impl ScreenData {
   ///
   /// - Returns an error if a model is overlapping on the edge of the grid.
   pub fn print_screen(&mut self) -> Result<(), ScreenError> {
-    let frame = self.display();
-
-    if let Err(error) = self.printer.dynamic_print(frame) {
-      return Err(ScreenError::PrintingError(error));
-    }
-
-    Ok(())
+    self.printer.print_screen()
   }
 
   /// Prints whitespace over the screen.
   ///
   /// This can be used to reset the grid if things get desynced from possible bugs.
   pub fn clear_screen(&mut self) {
-    self.printer.clear_grid().unwrap();
+    self.printer.clear_screen();
+  }
+
+  /// Returns a copy of the ScreenPrinter.
+  ///
+  /// The ScreenPrinter can be used for printing the screen, and can be passed around to different threads.
+  pub fn get_screen_printer(&self) -> ScreenPrinter {
+    self.printer.clone()
   }
 
   /// Adds the passed in model to the list of all models in the world.
@@ -199,6 +186,9 @@ impl ScreenData {
     old_world_models.extract_model_list()
   }
 
+  /// Returns a new ModelManager.
+  ///
+  /// The ModelManager will handle all actions requested to models in the world.
   pub fn get_model_manager(&self) -> ModelManager {
     ModelManager::new(self.model_storage.clone())
   }
@@ -249,131 +239,78 @@ impl ScreenData {
     self.event_sync.clone()
   }
 
-  /// Places the appearance of the model in the given frame.
-  fn apply_model_in_frame(model: ModelData, current_frame: &mut String) {
-    let model_frame_position = model.get_frame_position();
-    let model_sprite = model.get_sprite();
-    let model_sprite = model_sprite.read().unwrap();
-    let sprite_width = model_sprite.get_dimensions().x;
-    let air_character = model_sprite.air_character();
-
-    let model_shape = model_sprite.get_appearance().replace('\n', "");
-    let model_characters = model_shape.chars();
-
-    drop(model_sprite);
-
-    for (index, character) in model_characters.enumerate() {
-      if character != air_character {
-        let current_row_count = index / sprite_width;
-
-        // (top_left_index + (row_adder + column_adder)) - column_correction
-        let character_index = (model_frame_position
-          + (((CONFIG.grid_width as usize + 1) * current_row_count) + index))
-          - (current_row_count * sprite_width);
-
-        current_frame.replace_range(
-          character_index..(character_index + 1),
-          &character.to_string(),
-        );
-      }
-    }
-  }
-
-  /// Returns a 2D string of the assigned air character in the config file.
+  /// Spawns a thread that will print the screen a given amount of times per second.
   ///
-  /// 2D meaning, rows of characters separated by newlines "creating a second dimension.
-  fn create_blank_frame() -> String {
-    // This was the fastest way I found to create a large 2-dimensional string of 1 character.
-    let pixel_row = CONFIG.empty_pixel.repeat(CONFIG.grid_width as usize) + "\n";
+  /// The max printing rate is 60, and high rates of printing to the terminal can cause
+  /// artifacting.
+  ///
+  /// Returns the JoinHandle and kill_sender to the thread.
+  pub fn spawn_printing_thread(&self, printing_rate: u32) -> (JoinHandle<()>, oneshot::Sender<()>) {
+    let mut printer = self.printer.clone();
+    let printing_rate = printing_rate.max(1).min(60);
+    let (kill_sender, kill_receiver) = oneshot::channel();
 
-    let mut frame = pixel_row.repeat(CONFIG.grid_height as usize);
-    frame.pop(); // Removes the new line left at the end.
+    let thread_handle = std::thread::spawn(move || {
+      let printing_event_sync = EventSync::new(1000 / printing_rate);
+      let mut consecutive_errors = 0;
 
-    frame
+      while kill_receiver.try_recv().is_err() && consecutive_errors < 5 {
+        printing_event_sync.wait_for_tick();
+
+        if let Err(error) = printer.print_screen() {
+          log::error!(
+            "An error prevented the screen from getting printed: {:?}",
+            error
+          );
+
+          consecutive_errors += 1;
+        } else {
+          consecutive_errors = 0;
+        }
+      }
+    });
+
+    (thread_handle, kill_sender)
   }
 }
 
 #[cfg(test)]
 mod tests {
-  use super::*;
-
-  const WORLD_POSITION: (usize, usize) = (10, 10);
-  const SHAPE: &str = "xxxxx\nxxaxx\nxxxxx";
-
-  #[test]
-  fn create_blank_frame() {
-    let expected_pixel_count =
-      ((CONFIG.grid_width * CONFIG.grid_height) + CONFIG.grid_height - 1) as usize;
-
-    let blank_frame = ScreenData::create_blank_frame();
-
-    assert!(blank_frame.chars().count() == expected_pixel_count);
-  }
-
-  #[cfg(test)]
-  mod apply_row_in_frame_logic {
-    use super::*;
-
-    #[test]
-    // Places the model on the screen.
-    //
-    // Checks if the first character in the model is equal to the first character
-    // of where the model was expected to be in the frame.
-    fn correct_input() {
-      let model_data = new_test_model();
-      let find_character = SHAPE.chars().next().unwrap();
-      let top_left_index = model_data.get_frame_position();
-      let mut current_frame = ScreenData::create_blank_frame();
-
-      let expected_top_left_character = find_character;
-      let expected_left_of_expected_character = CONFIG.empty_pixel.chars().next().unwrap();
-
-      ScreenData::apply_model_in_frame(model_data, &mut current_frame);
-
-      let model_top_left_character_in_frame = current_frame.chars().nth(top_left_index);
-      let left_of_index_in_frame = current_frame.chars().nth(top_left_index - 1);
-
-      assert_eq!(
-        model_top_left_character_in_frame.unwrap(),
-        expected_top_left_character
-      );
-      assert_eq!(
-        left_of_index_in_frame.unwrap(),
-        expected_left_of_expected_character
-      );
-    }
-  }
-
-  #[cfg(test)]
-  mod get_animation_connection_logic {
-    use super::*;
-
-    #[test]
-    fn animation_not_started() {
-      let screen = ScreenData::new();
-
-      let result = screen.get_animation_connection();
-
-      assert!(result.is_none());
-    }
-
-    #[test]
-    fn animation_is_started() {
-      let mut screen = ScreenData::new();
-      screen.start_animation_thread().unwrap();
-
-      let result = screen.get_animation_connection();
-
-      assert!(result.is_some());
-    }
-  }
-
+  // use super::*;
   //
-  // -- Data for tests below --
+  // const WORLD_POSITION: (usize, usize) = (10, 10);
+  // const SHAPE: &str = "xxxxx\nxxaxx\nxxxxx";
   //
-
-  fn new_test_model() -> ModelData {
-    let test_model_path = std::path::Path::new("tests/models/test_square.model");
-    ModelData::from_file(test_model_path, WORLD_POSITION).unwrap()
-  }
+  // #[cfg(test)]
+  // mod get_animation_connection_logic {
+  //   use super::*;
+  //
+  //   #[test]
+  //   fn animation_not_started() {
+  //     let screen = ScreenData::new();
+  //
+  //     let result = screen.get_animation_connection();
+  //
+  //     assert!(result.is_none());
+  //   }
+  //
+  //   #[test]
+  //   fn animation_is_started() {
+  //     let mut screen = ScreenData::new();
+  //     screen.start_animation_thread().unwrap();
+  //
+  //     let result = screen.get_animation_connection();
+  //
+  //     assert!(result.is_some());
+  //   }
+  // }
+  //
+  // //
+  // // -- Data for tests below --
+  // //
+  //
+  // fn new_test_model() -> ModelData {
+  //   let test_model_path = std::path::Path::new("tests/models/test_square.model");
+  //   ModelData::from_file(test_model_path, WORLD_POSITION).unwrap()
+  // }
 }

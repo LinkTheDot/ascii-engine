@@ -73,9 +73,8 @@ impl ModelDataBuilder {
     let anchor_replacement = self.anchor_replacement.unwrap();
     let air = self.air.unwrap();
 
-    base_sprite.change_shape(appearance, None, Some(anchor))?;
+    base_sprite.change_shape(appearance, Some(anchor), Some(anchor_replacement))?;
     base_sprite.change_air_character(air)?;
-    base_sprite.change_anchor_replacement_character(anchor_replacement);
 
     Ok(base_sprite)
   }
