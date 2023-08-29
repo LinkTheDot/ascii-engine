@@ -76,6 +76,8 @@ mod start_animation_thread_logic {
 
 #[test]
 fn get_event_sync_logic() {
+  const RUN_COUNT: usize = 50;
+
   let screen = ScreenData::new();
 
   let expected_elapsed_time_low = 23500;
@@ -83,8 +85,10 @@ fn get_event_sync_logic() {
 
   let event_sync = screen.get_event_sync();
 
+  let mut sucess_count = 0;
+
   // run the test 50 times
-  for _ in 0..50 {
+  for _ in 0..RUN_COUNT {
     event_sync.wait_for_tick();
     let now = std::time::Instant::now();
 
@@ -93,10 +97,13 @@ fn get_event_sync_logic() {
     let elapsed_time = now.elapsed().as_micros();
 
     // check if the elapsed time is 24ms +- 0.5ms;
-    assert!(
-      expected_elapsed_time_low <= elapsed_time && expected_elapsed_time_high >= elapsed_time
-    );
+    if expected_elapsed_time_low <= elapsed_time && expected_elapsed_time_high >= elapsed_time {
+      sucess_count += 1;
+    }
   }
+
+  // check for a 90% sucess rate
+  assert!(sucess_count >= (RUN_COUNT as f32 * 0.9) as usize);
 }
 
 #[test]

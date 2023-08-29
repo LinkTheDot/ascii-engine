@@ -55,10 +55,11 @@ fn from_file_invalid_file_extension() {
 fn from_file_model_doesnt_exist() {
   let path = std::path::Path::new("this_is_a_name_nobody_should_take_ionuwvuiobnwvnbiouervw.model");
 
-  if path.exists() {
-    // Coveralls is dumb btw.
-    panic!("The test file name was taken.");
-  }
+  // Check if the file exists
+  assert!(
+    !path.exists(),
+    "A test file that isn't suppose to exist was found."
+  );
 
   let file_path_string = path.file_name().map(|path_string| path_string.to_owned());
   let path_error = ModelCreationError::ModelFileDoesntExist(file_path_string);
