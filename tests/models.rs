@@ -56,6 +56,7 @@ fn from_file_model_doesnt_exist() {
   let path = std::path::Path::new("this_is_a_name_nobody_should_take_ionuwvuiobnwvnbiouervw.model");
 
   if path.exists() {
+    // Coveralls is dumb btw.
     panic!("The test file name was taken.");
   }
 
@@ -280,9 +281,9 @@ fn new_test_model() -> ModelData {
   let test_model_path = std::path::Path::new("tests/models/test_square.model");
   ModelData::from_file(test_model_path, WORLD_POSITION).unwrap()
 }
-
-#[allow(dead_code)]
-fn new_test_model_no_hitbox() -> ModelData {
-  let test_model_path = std::path::Path::new("tests/models/test_model_no_hitbox.model");
-  ModelData::from_file(test_model_path, WORLD_POSITION).unwrap()
-}
+//
+// #[allow(dead_code)]
+// fn new_test_model_no_hitbox() -> ModelData {
+//   let test_model_path = std::path::Path::new("tests/models/test_model_no_hitbox.model");
+//   ModelData::from_file(test_model_path, WORLD_POSITION).unwrap()
+// }

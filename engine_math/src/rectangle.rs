@@ -8,11 +8,9 @@ pub struct Rectangle {
 }
 
 impl Rectangle {
-  pub fn new<T: Into<usize> + num_traits::cast::ToPrimitive>(x: T, y: T) -> Self {
-    Self {
-      x: x.into(),
-      y: y.into(),
-    }
+  // <T: Into<usize> + num_traits::cast::ToPrimitive>
+  pub fn new(x: usize, y: usize) -> Self {
+    Self { x, y }
   }
 
   /// Returns true if the passed in string is a valid rectangle.
@@ -32,7 +30,10 @@ impl Rectangle {
     self.x + self.y
   }
 
-  /// Returns true if the index is within the range of the rectangle stored in self.
+  /// Returns true if the given index is within the bounds of the Rectangle.
+  ///
+  /// That means if you have a rectangle of size (5, 5), and you check for an index of
+  /// 25, false is returned. That is because the max index in a rectangle of (5, 5) is 24.
   pub fn index_is_valid(&self, index: usize) -> bool {
     self.area() > index || self.area() == 0 && index == 0
   }
@@ -102,6 +103,53 @@ mod tests {
       let index = 0;
 
       assert!(rectangle.index_is_valid(index));
+    }
+  }
+
+  #[cfg(test)]
+  mod is_colliding_logic {
+    use super::*;
+
+    #[test]
+    fn is_colliding() {
+      let rectangle_one = Rectangle::from((10, 10));
+      let rectangle_one_position = (0, 0);
+      let rectangle_two = Rectangle::new(10, 10);
+      let rectangle_two_position = (9, 0);
+
+      assert!(rectangle_one.is_colliding(
+        rectangle_one_position,
+        &rectangle_two,
+        rectangle_two_position
+      ));
+    }
+
+    #[test]
+    fn is_not_colliding() {
+      let rectangle_one = Rectangle::from((10, 10));
+      let rectangle_one_position = (0, 0);
+      let rectangle_two = Rectangle::new(10, 10);
+      let rectangle_two_position = (10, 0);
+
+      assert!(!rectangle_one.is_colliding(
+        rectangle_one_position,
+        &rectangle_two,
+        rectangle_two_position
+      ));
+    }
+
+    #[test]
+    fn area_is_zero() {
+      let rectangle_one = Rectangle::new(0, 0);
+      let rectangle_one_position = (0, 0);
+      let rectangle_two = Rectangle::new(10, 10);
+      let rectangle_two_position = (0, 0);
+
+      assert!(!rectangle_one.is_colliding(
+        rectangle_one_position,
+        &rectangle_two,
+        rectangle_two_position
+      ));
     }
   }
 }

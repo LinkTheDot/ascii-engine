@@ -96,4 +96,18 @@ mod tests {
 
     assert_eq!(result, expected_result);
   }
+
+  #[test]
+  fn from_isize_negative() {
+    let coordinates = (-10, 5);
+
+    assert!(Coordinates::from_isize(coordinates).is_none());
+  }
+
+  #[test]
+  fn from_isize_position() {
+    let coordinates = (10, 5);
+
+    assert_eq!(Coordinates::from_isize(coordinates), Some((10, 5)));
+  }
 }
