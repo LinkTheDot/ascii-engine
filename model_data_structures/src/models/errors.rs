@@ -56,6 +56,9 @@ pub enum ModelError {
 
   /// Attempted to create/change a hitbox with an index that's larger than it's area.
   IndexLargerThanHitboxArea,
+
+  /// Attempted to place a model out of bounds of the world.
+  ModelOutOfBounds,
 }
 
 /// This is the list of possible errors that could happen when parsing a model file.

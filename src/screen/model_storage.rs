@@ -224,10 +224,6 @@ impl ModelStorage {
 }
 
 impl ReadOnlyModelStorage {
-  pub fn new(model_storage: Arc<RwLock<ModelStorage>>) -> Self {
-    Self { model_storage }
-  }
-
   pub fn read_model_storage(&self) -> RwLockReadGuard<ModelStorage> {
     self.model_storage.read().unwrap()
   }

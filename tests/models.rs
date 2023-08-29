@@ -86,7 +86,7 @@ fn from_file_model_doesnt_exist() {
 
 #[test]
 fn change_name() {
-  let mut test_model = new_test_model();
+  let test_model = new_test_model();
   let model_name = test_model.get_name();
 
   let expected_old_name = String::from("Test_Square");

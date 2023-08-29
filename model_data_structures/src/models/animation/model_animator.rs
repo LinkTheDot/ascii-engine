@@ -151,7 +151,7 @@ mod tests {
 
     #[test]
     fn empty_queue() {
-      let mut model_data = get_test_model_data();
+      let model_data = get_test_model_data();
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let mut model_animator = model_animator.lock().unwrap();
@@ -167,7 +167,7 @@ mod tests {
 
     #[test]
     fn existing_queue() {
-      let mut model_data = get_test_model_data();
+      let model_data = get_test_model_data();
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let mut model_animator = model_animator.lock().unwrap();
@@ -212,7 +212,7 @@ mod tests {
 
     #[test]
     fn empty_queue_running_animation() {
-      let mut model_data = get_test_model_data();
+      let model_data = get_test_model_data();
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let mut model_animator = model_animator.lock().unwrap();
@@ -230,7 +230,7 @@ mod tests {
 
     #[test]
     fn empty_queue_no_running_animation() {
-      let mut model_data = get_test_model_data();
+      let model_data = get_test_model_data();
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let mut model_animator = model_animator.lock().unwrap();
@@ -243,7 +243,7 @@ mod tests {
 
     #[test]
     fn queue_has_contents_running_animation() {
-      let mut model_data = get_test_model_data();
+      let model_data = get_test_model_data();
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let mut model_animator = model_animator.lock().unwrap();
@@ -265,7 +265,7 @@ mod tests {
 
     #[test]
     fn queue_has_contents_no_running_animation() {
-      let mut model_data = get_test_model_data();
+      let model_data = get_test_model_data();
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let mut model_animator = model_animator.lock().unwrap();
@@ -290,7 +290,7 @@ mod tests {
 
     #[test]
     fn has_animations() {
-      let mut model_data = get_test_model_data();
+      let model_data = get_test_model_data();
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let mut model_animator = model_animator.lock().unwrap();
@@ -315,7 +315,7 @@ mod tests {
 
     #[test]
     fn has_no_animations() {
-      let mut model_data = get_test_model_data();
+      let model_data = get_test_model_data();
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let model_animator = model_animator.lock().unwrap();
@@ -326,7 +326,7 @@ mod tests {
 
   #[test]
   fn overwrite_current_animation_logic() {
-    let mut model_data = get_test_model_data();
+    let model_data = get_test_model_data();
     let model_sprite = model_data.get_sprite();
     let model_animator = ModelAnimator::new(model_sprite);
     let mut model_animator = model_animator.lock().unwrap();
@@ -346,7 +346,7 @@ mod tests {
 
   #[test]
   fn update_when_last_frame_changed_logic() {
-    let mut model_data = get_test_model_data();
+    let model_data = get_test_model_data();
     let model_sprite = model_data.get_sprite();
     let model_animator = ModelAnimator::new(model_sprite);
     let mut model_animator = model_animator.lock().unwrap();
@@ -367,7 +367,7 @@ mod tests {
 
     #[test]
     fn running_animation() {
-      let mut model_data = get_test_model_data();
+      let model_data = get_test_model_data();
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let model_animation = get_test_animation(3);
@@ -385,7 +385,7 @@ mod tests {
 
     #[test]
     fn no_running_animation() {
-      let mut model_data = get_test_model_data();
+      let model_data = get_test_model_data();
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let model_animator = model_animator.lock().unwrap();
@@ -402,7 +402,7 @@ mod tests {
 
     #[test]
     fn running_frame_not_finished() {
-      let mut model_data = get_test_model_data();
+      let model_data = get_test_model_data();
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let model_animation = get_test_animation(1);
@@ -415,7 +415,7 @@ mod tests {
 
     #[test]
     fn running_frame_finished() {
-      let mut model_data = get_test_model_data();
+      let model_data = get_test_model_data();
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let mut model_animator = model_animator.lock().unwrap();
@@ -432,7 +432,7 @@ mod tests {
 
     #[test]
     fn no_running_animation() {
-      let mut model_data = get_test_model_data();
+      let model_data = get_test_model_data();
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let model_animator_guard = model_animator.lock().unwrap();
@@ -451,7 +451,7 @@ mod tests {
 
     #[test]
     fn valid_input() {
-      let mut model_data = get_test_model_data();
+      let model_data = get_test_model_data();
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let mut model_animator = model_animator.lock().unwrap();

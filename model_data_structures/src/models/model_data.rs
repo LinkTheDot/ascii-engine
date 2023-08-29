@@ -218,6 +218,7 @@ impl InternalModelData {
   /// - Returns an error when no anchor was found on the shape of the hitbox.
   /// - Returns an error if multiple anchors were found on the shape of the hitbox.
   /// - Returns an error when an impossible strata is passed in.
+  /// - Returns an error if the model was placed out of bounds.
   fn new(
     model_position: Coordinates,
     sprite: Sprite,
@@ -230,11 +231,12 @@ impl InternalModelData {
       .get_anchor_index()
       .index_to_coordinates(sprite.get_dimensions().x);
 
-    let position_in_frame = model_position
+    let Some(position_in_frame) = Coordinates::from_isize(model_position
       .add((1, 0)) // account for the new lines in a frame
-      .subtract(sprite_anchor_coordinates);
-    let position_in_frame = Coordinates::from_isize(position_in_frame)
-      .coordinates_to_index(CONFIG.grid_width as usize + 1);
+      .subtract(sprite_anchor_coordinates)) else {
+      return Err(ModelError::ModelOutOfBounds);
+    };
+    let position_in_frame = position_in_frame.coordinates_to_index(CONFIG.grid_width as usize + 1);
 
     let hitbox = Hitbox::from(hitbox_data, sprite_anchor_coordinates.to_isize());
 

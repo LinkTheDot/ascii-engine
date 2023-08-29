@@ -445,7 +445,7 @@ mod tests {
     let file_path = Path::new("../tests/models/equals_in_skin_field.model");
     let model_file = File::open(file_path).unwrap();
 
-    ModelParser::parse(model_file, (0, 0)).unwrap();
+    ModelParser::parse(model_file, (10, 10)).unwrap();
   }
 
   #[test]

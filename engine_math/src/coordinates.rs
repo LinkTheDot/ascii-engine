@@ -18,7 +18,11 @@ pub trait CoordinateMethods {
   fn to_isize(&self) -> (isize, isize);
 
   /// Converts a tuple of (isize, isize) and converts it to (usize, usize)
-  fn from_isize(coords: (isize, isize)) -> Self;
+  ///
+  /// None is returned if either value in the tuple is negative.
+  fn from_isize(coords: (isize, isize)) -> Option<Self>
+  where
+    Self: Sized;
 }
 
 #[allow(non_camel_case_types)]
@@ -53,8 +57,15 @@ impl CoordinateMethods for Coordinates {
     (self.0 as isize, self.1 as isize)
   }
 
-  fn from_isize(coords: (isize, isize)) -> Self {
-    (coords.0 as usize, coords.1 as usize)
+  fn from_isize(coords: (isize, isize)) -> Option<Self>
+  where
+    Self: Sized,
+  {
+    if coords.0 < 0 || coords.1 < 0 {
+      return None;
+    }
+
+    Some((coords.0 as usize, coords.1 as usize))
   }
 }
 

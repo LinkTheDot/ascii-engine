@@ -37,13 +37,13 @@ mod display_logic {
 fn add_and_remove_model() {
   let mut screen = ScreenData::new();
   let test_model = new_test_model();
-  let test_model_hash = test_model.get_unique_hash();
+  let test_model_hash = test_model.get_hash();
 
   screen.add_model(test_model).unwrap();
 
   let result_data = screen.remove_model(&test_model_hash).unwrap();
 
-  assert_eq!(result_data.get_unique_hash(), test_model_hash);
+  assert_eq!(result_data.get_hash(), test_model_hash);
 }
 
 #[cfg(test)]
