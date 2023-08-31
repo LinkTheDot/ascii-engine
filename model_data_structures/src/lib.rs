@@ -16,6 +16,7 @@ pub mod models {
   pub mod model_movements;
   pub mod sprites;
   pub mod strata;
+  pub mod testing_data;
 }
 
 pub mod screen {

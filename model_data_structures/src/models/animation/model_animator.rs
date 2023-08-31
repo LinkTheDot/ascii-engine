@@ -144,6 +144,9 @@ impl ModelAnimator {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::models::testing_data::*;
+
+  const WORLD_POSITION: (usize, usize) = (10, 10);
 
   #[cfg(test)]
   mod add_new_animation_to_queue {
@@ -151,11 +154,12 @@ mod tests {
 
     #[test]
     fn empty_queue() {
-      let model_data = get_test_model_data();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let mut model_animator = model_animator.lock().unwrap();
-      let animation = get_test_animation_limited_run_count();
+      let animation =
+        TestingData::get_test_animation(['l', 'm', 'n'], AnimationLoopCount::Limited(5));
 
       model_animator.add_new_animation_to_queue(animation.clone());
 
@@ -167,13 +171,16 @@ mod tests {
 
     #[test]
     fn existing_queue() {
-      let model_data = get_test_model_data();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let mut model_animator = model_animator.lock().unwrap();
-      let animation_one = get_test_animation_limited_run_count();
-      let animation_two = get_test_animation_unlimited_run_count();
-      let animation_three = get_test_animation(3);
+      let animation_one =
+        TestingData::get_test_animation(['l', 'm', 'n'], AnimationLoopCount::Limited(5));
+      let animation_two =
+        TestingData::get_test_animation(['o', 'p', 'q'], AnimationLoopCount::Forever);
+      let animation_three =
+        TestingData::get_test_animation(['r', 's', 't'], AnimationLoopCount::Limited(3));
 
       model_animator.add_new_animation_to_queue(animation_one.clone());
       model_animator.add_new_animation_to_queue(animation_two.clone());
@@ -212,11 +219,12 @@ mod tests {
 
     #[test]
     fn empty_queue_running_animation() {
-      let model_data = get_test_model_data();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let mut model_animator = model_animator.lock().unwrap();
-      let running_animation = get_test_animation_limited_run_count();
+      let running_animation =
+        TestingData::get_test_animation(['l', 'm', 'n'], AnimationLoopCount::Limited(5));
       model_animator.overwrite_current_animation(running_animation.clone());
 
       let expected_animation = running_animation.get_frame(0).cloned();
@@ -230,7 +238,7 @@ mod tests {
 
     #[test]
     fn empty_queue_no_running_animation() {
-      let model_data = get_test_model_data();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let mut model_animator = model_animator.lock().unwrap();
@@ -243,12 +251,14 @@ mod tests {
 
     #[test]
     fn queue_has_contents_running_animation() {
-      let model_data = get_test_model_data();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let mut model_animator = model_animator.lock().unwrap();
-      let running_animation = get_test_animation_limited_run_count();
-      let queued_animation = get_test_animation_unlimited_run_count();
+      let running_animation =
+        TestingData::get_test_animation(['l', 'm', 'n'], AnimationLoopCount::Limited(5));
+      let queued_animation =
+        TestingData::get_test_animation(['o', 'p', 'q'], AnimationLoopCount::Forever);
       model_animator.overwrite_current_animation(running_animation);
       model_animator
         .animation_queue
@@ -265,11 +275,12 @@ mod tests {
 
     #[test]
     fn queue_has_contents_no_running_animation() {
-      let model_data = get_test_model_data();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let mut model_animator = model_animator.lock().unwrap();
-      let queued_animation = get_test_animation_limited_run_count();
+      let queued_animation =
+        TestingData::get_test_animation(['l', 'm', 'n'], AnimationLoopCount::Limited(5));
       model_animator
         .animation_queue
         .push_front(queued_animation.clone());
@@ -290,12 +301,14 @@ mod tests {
 
     #[test]
     fn has_animations() {
-      let model_data = get_test_model_data();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let mut model_animator = model_animator.lock().unwrap();
-      let animation_one = get_test_animation_limited_run_count();
-      let animation_two = get_test_animation_limited_run_count();
+      let animation_one =
+        TestingData::get_test_animation(['l', 'm', 'n'], AnimationLoopCount::Limited(5));
+      let animation_two =
+        TestingData::get_test_animation(['l', 'm', 'n'], AnimationLoopCount::Limited(5));
 
       model_animator.add_new_animation_to_queue(animation_one);
       model_animator.add_new_animation_to_queue(animation_two);
@@ -315,7 +328,7 @@ mod tests {
 
     #[test]
     fn has_no_animations() {
-      let model_data = get_test_model_data();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let model_animator = model_animator.lock().unwrap();
@@ -326,12 +339,14 @@ mod tests {
 
   #[test]
   fn overwrite_current_animation_logic() {
-    let model_data = get_test_model_data();
+    let model_data = TestingData::new_test_model(WORLD_POSITION);
     let model_sprite = model_data.get_sprite();
     let model_animator = ModelAnimator::new(model_sprite);
     let mut model_animator = model_animator.lock().unwrap();
-    let running_animation = get_test_animation_limited_run_count();
-    let replacing_animation = get_test_animation_unlimited_run_count();
+    let running_animation =
+      TestingData::get_test_animation(['l', 'm', 'n'], AnimationLoopCount::Limited(5));
+    let replacing_animation =
+      TestingData::get_test_animation(['o', 'p', 'q'], AnimationLoopCount::Forever);
     model_animator.add_new_animation_to_queue(running_animation.clone());
 
     let first_frame_before = model_animator.next_frame();
@@ -346,7 +361,7 @@ mod tests {
 
   #[test]
   fn update_when_last_frame_changed_logic() {
-    let model_data = get_test_model_data();
+    let model_data = TestingData::new_test_model(WORLD_POSITION);
     let model_sprite = model_data.get_sprite();
     let model_animator = ModelAnimator::new(model_sprite);
     let mut model_animator = model_animator.lock().unwrap();
@@ -367,10 +382,11 @@ mod tests {
 
     #[test]
     fn running_animation() {
-      let model_data = get_test_model_data();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
-      let model_animation = get_test_animation(3);
+      let model_animation =
+        TestingData::get_test_animation(['r', 's', 't'], AnimationLoopCount::Limited(3));
       let mut model_animator = model_animator.lock().unwrap();
 
       model_animator.add_new_animation_to_queue(model_animation.clone());
@@ -385,7 +401,7 @@ mod tests {
 
     #[test]
     fn no_running_animation() {
-      let model_data = get_test_model_data();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let model_animator = model_animator.lock().unwrap();
@@ -402,10 +418,11 @@ mod tests {
 
     #[test]
     fn running_frame_not_finished() {
-      let model_data = get_test_model_data();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
-      let model_animation = get_test_animation(1);
+      let model_animation =
+        TestingData::get_test_animation(['r', 's', 't'], AnimationLoopCount::Limited(1));
       let mut model_animator_guard = model_animator.lock().unwrap();
 
       model_animator_guard.add_new_animation_to_queue(model_animation);
@@ -415,11 +432,12 @@ mod tests {
 
     #[test]
     fn running_frame_finished() {
-      let model_data = get_test_model_data();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let mut model_animator = model_animator.lock().unwrap();
-      let model_animation = get_test_animation(1);
+      let model_animation =
+        TestingData::get_test_animation(['r', 's', 't'], AnimationLoopCount::Limited(1));
 
       model_animator.add_new_animation_to_queue(model_animation);
 
@@ -432,7 +450,7 @@ mod tests {
 
     #[test]
     fn no_running_animation() {
-      let model_data = get_test_model_data();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let model_animator_guard = model_animator.lock().unwrap();
@@ -451,7 +469,7 @@ mod tests {
 
     #[test]
     fn valid_input() {
-      let model_data = get_test_model_data();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
       let model_sprite = model_data.get_sprite();
       let model_animator = ModelAnimator::new(model_sprite);
       let mut model_animator = model_animator.lock().unwrap();
@@ -470,67 +488,5 @@ mod tests {
 
       assert_eq!(model_appearance, expected_appearance);
     }
-  }
-
-  // data for tests
-
-  const WORLD_POSITION: (usize, usize) = (10, 10);
-
-  fn get_test_model_data() -> ModelData {
-    let test_model_path = std::path::Path::new("../tests/models/test_square.model");
-
-    ModelData::from_file(test_model_path, WORLD_POSITION).unwrap()
-  }
-
-  // This is temporary until animation file parsers are a thing.
-  fn get_test_animation_limited_run_count() -> AnimationFrames {
-    let frames = get_test_frames(vec![
-      ("lllll\nllall\nlllll".to_string(), 1, 'l'),
-      ("mmmmm\nmmamm\nmmmmm".to_string(), 1, 'm'),
-      ("nnnnn\nnnann\nnnnnn".to_string(), 1, 'n'),
-    ]);
-
-    AnimationFrames::new(frames, AnimationLoopCount::Limited(5))
-  }
-
-  // This is temporary until animation file parsers are a thing.
-  fn get_test_animation_unlimited_run_count() -> AnimationFrames {
-    let frames = get_test_frames(vec![
-      ("ooooo\nooaoo\nooooo".to_string(), 1, 'o'),
-      ("ppppp\nppapp\nppppp".to_string(), 1, 'p'),
-      ("qqqqq\nqqaqq\nqqqqq".to_string(), 1, 'q'),
-    ]);
-
-    AnimationFrames::new(frames, AnimationLoopCount::Forever)
-  }
-
-  // This is temporary until animation file parsers are a thing.
-  fn get_test_animation(loop_count: u64) -> AnimationFrames {
-    let frames = get_test_frames(vec![
-      ("rrrrr\nrrarr\nrrrrr".to_string(), 1, 'r'),
-      ("sssss\nssass\nsssss".to_string(), 1, 's'),
-      ("ttttt\nttatt\nttttt".to_string(), 1, 't'),
-    ]);
-
-    AnimationFrames::new(frames, AnimationLoopCount::Limited(loop_count))
-  }
-
-  /// Gets a list of AnimationFrames of the given appearances, center replacement characters, and durations.
-  ///
-  /// The default anchor is `a`.
-  fn get_test_frames(appearances: Vec<(String, u32, char)>) -> Vec<AnimationFrame> {
-    let mut base_frame = Sprite::new();
-    base_frame.change_anchor_character('a').unwrap();
-
-    appearances
-      .into_iter()
-      .map(|(appearance, duration, center_replacement)| {
-        base_frame
-          .change_shape(appearance, None, Some(center_replacement))
-          .unwrap();
-
-        AnimationFrame::new(base_frame.clone(), duration)
-      })
-      .collect()
   }
 }

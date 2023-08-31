@@ -304,13 +304,4 @@ mod tests {
   //     assert!(result.is_some());
   //   }
   // }
-  //
-  // //
-  // // -- Data for tests below --
-  // //
-  //
-  // fn new_test_model() -> ModelData {
-  //   let test_model_path = std::path::Path::new("tests/models/test_square.model");
-  //   ModelData::from_file(test_model_path, WORLD_POSITION).unwrap()
-  // }
 }

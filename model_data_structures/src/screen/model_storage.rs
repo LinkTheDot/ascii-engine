@@ -118,7 +118,7 @@ impl ModelStorage {
   /// - Returns an error when a model somehow has an impossible strata range.
   fn insert_strata(&mut self, model_key: &u64) -> Result<(), ModelError> {
     let Some(model) = self.get_model(model_key) else {
-      return Err(ModelError::ModelDoesntExist)
+      return Err(ModelError::ModelDoesntExist);
     };
 
     let model_strata = model.get_strata();
@@ -152,7 +152,9 @@ impl ModelStorage {
     for strata_number in 0..=100 {
       let current_strata = Strata(strata_number);
 
-      let Some(strata_keys) = self.get_strata_keys(&current_strata) else { continue; };
+      let Some(strata_keys) = self.get_strata_keys(&current_strata) else {
+        continue;
+      };
 
       let incorrect_strata_list: Vec<(Strata, u64)> = strata_keys
         .iter()
@@ -216,6 +218,7 @@ impl ModelStorage {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::models::testing_data::*;
 
   const WORLD_POSITION: (usize, usize) = (10, 10);
 
@@ -226,7 +229,7 @@ mod tests {
     #[test]
     fn insert_once() {
       let mut model_list = ModelStorage::default();
-      let model_data = new_test_model();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
 
       let result = model_list.insert(model_data);
 
@@ -236,7 +239,7 @@ mod tests {
     #[test]
     fn insert_twice() {
       let mut model_list = ModelStorage::default();
-      let model_data = new_test_model();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
 
       let expected_result = Err(ModelError::ModelAlreadyExists);
 
@@ -250,7 +253,7 @@ mod tests {
     #[test]
     fn insert_then_remove() {
       let mut model_list = ModelStorage::default();
-      let model_data = new_test_model();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
 
       model_list.insert(model_data.clone()).unwrap();
 
@@ -287,7 +290,7 @@ mod tests {
     #[test]
     fn get_strata_keys_valid_strata() {
       let mut model_list = ModelStorage::default();
-      let model_data = new_test_model();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
       let model_strata = model_data.get_strata();
 
       model_list.insert(model_data.clone()).unwrap();
@@ -300,7 +303,7 @@ mod tests {
     #[test]
     fn get_existing_model() {
       let mut model_list = ModelStorage::default();
-      let model_data = new_test_model();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
 
       model_list.insert(model_data.clone()).unwrap();
 
@@ -322,7 +325,7 @@ mod tests {
     #[test]
     fn get_model_keys() {
       let mut model_list = ModelStorage::default();
-      let model_data = new_test_model();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
 
       model_list.insert(model_data.clone()).unwrap();
 
@@ -334,7 +337,7 @@ mod tests {
     #[test]
     fn get_model_list() {
       let mut model_list = ModelStorage::default();
-      let model_data = new_test_model();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
 
       model_list.insert(model_data.clone()).unwrap();
 
@@ -351,7 +354,7 @@ mod tests {
     #[test]
     fn model_exists() {
       let mut model_list = ModelStorage::default();
-      let model_data = new_test_model();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
       let model_hash = model_data.get_hash();
       let model_strata = model_data.get_strata();
 
@@ -367,8 +370,8 @@ mod tests {
     #[test]
     fn list_already_exists() {
       let mut model_list = ModelStorage::default();
-      let model_data = new_test_model();
-      let model_data_with_same_strata = new_test_model();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
+      let model_data_with_same_strata = TestingData::new_test_model(WORLD_POSITION);
       let model_hash = model_data.get_hash();
       let model_strata = model_data.get_strata();
 
@@ -402,7 +405,7 @@ mod tests {
     #[test]
     fn misplaced_strata() {
       let mut model_list = ModelStorage::default();
-      let model_data = new_test_model();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
       let model_hash = model_data.get_hash();
       let model_strata = model_data.get_strata();
 
@@ -446,14 +449,5 @@ mod tests {
 
       assert_eq!(result, expected_result);
     }
-  }
-
-  //
-  // -- Data for tests below --
-  //
-
-  fn new_test_model() -> ModelData {
-    let test_model_path = std::path::Path::new("../tests/models/test_square.model");
-    ModelData::from_file(test_model_path, WORLD_POSITION).unwrap()
   }
 }

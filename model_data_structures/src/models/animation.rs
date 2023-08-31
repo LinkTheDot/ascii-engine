@@ -61,7 +61,8 @@ impl ModelAnimationData {
     }
 
     let Ok(animation_directory_contents) = animation_directory.read_dir() else {
-      let error = AnimationParserError::CouldntGetAnimationPath(animation_directory.into_os_string());
+      let error =
+        AnimationParserError::CouldntGetAnimationPath(animation_directory.into_os_string());
 
       return Err(AnimationError::AnimationParserError(error));
     };
@@ -146,59 +147,23 @@ where
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::models::testing_data::*;
+
+  const WORLD_POSITION: (usize, usize) = (10, 10);
 
   #[test]
   fn model_animation_data_from() {
     let test_animation_name = "test_animation".to_string();
-    let test_animation = get_test_animation(1);
+    let test_animation =
+      TestingData::get_test_animation(['r', 's', 't'], AnimationLoopCount::Limited(1));
     let animation_list: Vec<(String, AnimationFrames)> =
       vec![(test_animation_name.clone(), test_animation.clone())];
-    let model = get_test_model_data();
+    let model = TestingData::new_test_model(WORLD_POSITION);
 
     let expected_animations_list = HashMap::from([(test_animation_name, test_animation)]);
 
     let animation_data = ModelAnimationData::from((model, animation_list));
 
     assert_eq!(animation_data.animations, expected_animations_list);
-  }
-
-  // data for tests
-
-  const WORLD_POSITION: (usize, usize) = (10, 10);
-
-  fn get_test_model_data() -> ModelData {
-    let test_model_path = std::path::Path::new("../tests/models/test_square.model");
-
-    ModelData::from_file(test_model_path, WORLD_POSITION).unwrap()
-  }
-
-  // This is temporary until animation file parsers are a thing.
-  fn get_test_animation(loop_count: u64) -> AnimationFrames {
-    let frames = get_test_frames(vec![
-      ("rrrrr\nrrarr\nrrrrr".to_string(), 1, 'r'),
-      ("sssss\nssass\nsssss".to_string(), 1, 's'),
-      ("ttttt\nttatt\nttttt".to_string(), 1, 't'),
-    ]);
-
-    AnimationFrames::new(frames, AnimationLoopCount::Limited(loop_count))
-  }
-
-  /// Gets a list of AnimationFrames of the given appearances, center replacement characters, and durations.
-  ///
-  /// The default anchor is `a`.
-  fn get_test_frames(appearances: Vec<(String, u32, char)>) -> Vec<AnimationFrame> {
-    let mut base_frame = Sprite::new();
-    base_frame.change_anchor_character('a').unwrap();
-
-    appearances
-      .into_iter()
-      .map(|(appearance, duration, center_replacement)| {
-        base_frame
-          .change_shape(appearance, None, Some(center_replacement))
-          .unwrap();
-
-        AnimationFrame::new(base_frame.clone(), duration)
-      })
-      .collect()
   }
 }

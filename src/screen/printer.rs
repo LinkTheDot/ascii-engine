@@ -46,11 +46,15 @@ impl ScreenPrinter {
     for strata_number in 0..=100 {
       let existing_models = self.model_storage.read_model_storage();
 
-      let Some(strata_keys) = existing_models.get_strata_keys(&Strata(strata_number)) else { continue };
+      let Some(strata_keys) = existing_models.get_strata_keys(&Strata(strata_number)) else {
+        continue;
+      };
 
       for model in strata_keys.iter().map(|key| existing_models.get_model(key)) {
         let Some(model) = model else {
-          log::error!("A model in strata {strata_number} that doesn't exist was attempted to be run.");
+          log::error!(
+            "A model in strata {strata_number} that doesn't exist was attempted to be run."
+          );
 
           continue;
         };
@@ -109,6 +113,10 @@ impl ScreenPrinter {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use model_data_structures::models::testing_data::*;
+
+  const WORLD_POSITION: (usize, usize) = (10, 10);
+  const SHAPE: &str = "xxxxx\nxxaxx\nxxxxx";
 
   #[test]
   fn create_blank_frame() {
@@ -130,7 +138,7 @@ mod tests {
     // Checks if the first character in the model is equal to the first character
     // of where the model was expected to be in the frame.
     fn correct_input() {
-      let model_data = new_test_model();
+      let model_data = TestingData::new_test_model(WORLD_POSITION);
       let find_character = SHAPE.chars().next().unwrap();
       let top_left_index = model_data.get_frame_position();
       let mut current_frame = ScreenPrinter::create_blank_frame();
@@ -152,17 +160,5 @@ mod tests {
         expected_left_of_expected_character
       );
     }
-  }
-
-  //
-  // -- Data for tests below --
-  //
-
-  const WORLD_POSITION: (usize, usize) = (10, 10);
-  const SHAPE: &str = "xxxxx\nxxaxx\nxxxxx";
-
-  fn new_test_model() -> ModelData {
-    let test_model_path = std::path::Path::new("tests/models/test_square.model");
-    ModelData::from_file(test_model_path, WORLD_POSITION).unwrap()
   }
 }
