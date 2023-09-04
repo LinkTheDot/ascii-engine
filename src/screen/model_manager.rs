@@ -55,36 +55,48 @@ impl ModelManager {
     self.model_storage.read().unwrap().model_exists(model_hash)
   }
 
+  /// Returns the list of model collisions, none if the list was empty.
+  ///
+  /// # Errors
+  ///
+  /// - When the movement caused the model to move out of bounds in the negative direction.
+  /// - When the passed in model doesn't exist.
   pub fn move_model(
     &mut self,
     model_hash: u64,
     movement: ModelMovement,
-  ) -> Option<ModelCollisions> {
-    let mut model = self.get_model(&model_hash)?;
+  ) -> Result<Option<ModelCollisions>, ModelError> {
+    let Some(mut model) = self.get_model(&model_hash) else {
+      return Err(ModelError::ModelDoesntExist);
+    };
 
     let new_position = match movement {
       ModelMovement::Absolute(movement) => {
         // This conversion will be removed once the world becomes infinite and cameras exist.
         let movement = (movement.0 as usize, movement.1 as usize);
 
-        calculate_absolute_movement_frame_position(&model, movement)
+        model.calculate_top_left_index_from(movement)
       }
       ModelMovement::Relative(movement) => {
         calculate_relative_movement_frame_position(&model, movement)
       }
     };
 
+    let Some(new_position) = new_position else {
+      return Err(ModelError::ModelOutOfBounds);
+    };
+
     model.change_position(new_position);
     let collision_list = self.check_collisions_against_all_models(model, None);
 
     if !collision_list.is_empty() {
-      Some(ModelCollisions {
+      Ok(Some(ModelCollisions {
         collider: model_hash,
         caused_movement: movement,
         collision_list,
-      })
+      }))
     } else {
-      None
+      Ok(None)
     }
   }
 
@@ -198,7 +210,9 @@ impl ModelManager {
       return Err(ModelError::ModelDoesntExist);
     };
     let Some(model_animation_data) = model_data.get_animation_data() else {
-      return Err(ModelError::AnimationError(AnimationError::ModelHasNoAnimationData));
+      return Err(ModelError::AnimationError(
+        AnimationError::ModelHasNoAnimationData,
+      ));
     };
     let mut model_animation_data = model_animation_data.lock().unwrap();
 
@@ -241,38 +255,46 @@ fn models_are_colliding(
   )
 }
 
-fn calculate_absolute_movement_frame_position(
-  model: &ModelData,
-  new_position: (usize, usize),
-) -> usize {
-  let sprite_anchor_coordinates = model
-    .get_sprite()
-    .read()
-    .unwrap()
-    .get_anchor_index()
-    .index_to_coordinates(CONFIG.grid_width as usize + 1)
-    .to_isize();
-
-  let anchored_placement = new_position.0 + ((CONFIG.grid_width as usize + 1) * new_position.1);
-  let top_left_difference = (sprite_anchor_coordinates.0
-    + (sprite_anchor_coordinates.1 * (CONFIG.grid_width as isize + 1)))
-    as usize;
-
-  anchored_placement - top_left_difference
-}
-
 fn calculate_relative_movement_frame_position(
   model: &ModelData,
   added_position: (isize, isize),
-) -> usize {
-  let true_screen_width = CONFIG.grid_width as isize + 1;
+) -> Option<usize> {
+  let screen_width = CONFIG.grid_width as isize + 1;
   let model_frame_top_left = model.get_frame_position() as isize;
 
-  (added_position.0 + (true_screen_width * added_position.1) + model_frame_top_left) as usize
+  let new_position = added_position.0 + (screen_width * added_position.1) + model_frame_top_left;
+
+  if new_position > 0 {
+    Some(new_position as usize)
+  } else {
+    None
+  }
 }
 
 fn add_index_to_coordinates(coordinates: (isize, isize), index: usize) -> (isize, isize) {
   let (x, y) = index.index_to_coordinates(CONFIG.grid_width as usize + 1);
 
   (x as isize + coordinates.0, y as isize + coordinates.1)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use model_data_structures::models::testing_data::*;
+
+  const WORLD_POSITION: (usize, usize) = (10, 10);
+
+  #[test]
+  fn calculate_relative_movement_frame_position_positive_direction() {
+    let screen_width = CONFIG.grid_width as usize + 1;
+    let model = TestingData::new_test_model(WORLD_POSITION);
+    let movement: (isize, isize) = (1, 1);
+
+    // based on top left
+    let expected_position = (10, 10).coordinates_to_index(screen_width);
+
+    let new_position = calculate_relative_movement_frame_position(&model, movement).unwrap();
+
+    assert_eq!(new_position, expected_position);
+  }
 }

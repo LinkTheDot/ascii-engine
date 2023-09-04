@@ -55,8 +55,8 @@ pub(crate) fn start_animation_thread(
       // TODO Force at least 1 tick wait times between frames when parsing the animation file.
       model_animator_list.values_mut().for_each(|model_animator| {
         let Ok(mut model_animator) = model_animator.try_lock() else {
-              return;
-            };
+          return;
+        };
 
         if !model_animator.has_animations_to_run() {
           return;

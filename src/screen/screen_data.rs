@@ -244,17 +244,28 @@ impl ScreenData {
   /// The max printing rate is 60, and high rates of printing to the terminal can cause
   /// artifacting.
   ///
+  /// Takes an optional amount of times the thread can error consecutively until it closes.
+  /// If none is passed in, the thread will never close when the printer errors.
+  ///
   /// Returns the JoinHandle and kill_sender to the thread.
-  pub fn spawn_printing_thread(&self, printing_rate: u32) -> (JoinHandle<()>, oneshot::Sender<()>) {
+  pub fn spawn_printing_thread(
+    &self,
+    printing_rate: u32,
+    consecutive_errors_to_exit: Option<u32>,
+  ) -> (JoinHandle<()>, oneshot::Sender<()>) {
     let mut printer = self.printer.clone();
     let printing_rate = printing_rate.max(1).min(60);
     let (kill_sender, kill_receiver) = oneshot::channel();
 
     let thread_handle = std::thread::spawn(move || {
       let printing_event_sync = EventSync::new(1000 / printing_rate);
-      let mut consecutive_errors = 0;
 
-      while kill_receiver.try_recv().is_err() && consecutive_errors < 5 {
+      let mut consecutive_errors = 0;
+      let errors_until_exit = consecutive_errors_to_exit.unwrap_or(0); // 0 will never let this check pass.
+
+      while kill_receiver.try_recv().is_err() && consecutive_errors < errors_until_exit
+        || errors_until_exit == 0
+      {
         printing_event_sync.wait_for_tick();
 
         if let Err(error) = printer.print_screen() {
@@ -268,6 +279,11 @@ impl ScreenData {
           consecutive_errors = 0;
         }
       }
+
+      log::warn!(
+        "CLOSING PRINTING THREAD DUE TO {} CONSECUTIVE ERRORS",
+        errors_until_exit
+      );
     });
 
     (thread_handle, kill_sender)

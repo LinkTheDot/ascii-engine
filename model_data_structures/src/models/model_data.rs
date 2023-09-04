@@ -108,6 +108,22 @@ impl ModelData {
     self.inner.lock().unwrap().position_in_frame
   }
 
+  /// Returns the world position of the model, this is where the model's sprite anchor is located.
+  pub fn get_world_position(&self) -> (isize, isize) {
+    let frame_position = self.get_frame_position();
+    let screen_width = CONFIG.grid_width as usize + 1;
+    let model_sprite_coordiates = self
+      .get_sprite()
+      .read()
+      .unwrap()
+      .get_anchor_as_coordinates();
+
+    frame_position
+      .index_to_coordinates(screen_width)
+      .add(model_sprite_coordiates)
+      .subtract((1, 0)) // Remove 1 from the x-axis to stop accounting for new lines.
+  }
+
   /// Returns a copy of the currently stored strata for the model.
   pub fn get_strata(&self) -> Strata {
     self.inner.lock().unwrap().strata
@@ -150,6 +166,7 @@ impl ModelData {
   /// Replaces the currently stored hitbox with the new one.
   pub fn change_hitbox(&mut self, new_hitbox_data: HitboxCreationData) {
     let mut internal_data = self.inner.lock().unwrap();
+    // Seriously, remove this from hitboxes...
     let sprite = internal_data.read_sprite();
     let sprite_width = sprite.get_dimensions().x;
     let sprite_anchor_index = sprite.get_anchor_index();
@@ -177,22 +194,8 @@ impl ModelData {
   /// Input is based on the frame_position aka top left position of the model.
   pub fn change_position(&mut self, new_position: usize) {
     let mut internal_data = self.inner.lock().unwrap();
-    let sprite_dimensions = internal_data.read_sprite().get_dimensions();
-    let sprite_anchor_index = internal_data.read_sprite().get_anchor_index();
-    let sprite_anchor_shape_coordinates = sprite_anchor_index
-      .index_to_coordinates(sprite_dimensions.x)
-      .to_isize();
 
-    let new_frame_anchor_index = new_position as isize
-      + sprite_anchor_shape_coordinates.0
-      + (sprite_anchor_shape_coordinates.1 * (CONFIG.grid_width as isize + 1));
-
-    let frame_index = get_position_data(
-      new_frame_anchor_index as usize,
-      sprite_anchor_shape_coordinates,
-    );
-
-    internal_data.position_in_frame = frame_index;
+    internal_data.position_in_frame = new_position;
   }
 
   /// Returns true if the area of the model's hitbox is 0;
@@ -210,6 +213,31 @@ impl ModelData {
       .hitbox
       .sprite_to_hitbox_anchor_difference()
   }
+
+  /// Returns the top left of the model in the frame based on the given position.
+  ///
+  /// This does not use the current position for the model. Rather, it takes a hypothetical
+  /// world position for the model. It then returns where the model's top left position would be
+  /// if it were in this position.
+  ///
+  /// None is returned if the position was OutOfBounds in the negative direction.
+  pub fn calculate_top_left_index_from(&self, from_position: (usize, usize)) -> Option<usize> {
+    let sprite = &self.inner.lock().unwrap().sprite;
+    let sprite = sprite.read().unwrap();
+
+    Self::caluculate_top_left_index(&sprite, from_position)
+  }
+
+  fn caluculate_top_left_index(sprite: &Sprite, position: (usize, usize)) -> Option<usize> {
+    let screen_size = CONFIG.grid_width as usize + 1;
+    let sprite_anchor = sprite.get_anchor_as_coordinates();
+
+    let position_in_coordinates = position.subtract(sprite_anchor);
+    let position_in_coordinates = Coordinates::from_isize(position_in_coordinates)?;
+
+    // Add 1 to account for new lines.
+    Some(position_in_coordinates.coordinates_to_index(screen_size) + 1)
+  }
 }
 
 impl InternalModelData {
@@ -220,23 +248,21 @@ impl InternalModelData {
   /// - Returns an error when an impossible strata is passed in.
   /// - Returns an error if the model was placed out of bounds.
   fn new(
-    model_position: Coordinates,
+    model_world_position: Coordinates,
     sprite: Sprite,
     hitbox_data: HitboxCreationData,
     strata: Strata,
     assigned_name: String,
   ) -> Result<Self, ModelError> {
-    // Where the anchor is inside the sprite's appearance.
     let sprite_anchor_coordinates = sprite
       .get_anchor_index()
       .index_to_coordinates(sprite.get_dimensions().x);
 
-    let Some(position_in_frame) = Coordinates::from_isize(model_position
-      .add((1, 0)) // account for the new lines in a frame
-      .subtract(sprite_anchor_coordinates)) else {
+    let Some(position_in_frame) =
+      ModelData::caluculate_top_left_index(&sprite, model_world_position)
+    else {
       return Err(ModelError::ModelOutOfBounds);
     };
-    let position_in_frame = position_in_frame.coordinates_to_index(CONFIG.grid_width as usize + 1);
 
     let hitbox = Hitbox::from(hitbox_data, sprite_anchor_coordinates.to_isize());
 
@@ -257,27 +283,9 @@ impl InternalModelData {
   }
 
   /// Returns a read guard on the internally stored sprite.
-  fn read_sprite(&mut self) -> RwLockReadGuard<Sprite> {
+  fn read_sprite(&self) -> RwLockReadGuard<Sprite> {
     self.sprite.read().unwrap()
   }
-}
-
-/// A model's position is an index of a frame.
-/// This index will account for any newlines.
-///
-/// Takes the world placement of a model and returns it's index in a frame, and
-/// the relative distance of the FrameIndex to the WorldPlacement.
-///
-/// A better way of thinking of WorldPlacementAnchor would be, it's the coordinates of where the anchor is
-/// within the bounding box of the model's skin.
-///
-/// Returns FrameIndex
-fn get_position_data(model_position: usize, sprite_anchor_coordinates: (isize, isize)) -> usize {
-  let true_width = CONFIG.grid_width as isize + 1;
-
-  (model_position as isize
-    + sprite_anchor_coordinates.0
-    + (true_width * sprite_anchor_coordinates.1)) as usize
 }
 
 impl PartialEq for ModelData {
@@ -292,36 +300,78 @@ impl PartialEq for InternalModelData {
   }
 }
 
-// #[cfg(test)]
-// mod tests {
-//   use super::*;
-//
-//   const WORLD_POSITION: (usize, usize) = (10, 10);
-//   const SHAPE: &str = "x-x\nxcx\nx-x";
-//   const ANCHOR_CHAR: char = 'c';
-//   const ANCHOR_REPLACEMENT_CHAR: char = '-';
-//   const AIR_CHAR: char = '-';
-//
-//   //
-//   // Functions used for tests
-//   //
-//
-//   fn new_test_model() -> ModelData {
-//     let test_model_path = std::path::Path::new("../tests/models/test_square.model");
-//     ModelData::from_file(test_model_path, WORLD_POSITION).unwrap()
-//   }
-//
-//   fn test_sprite() -> Sprite {
-//     let mut sprite = Sprite::new();
-//     sprite
-//       .change_shape(
-//         SHAPE.to_string(),
-//         Some(ANCHOR_CHAR),
-//         Some(ANCHOR_REPLACEMENT_CHAR),
-//       )
-//       .unwrap();
-//     sprite.change_air_character(AIR_CHAR).unwrap();
-//
-//     sprite
-//   }
-// }
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::models::testing_data::*;
+
+  const WORLD_POSITION: (usize, usize) = (10, 10);
+
+  #[cfg(test)]
+  mod change_position_logic {
+    use super::*;
+
+    #[test]
+    fn move_in_positive_direction() {
+      let mut model = TestingData::new_test_model(WORLD_POSITION);
+      let new_position = Coordinates::from_isize(WORLD_POSITION.subtract((1, 1)))
+        .unwrap()
+        .coordinates_to_index(CONFIG.grid_width as usize + 1);
+
+      model.change_position(new_position);
+
+      assert_eq!(model.get_frame_position(), new_position);
+    }
+
+    #[test]
+    fn move_in_negative_direction() {}
+
+    #[test]
+    fn move_out_of_bounds() {}
+  }
+
+  #[test]
+  fn model_position_is_correct() {
+    let model = TestingData::new_test_model(WORLD_POSITION);
+    let expected_position = model.calculate_top_left_index_from(WORLD_POSITION).unwrap();
+
+    assert_eq!(model.get_frame_position(), expected_position);
+    assert_eq!(model.get_world_position(), WORLD_POSITION.to_isize());
+  }
+
+  #[cfg(test)]
+  mod calculate_top_left_index_from_logic {
+    use super::*;
+
+    #[test]
+    fn valid_position() {
+      let model = TestingData::new_test_model(WORLD_POSITION);
+      let position = (5, 5);
+
+      let screen_size = CONFIG.grid_width as usize + 1;
+      let model_sprite_anchor_index = model
+        .get_sprite()
+        .read()
+        .unwrap()
+        .get_anchor_as_coordinates();
+      // Add 1 to account for new lines
+      let expected_index = 1
+        + (Coordinates::from_isize(position.subtract(model_sprite_anchor_index))
+          .unwrap()
+          .coordinates_to_index(screen_size));
+
+      let index = model.calculate_top_left_index_from(position).unwrap();
+
+      assert_eq!(index, expected_index);
+    }
+
+    #[test]
+    #[should_panic]
+    fn position_out_of_bounds() {
+      let model = TestingData::new_test_model(WORLD_POSITION);
+      let position = (0, 0);
+
+      model.calculate_top_left_index_from(position).unwrap();
+    }
+  }
+}

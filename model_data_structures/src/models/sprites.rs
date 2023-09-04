@@ -1,5 +1,5 @@
 use crate::errors::*;
-use engine_math::rectangle::Rectangle;
+use engine_math::{prelude::UsizeMethods, rectangle::Rectangle};
 use std::cmp::Ordering;
 
 /// The ``Sprite`` contains the data for how a model looks on the screen.
@@ -61,7 +61,8 @@ impl Sprite {
       return Err(ModelError::SpriteAnchorMatchesAirCharacter);
     }
 
-    let new_index = Self::calculate_anchor_index(&new_shape, new_anchor_character)?;
+    let new_index =
+      Self::calculate_anchor_index(&new_shape.replace('\n', ""), new_anchor_character)?;
 
     self.shape = new_shape;
     self.anchor_character_index = new_index;
@@ -121,6 +122,18 @@ impl Sprite {
   /// Returns the index of the anchor character in the sprite's current appearance.
   pub fn get_anchor_index(&self) -> usize {
     self.anchor_character_index
+  }
+
+  /// Returns the anchor as if it were coordinates.
+  ///
+  /// This is not based on World coordinates, but rather it's coordinates internal to the sprite's appearance.
+  /// That means if the model is 3x3 in size, and the index is 4, this method will return (1, 1).
+  pub fn get_anchor_as_coordinates(&self) -> (usize, usize) {
+    let sprite_width = self.get_dimensions().x;
+
+    self
+      .anchor_character_index
+      .index_to_coordinates(sprite_width)
   }
 
   /// Returns the actual appearance of the sprite.

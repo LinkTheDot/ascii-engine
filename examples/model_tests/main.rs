@@ -27,7 +27,7 @@ fn main() {
   screen_data.add_model(player_model).unwrap();
 
   let (_printing_thread_handle, printing_thread_kill_sender) =
-    screen_data.spawn_printing_thread(60);
+    screen_data.spawn_printing_thread(60, None);
 
   let mut model_manager = screen_data.get_model_manager();
 

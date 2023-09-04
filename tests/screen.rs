@@ -1,6 +1,9 @@
 #![cfg(test)]
 
 use ascii_engine::prelude::*;
+use model_data_structures::models::testing_data::TestingData;
+
+const WORLD_POSITION: (usize, usize) = (10, 10);
 
 #[cfg(test)]
 mod display_logic {
@@ -20,7 +23,7 @@ mod display_logic {
   #[test]
   fn with_model() {
     let mut screen = ScreenData::new();
-    let test_model = new_test_model();
+    let test_model = TestingData::new_test_model(WORLD_POSITION);
 
     let expected_pixel_count =
       ((CONFIG.grid_width * CONFIG.grid_height) + CONFIG.grid_height - 1) as usize;
@@ -36,7 +39,7 @@ mod display_logic {
 #[test]
 fn add_and_remove_model() {
   let mut screen = ScreenData::new();
-  let test_model = new_test_model();
+  let test_model = TestingData::new_test_model(WORLD_POSITION);
   let test_model_hash = test_model.get_hash();
 
   screen.add_model(test_model).unwrap();
@@ -128,15 +131,4 @@ fn stop_stopped_animation_thread() {
   let mut screen = ScreenData::new();
 
   screen.stop_animation_thread().unwrap();
-}
-
-//
-// -- Data for tests below --
-//
-
-const WORLD_POSITION: (usize, usize) = (10, 10);
-
-fn new_test_model() -> ModelData {
-  let test_model_path = std::path::Path::new("tests/models/test_square.model");
-  ModelData::from_file(test_model_path, WORLD_POSITION).unwrap()
 }

@@ -1,44 +1,9 @@
 #![cfg(test)]
 
 use ascii_engine::prelude::*;
+use model_data_structures::models::testing_data::TestingData;
 
 const WORLD_POSITION: (usize, usize) = (10, 10);
-
-// #[test]
-// fn absolute_movement_logic() {
-//   let mut screen = ScreenData::new();
-//   let mut test_model = new_test_model();
-//
-//   screen.add_model(&test_model).unwrap();
-//
-//   let expected_collisions = 0;
-//   let expected_position = ((CONFIG.grid_width + 1) as usize * 11) + 11;
-//
-//   let collisions = test_model.absolute_movement((11, 11));
-//
-//   let new_model_position = test_model.get_position();
-//
-//   assert_eq!(collisions.len(), expected_collisions);
-//   assert_eq!(new_model_position, expected_position);
-// }
-//
-// #[test]
-// fn relative_movement_logic() {
-//   let mut screen = ScreenData::new();
-//   let mut test_model = 0;
-//
-//   screen.add_model(&test_model).unwrap();
-//
-//   let expected_collisions = 0;
-//   let expected_position = ((CONFIG.grid_width + 1) as usize * 11) + 11;
-//
-//   let collisions = test_model.relative_movement((1, 1));
-//
-//   let new_model_position = test_model.get_position();
-//
-//   assert_eq!(collisions.len(), expected_collisions);
-//   assert_eq!(new_model_position, expected_position);
-// }
 
 #[test]
 fn from_file_invalid_file_extension() {
@@ -46,7 +11,7 @@ fn from_file_invalid_file_extension() {
 
   let expected_result = Err(ModelError::NonModelFile);
 
-  let result = ModelData::from_file(path, (0, 0));
+  let result = ModelData::from_file(path, WORLD_POSITION);
 
   assert_eq!(result, expected_result);
 }
@@ -70,25 +35,9 @@ fn from_file_model_doesnt_exist() {
   assert_eq!(result, expected_result);
 }
 
-// #[test]
-// fn change_strata() {
-//   let mut screen = ScreenData::new();
-//   let mut test_model = new_test_model();
-//
-//   screen.add_model(test_model).unwrap();
-//
-//   let expected_strata = Strata(50);
-//
-//   test_model.change_strata(Strata(50)).unwrap();
-//
-//   let model_strata = test_model.get_strata();
-//
-//   assert_eq!(model_strata, expected_strata);
-// }
-
 #[test]
 fn change_name() {
-  let test_model = new_test_model();
+  let test_model = TestingData::new_test_model(WORLD_POSITION);
   let model_name = test_model.get_name();
 
   let expected_old_name = String::from("Test_Square");
@@ -109,7 +58,7 @@ fn change_name() {
 //   #[test]
 //   fn no_other_models() {
 //     let mut screen = ScreenData::new();
-//     let model_data = new_test_model();
+//     let model_data = TestingData::new_test_model(WORLD_POSITION);
 //
 //     screen.add_model(model_data).unwrap();
 //
@@ -268,7 +217,7 @@ fn change_name() {
 
 #[test]
 fn eq_logic() {
-  let test_model = new_test_model();
+  let test_model = TestingData::new_test_model(WORLD_POSITION);
 
   #[allow(clippy::redundant_clone)]
   let cloned_model_data = test_model.clone();
@@ -276,9 +225,8 @@ fn eq_logic() {
   assert_eq!(test_model, cloned_model_data);
 }
 
-// Data for tests below.
-
-fn new_test_model() -> ModelData {
-  let test_model_path = std::path::Path::new("tests/models/test_square.model");
-  ModelData::from_file(test_model_path, WORLD_POSITION).unwrap()
+#[test]
+fn display_model_logic() {
+  #[derive(DisplayModel)]
+  struct _X;
 }

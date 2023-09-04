@@ -14,3 +14,5 @@ pub use crate::CONFIG;
 pub use crate::models::traits::*;
 
 pub use crate::general_data::user_input::*;
+
+pub use crate::screen::model_manager::*;

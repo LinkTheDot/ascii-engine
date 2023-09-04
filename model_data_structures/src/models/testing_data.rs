@@ -6,15 +6,6 @@ use std::path::PathBuf;
 
 lazy_static! {
   static ref TEST_MODEL_PATH: PathBuf = {
-    // let mut project_root = project_root::get_project_root().unwrap();
-    //
-    // if !project_root.ends_with("ascii_engine") {
-    //   project_root.pop();
-    // }
-    //
-    // project_root.push("tests/models");
-    //
-    // project_root
     let mut path = PathBuf::from("tests/models");
 
     if !path.exists() {
