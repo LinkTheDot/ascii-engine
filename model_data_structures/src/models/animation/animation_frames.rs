@@ -1,4 +1,5 @@
 pub use crate::models::animation::animation_frames_iterators::*;
+use crate::models::sprites::Sprite;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct AnimationFrames {
@@ -9,10 +10,9 @@ pub struct AnimationFrames {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct AnimationFrame {
-  appearance: String,
+  appearance: Sprite,
   /// This is how many ticks this frame should live for.
   frame_duration: u32,
-  anchor_replacement_character: Option<char>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -54,15 +54,10 @@ impl AnimationFrames {
 }
 
 impl AnimationFrame {
-  pub fn new(
-    appearance: String,
-    duration: u32,
-    anchor_replacement_character: Option<char>,
-  ) -> Self {
+  pub fn new(appearance: Sprite, duration: u32) -> Self {
     Self {
       appearance,
       frame_duration: duration,
-      anchor_replacement_character,
     }
   }
 
@@ -70,12 +65,8 @@ impl AnimationFrame {
     self.frame_duration
   }
 
-  pub fn get_appearance(&self) -> &str {
+  pub fn get_appearance(&self) -> &Sprite {
     &self.appearance
-  }
-
-  pub fn get_anchor_replacement_char(&self) -> Option<char> {
-    self.anchor_replacement_character
   }
 }
 
@@ -88,49 +79,14 @@ impl AnimationLoopCount {
   }
 }
 
-impl std::convert::From<(AnimationLoopCount, Vec<(u32, String)>)> for AnimationFrames {
-  fn from(item: (AnimationLoopCount, Vec<(u32, String)>)) -> Self {
+impl From<(AnimationLoopCount, Vec<(u32, Sprite)>)> for AnimationFrames {
+  fn from(item: (AnimationLoopCount, Vec<(u32, Sprite)>)) -> Self {
     let (loop_count, frames) = item;
     let frames: Vec<AnimationFrame> = frames
       .into_iter()
-      .map(|(frame_duration, frame)| AnimationFrame::new(frame, frame_duration, None))
+      .map(|(frame_duration, frame)| AnimationFrame::new(frame, frame_duration))
       .collect();
 
     AnimationFrames::new(frames, loop_count)
-  }
-}
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-
-  #[test]
-  fn get_frame_logic() {
-    let test_animation = get_test_animation(999);
-
-    let expected_frame = AnimationFrame::new("rrrrr\nrrarr\nrrrrr".to_string(), 1, None);
-
-    let obtained_frame = test_animation.get_frame(0);
-
-    assert_eq!(obtained_frame, Some(&expected_frame));
-  }
-
-  #[test]
-  fn frame_count_logic() {
-    let test_animation = get_test_animation(999);
-
-    let test_animation_frame_count = test_animation.frame_count();
-
-    assert_eq!(test_animation_frame_count, 3);
-  }
-
-  fn get_test_animation(loop_count: u64) -> AnimationFrames {
-    let frames = vec![
-      AnimationFrame::new("rrrrr\nrrarr\nrrrrr".to_string(), 1, None),
-      AnimationFrame::new("sssss\nssass\nsssss".to_string(), 1, None),
-      AnimationFrame::new("ttttt\nttatt\nttttt".to_string(), 1, None),
-    ];
-
-    AnimationFrames::new(frames, AnimationLoopCount::Limited(loop_count))
   }
 }

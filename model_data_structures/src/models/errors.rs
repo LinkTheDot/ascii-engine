@@ -1,4 +1,4 @@
-use crate::models::model_data::Strata;
+use crate::models::strata::Strata;
 use std::ffi::OsString;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -15,9 +15,6 @@ pub enum ModelError {
 
   /// This error is returned when a strata that wasn't 0-100 was passed in.
   IncorrectStrataRange(Strata),
-
-  /// The model has attempted to move out of bounds.
-  OutOfBounds(Direction),
 
   /// A thread holding a copy of a model panicked when trying to obtain the lock of said model.
   FailedToGetLock,
@@ -49,16 +46,19 @@ pub enum ModelError {
 
   /// A wrapper for the [`AnimationError`](AnimationError) error type.
   AnimationError(AnimationError),
-}
 
-/// This is used for the OutOfBounds error for models.
-/// Determines the side of the screen that a model went out of bounds.
-#[derive(Debug, PartialEq, Eq)]
-pub enum Direction {
-  Up,
-  Left,
-  Right,
-  Down,
+  /// When changing the air or anchor character for a sprite, both matched each other.
+  SpriteAnchorMatchesAirCharacter,
+
+  /// Attempted to change the anchor character on a model that already contained
+  /// that character in its appearance.
+  ModelSpriteContainsNewAnchorCharacter,
+
+  /// Attempted to create/change a hitbox with an index that's larger than it's area.
+  IndexLargerThanHitboxArea,
+
+  /// Attempted to place a model out of bounds of the world.
+  ModelOutOfBounds,
 }
 
 /// This is the list of possible errors that could happen when parsing a model file.
@@ -126,12 +126,13 @@ pub enum AnimationError {
   AnimationDataAlreadyHasConnection,
 
   /// This error happens when attempting to start a model's animation without ever starting the animation thread.
-  ///
-  /// To start the animation thread use [`screen_data.start_animation_thread()`](crate::screen::screen_data::ScreenData::start_animation_thread).
   AnimationThreadNotStarted,
 
   /// This error is returned when attempting to start the animation thread when it has already been started.
   AnimationThreadAlreadyStarted,
+
+  /// The connection was severed when attempting to send a request to the animation thread.
+  AnimationThreadClosed,
 
   /// This error is returned when attempting to increment the changed frames on a model animator that has no current animation.
   NoExistingAnimation,
@@ -143,6 +144,9 @@ pub enum AnimationError {
   /// This error is returned when attempting to parse an animation directory for a model, but the path
   /// defined in the model's file leads to a file instead of a directory containing animation files.
   AnimationDirectoryIsFile(OsString),
+
+  /// Attempted to add a model to the animation thread through the model manager, but there was no connection.
+  NoExistingAnimationConnection,
 }
 
 /// Since almost no error is returned to the user from the animation parser, most errors here will only ever

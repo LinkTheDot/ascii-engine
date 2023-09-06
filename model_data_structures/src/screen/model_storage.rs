@@ -1,20 +1,14 @@
 use crate::errors::*;
+use crate::models::model_data::*;
+use crate::models::strata::Strata;
 use log::{error, info, warn};
-use model_data_structures::models::model_data::*;
-use model_data_structures::models::strata::*;
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 /// This is the struct that contains a reference to every model that exists in the world.
 #[derive(Debug, Default)]
-pub(crate) struct ModelStorage {
+pub struct ModelStorage {
   model_stratas: HashMap<Strata, HashSet<u64>>,
   models: HashMap<u64, ModelData>,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct ReadOnlyModelStorage {
-  model_storage: Arc<RwLock<ModelStorage>>,
 }
 
 impl ModelStorage {
@@ -106,7 +100,7 @@ impl ModelStorage {
     self.models.keys().collect()
   }
 
-  /// Returns a reference to the internal HashMap of <hash, ModelData.
+  /// Returns a reference to the internal HashMap of <hash, ModelData>.
   pub fn get_model_list(&self) -> &HashMap<u64, ModelData> {
     &self.models
   }
@@ -219,38 +213,12 @@ impl ModelStorage {
 
     Err(ModelError::ModelDoesntExist)
   }
-
-  pub(crate) fn create_read_only(model_storage: Arc<RwLock<Self>>) -> ReadOnlyModelStorage {
-    ReadOnlyModelStorage { model_storage }
-  }
-}
-
-impl ReadOnlyModelStorage {
-  pub fn read_model_storage(&self) -> RwLockReadGuard<ModelStorage> {
-    self.model_storage.read().unwrap()
-  }
-}
-
-impl<I> From<I> for ModelStorage
-where
-  I: IntoIterator<Item = ModelData>,
-{
-  fn from(item: I) -> Self {
-    let models = item.into_iter().collect::<Vec<ModelData>>();
-    let mut model_storage = ModelStorage::default();
-
-    for model in models {
-      let _ = model_storage.insert(model);
-    }
-
-    model_storage
-  }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use model_data_structures::models::testing_data::*;
+  use crate::models::testing_data::*;
 
   const WORLD_POSITION: (usize, usize) = (10, 10);
 
@@ -481,22 +449,5 @@ mod tests {
 
       assert_eq!(result, expected_result);
     }
-  }
-
-  #[test]
-  fn extract_model_list_logic() {
-    let models: Vec<ModelData> = (0..5)
-      .map(|_| TestingData::new_test_model(WORLD_POSITION))
-      .collect();
-    let model_storage = ModelStorage::from(models.clone());
-
-    let expected_list: HashMap<u64, ModelData> = models
-      .into_iter()
-      .map(|model| (model.get_hash(), model))
-      .collect();
-
-    let model_list = model_storage.extract_model_list();
-
-    assert_eq!(model_list, expected_list);
   }
 }

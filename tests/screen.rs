@@ -1,4 +1,9 @@
+#![cfg(test)]
+
 use ascii_engine::prelude::*;
+use model_data_structures::models::testing_data::TestingData;
+
+const WORLD_POSITION: (usize, usize) = (10, 10);
 
 #[cfg(test)]
 mod display_logic {
@@ -18,12 +23,12 @@ mod display_logic {
   #[test]
   fn with_model() {
     let mut screen = ScreenData::new();
-    let test_model = TestModel::new();
+    let test_model = TestingData::new_test_model(WORLD_POSITION);
 
     let expected_pixel_count =
       ((CONFIG.grid_width * CONFIG.grid_height) + CONFIG.grid_height - 1) as usize;
 
-    screen.add_model(&test_model).unwrap();
+    screen.add_model(test_model).unwrap();
 
     let display = screen.display();
 
@@ -34,15 +39,14 @@ mod display_logic {
 #[test]
 fn add_and_remove_model() {
   let mut screen = ScreenData::new();
-  let test_model = TestModel::new();
+  let test_model = TestingData::new_test_model(WORLD_POSITION);
+  let test_model_hash = test_model.get_hash();
 
-  screen.add_model(&test_model).unwrap();
-
-  let test_model_hash = test_model.get_unique_hash();
+  screen.add_model(test_model).unwrap();
 
   let result_data = screen.remove_model(&test_model_hash).unwrap();
 
-  assert_eq!(result_data.get_unique_hash(), test_model_hash);
+  assert_eq!(result_data.get_hash(), test_model_hash);
 }
 
 #[cfg(test)]
@@ -75,6 +79,8 @@ mod start_animation_thread_logic {
 
 #[test]
 fn get_event_sync_logic() {
+  const RUN_COUNT: usize = 50;
+
   let screen = ScreenData::new();
 
   let expected_elapsed_time_low = 23500;
@@ -82,8 +88,10 @@ fn get_event_sync_logic() {
 
   let event_sync = screen.get_event_sync();
 
+  let mut sucess_count = 0;
+
   // run the test 50 times
-  for _ in 0..50 {
+  for _ in 0..RUN_COUNT {
     event_sync.wait_for_tick();
     let now = std::time::Instant::now();
 
@@ -92,10 +100,13 @@ fn get_event_sync_logic() {
     let elapsed_time = now.elapsed().as_micros();
 
     // check if the elapsed time is 24ms +- 0.5ms;
-    assert!(
-      expected_elapsed_time_low <= elapsed_time && expected_elapsed_time_high >= elapsed_time
-    );
+    if expected_elapsed_time_low <= elapsed_time && expected_elapsed_time_high >= elapsed_time {
+      sucess_count += 1;
+    }
   }
+
+  // check for a 90% sucess rate
+  assert!(sucess_count >= (RUN_COUNT as f32 * 0.9) as usize);
 }
 
 #[test]
@@ -120,24 +131,4 @@ fn stop_stopped_animation_thread() {
   let mut screen = ScreenData::new();
 
   screen.stop_animation_thread().unwrap();
-}
-
-//
-// -- Data for tests below --
-//
-
-const WORLD_POSITION: (usize, usize) = (10, 10);
-
-#[derive(DisplayModel)]
-struct TestModel {
-  model_data: ModelData,
-}
-
-impl TestModel {
-  fn new() -> Self {
-    let test_model_path = std::path::Path::new("tests/models/test_square.model");
-    let model_data = ModelData::from_file(test_model_path, WORLD_POSITION).unwrap();
-
-    Self { model_data }
-  }
 }

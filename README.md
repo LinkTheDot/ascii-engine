@@ -21,14 +21,7 @@ use ascii_engine::prelude::*;
 let screen_data = ScreenData::new();
 ```
 
-Next you'll want to start the printer for the screen.
-
-```rust,no_run,ignore
-screen_data.start_printer().unwrap();
-```
-
-Once you've started the printer,, all you need to do is call the
-`print_screen()` method.
+All you need to do is call the `print_screen()` method.
 
 ```rust,no_run,ignore
 screen_data.print_screen().unwrap();

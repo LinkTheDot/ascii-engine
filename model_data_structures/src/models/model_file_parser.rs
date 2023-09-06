@@ -1,8 +1,7 @@
-// Maybe make some sort of error struct for parse errors that contains data like the line and path of the error.
-
-use crate::models::animation::ModelAnimationData;
+// use crate::models::animation::ModelAnimationData;
 use crate::models::errors::*;
-use crate::models::{hitboxes::*, model_data::*};
+use crate::models::{hitboxes::*, model_data::*, sprites::*, strata::*};
+use engine_math::rectangle::Rectangle;
 use log::error;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -50,7 +49,7 @@ impl ModelDataBuilder {
       return Err(ModelError::ModelCreationError(error));
     }
 
-    let hitbox_data = self.build_hitbox_data();
+    let hitbox_data = self.build_hitbox_data()?;
     let sprite = self.build_sprite()?;
 
     ModelData::new(
@@ -62,26 +61,38 @@ impl ModelDataBuilder {
     )
   }
 
-  /// Creates a [`Sprite`](crate::models::sprite::Sprite) with the data inside of self.
+  /// Creates a [`Sprite`](crate::models::sprites::Sprite) with the data inside of self.
   ///
   /// # Errors
   ///
   /// - Returns an error when no anchor was found on the appearance of the model.
   fn build_sprite(&self) -> Result<Sprite, ModelError> {
-    Sprite::new(
-      self.appearance.as_ref().unwrap(),
-      self.anchor.unwrap(),
-      self.anchor_replacement.unwrap(),
-      self.air.unwrap(),
-    )
+    let mut base_sprite = Sprite::new();
+    let appearance = self.appearance.clone().unwrap();
+    let anchor = self.anchor.unwrap();
+    let anchor_replacement = self.anchor_replacement.unwrap();
+    let air = self.air.unwrap();
+
+    base_sprite.change_shape(appearance, Some(anchor), Some(anchor_replacement))?;
+    base_sprite.change_air_character(air)?;
+
+    Ok(base_sprite)
   }
 
   /// Creates [`HitboxCreationData`](crate::models::hitboxes::HitboxCreationData) with the data inside of self.
-  fn build_hitbox_data(&self) -> HitboxCreationData {
-    let hitbox_shape = &self.hitbox_dimensions.as_ref().unwrap();
+  fn build_hitbox_data(&self) -> Result<HitboxCreationData, ModelError> {
+    let hitbox_shape = self.hitbox_dimensions.as_ref().unwrap();
     let anchor_character = self.anchor.unwrap();
 
-    HitboxCreationData::new(hitbox_shape, anchor_character)
+    let hitbox_dimensions =
+      Rectangle::get_string_dimensions(hitbox_shape).unwrap_or(Rectangle::default());
+    let anchor_index = if hitbox_dimensions.area() != 0 {
+      Sprite::calculate_anchor_index(hitbox_shape, anchor_character)?
+    } else {
+      0
+    };
+
+    Ok(HitboxCreationData::new(hitbox_dimensions, anchor_index))
   }
 
   /// Checks if every field in the given ModelDataBuilder exists.
@@ -152,17 +163,19 @@ impl ModelParser {
     }
 
     let file_rows: Vec<&str> = file_contents_buffer.split('\n').collect();
-    let mut model_data_builder = ModelParser::parse_rows(file_rows)?;
+    // let mut model_data_builder = ModelParser::parse_rows(file_rows)?;
+    let model_data_builder = ModelParser::parse_rows(file_rows)?;
 
-    let model_animation_file_path = model_data_builder.animation_file_path.take();
-    let mut model_data = model_data_builder.build(frame_position)?;
+    // let model_animation_file_path = model_data_builder.animation_file_path.take();
+    // let mut model_data = model_data_builder.build(frame_position)?;
+    let model_data = model_data_builder.build(frame_position)?;
 
-    if let Some(model_animation_file_path) = model_animation_file_path {
-      match ModelAnimationData::from_file(*model_animation_file_path) {
-        Ok(animation_data) => model_data.assign_model_animation(animation_data)?,
-        Err(animation_error) => return Err(ModelError::AnimationError(animation_error)),
-      }
-    }
+    // if let Some(model_animation_file_path) = model_animation_file_path {
+    //   match ModelAnimationData::from_file(*model_animation_file_path) {
+    //     Ok(animation_data) => model_data.assign_model_animation(animation_data)?,
+    //     Err(animation_error) => return Err(ModelError::AnimationError(animation_error)),
+    //   }
+    // }
 
     Ok(model_data)
   }
@@ -410,7 +423,7 @@ mod tests {
 
   #[test]
   fn missing_data() {
-    let missing_file_path = Path::new("tests/models/missing_data.model");
+    let missing_file_path = Path::new("../tests/models/missing_data.model");
     let missing_data_file = File::open(missing_file_path).unwrap();
 
     let error = ModelCreationError::MissingData(get_error_list());
@@ -434,15 +447,15 @@ mod tests {
 
   #[test]
   fn equals_in_skin_field() {
-    let file_path = Path::new("tests/models/equals_in_skin_field.model");
+    let file_path = Path::new("../tests/models/equals_in_skin_field.model");
     let model_file = File::open(file_path).unwrap();
 
-    ModelParser::parse(model_file, (0, 0)).unwrap();
+    ModelParser::parse(model_file, (10, 10)).unwrap();
   }
 
   #[test]
   fn empty_model_file() {
-    let file_path = Path::new("tests/models/empty_file.model");
+    let file_path = Path::new("../tests/models/empty_file.model");
     let empty_file = File::open(file_path).unwrap();
 
     let error = ModelCreationError::ModelFileIsEmpty;
@@ -455,7 +468,7 @@ mod tests {
 
   #[test]
   fn model_with_impossible_strata() {
-    let file_path = Path::new("tests/models/wrong_strata_range.model");
+    let file_path = Path::new("../tests/models/wrong_strata_range.model");
     let model_file = File::open(file_path).unwrap();
 
     let error = ModelCreationError::InvalidStrataRange(1000);
@@ -468,7 +481,7 @@ mod tests {
 
   #[test]
   fn model_with_no_data_in_strata() {
-    let file_path = Path::new("tests/models/empty_strata.model");
+    let file_path = Path::new("../tests/models/empty_strata.model");
     let model_file = File::open(file_path).unwrap();
 
     let error = ModelCreationError::InvalidStringSizeAtLine(6);
@@ -481,7 +494,7 @@ mod tests {
 
   #[test]
   fn model_with_no_name() {
-    let file_path = Path::new("tests/models/empty_name.model");
+    let file_path = Path::new("../tests/models/empty_name.model");
     let model_file = File::open(file_path).unwrap();
 
     let error = ModelCreationError::InvalidStringSizeAtLine(5);
@@ -494,7 +507,7 @@ mod tests {
 
   #[test]
   fn incorrect_right_hand_side_under_skin_header() {
-    let file_path = Path::new("tests/models/incorrect_right_hand_side.model");
+    let file_path = Path::new("../tests/models/incorrect_right_hand_side.model");
     let model_file = File::open(file_path).unwrap();
 
     let error = ModelCreationError::InvalidStringSizeAtLine(6);
@@ -507,7 +520,7 @@ mod tests {
 
   #[test]
   fn characters_in_strata_field() {
-    let file_path = Path::new("tests/models/characters_in_strata.model");
+    let file_path = Path::new("../tests/models/characters_in_strata.model");
     let model_file = File::open(file_path).unwrap();
 
     let error = ModelCreationError::InvalidSyntax(6);

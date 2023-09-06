@@ -55,15 +55,14 @@ impl AnimationFramesIntoIter {
 }
 
 #[cfg(test)]
-mod tests {
+mod frame_tests {
   use super::*;
+  use crate::models::sprites::Sprite;
 
   #[test]
   fn iter_logic() {
-    let animation_frames = get_test_animation();
-    let frame_1 = AnimationFrame::new("lllll\nllall\nlllll".to_string(), 1, None);
-    let frame_2 = AnimationFrame::new("mmmmm\nmmamm\nmmmmm".to_string(), 1, None);
-    let frame_3 = AnimationFrame::new("nnnnn\nnnann\nnnnnn".to_string(), 1, None);
+    let animation_frames = get_test_animation(2);
+    let [frame_1, frame_2, frame_3] = get_test_frames();
 
     let mut iter = animation_frames.into_iter();
 
@@ -83,13 +82,35 @@ mod tests {
 
   // Test Data
 
-  fn get_test_animation() -> AnimationFrames {
-    let frames = vec![
-      AnimationFrame::new("lllll\nllall\nlllll".to_string(), 1, None),
-      AnimationFrame::new("mmmmm\nmmamm\nmmmmm".to_string(), 1, None),
-      AnimationFrame::new("nnnnn\nnnann\nnnnnn".to_string(), 1, None),
-    ];
+  fn get_test_animation(loop_count: u64) -> AnimationFrames {
+    let frames = get_test_frames().to_vec();
 
-    AnimationFrames::new(frames, AnimationLoopCount::Limited(2))
+    AnimationFrames::new(frames, AnimationLoopCount::Limited(loop_count))
+  }
+
+  fn get_test_frames() -> [AnimationFrame; 3] {
+    let mut base_frame = Sprite::new();
+    base_frame.change_anchor_character('a').unwrap();
+
+    base_frame
+      .change_shape("lllll\nllall\nlllll".to_string(), None, Some('l'))
+      .unwrap();
+    let frame_one = base_frame.clone();
+
+    base_frame
+      .change_shape("mmmmm\nmmamm\nmmmmm".to_string(), None, Some('m'))
+      .unwrap();
+    let frame_two = base_frame.clone();
+
+    base_frame
+      .change_shape("nnnnn\nnnann\nnnnnn".to_string(), None, Some('n'))
+      .unwrap();
+    let frame_three = base_frame;
+
+    [
+      AnimationFrame::new(frame_one, 1),
+      AnimationFrame::new(frame_two, 1),
+      AnimationFrame::new(frame_three, 1),
+    ]
   }
 }

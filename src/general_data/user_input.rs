@@ -1,6 +1,6 @@
-use crate::screen::errors::ScreenError;
 use log::error;
 use log::info;
+use model_data_structures::screen::errors::ScreenError;
 use oneshot::Sender;
 use std::io;
 use std::io::{Read, Write};
@@ -13,7 +13,7 @@ pub const ERROR_CHARACTER: &str = "|";
 /// Gets a user's input without canonical mode.
 ///
 /// If anything unexpected happens the ERROR_CHARACTER is returned.
-fn get_user_input() -> String {
+pub fn get_user_input() -> String {
   let stdin = 0;
 
   let mut termios = Termios::from_fd(stdin).unwrap();

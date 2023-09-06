@@ -3,8 +3,11 @@ name = "ascii_engine"
 version = "0.1.0"
 edition = "2021"
 
+[workspace]
 members = [
   "model_macros",
+  "model_data_structures",
+  "engine_math",
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -27,3 +30,5 @@ event_sync = "0.1.*"
 screen_printer = "0.2.*"
 
 model_macros = { path = "model_macros" }
+model_data_structures = { path = "model_data_structures" }
+engine_math = { path = "engine_math" }
