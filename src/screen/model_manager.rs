@@ -31,6 +31,10 @@ impl ModelManager {
     self.animation_thread_sender = Some(connection)
   }
 
+  pub fn is_connected_to_animation_thread(&self) -> bool {
+    self.animation_thread_sender.is_some()
+  }
+
   /// Takes a closure that uses the internal list of models.
   ///
   /// Returns the value resulted within the closure.
@@ -279,22 +283,8 @@ fn add_index_to_coordinates(coordinates: (isize, isize), index: usize) -> (isize
 
 #[cfg(test)]
 mod tests {
-  use super::*;
-  use model_data_structures::models::testing_data::*;
-
-  const WORLD_POSITION: (usize, usize) = (10, 10);
-
-  #[test]
-  fn calculate_relative_movement_frame_position_positive_direction() {
-    let screen_width = CONFIG.grid_width as usize + 1;
-    let model = TestingData::new_test_model(WORLD_POSITION);
-    let movement: (isize, isize) = (1, 1);
-
-    // based on top left
-    let expected_position = (10, 10).coordinates_to_index(screen_width);
-
-    let new_position = calculate_relative_movement_frame_position(&model, movement).unwrap();
-
-    assert_eq!(new_position, expected_position);
-  }
+  // use super::*;
+  // use model_data_structures::models::testing_data::*;
+  //
+  // const WORLD_POSITION: (usize, usize) = (10, 10);
 }

@@ -84,8 +84,13 @@ impl ModelDataBuilder {
     let hitbox_shape = self.hitbox_dimensions.as_ref().unwrap();
     let anchor_character = self.anchor.unwrap();
 
-    let hitbox_dimensions = Rectangle::get_string_dimensions(hitbox_shape).unwrap();
-    let anchor_index = Sprite::calculate_anchor_index(hitbox_shape, anchor_character)?;
+    let hitbox_dimensions =
+      Rectangle::get_string_dimensions(hitbox_shape).unwrap_or(Rectangle::default());
+    let anchor_index = if hitbox_dimensions.area() != 0 {
+      Sprite::calculate_anchor_index(hitbox_shape, anchor_character)?
+    } else {
+      0
+    };
 
     Ok(HitboxCreationData::new(hitbox_dimensions, anchor_index))
   }
