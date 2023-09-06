@@ -74,24 +74,35 @@ impl ModelManager {
       return Err(ModelError::ModelDoesntExist);
     };
 
-    let new_position = match movement {
-      ModelMovement::Absolute(movement) => {
-        // This conversion will be removed once the world becomes infinite and cameras exist.
-        let movement = (movement.0 as usize, movement.1 as usize);
-
-        model.calculate_top_left_index_from(movement)
-      }
-      ModelMovement::Relative(movement) => {
-        calculate_relative_movement_frame_position(&model, movement)
-      }
-    };
-
-    let Some(new_position) = new_position else {
+    let Some(new_position) = calculate_movement_of_model(&movement, &model) else {
       return Err(ModelError::ModelOutOfBounds);
     };
 
     model.change_position(new_position);
     let collision_list = self.check_collisions_against_all_models(model, None);
+
+    if !collision_list.is_empty() {
+      Ok(Some(ModelCollisions {
+        collider: model_hash,
+        caused_movement: movement,
+        collision_list,
+      }))
+    } else {
+      Ok(None)
+    }
+  }
+
+  pub fn check_if_movement_causes_collisions(
+    &self,
+    model_hash: u64,
+    movement: ModelMovement,
+  ) -> Result<Option<ModelCollisions>, ModelError> {
+    let Some(model) = self.get_model(&model_hash) else {
+      return Err(ModelError::ModelDoesntExist);
+    };
+
+    let new_position = calculate_movement_of_model(&movement, &model);
+    let collision_list = self.check_collisions_against_all_models(model, new_position);
 
     if !collision_list.is_empty() {
       Ok(Some(ModelCollisions {
@@ -261,7 +272,7 @@ fn models_are_colliding(
 
 fn calculate_relative_movement_frame_position(
   model: &ModelData,
-  added_position: (isize, isize),
+  added_position: &(isize, isize),
 ) -> Option<usize> {
   let screen_width = CONFIG.grid_width as isize + 1;
   let model_frame_top_left = model.get_frame_position() as isize;
@@ -279,6 +290,23 @@ fn add_index_to_coordinates(coordinates: (isize, isize), index: usize) -> (isize
   let (x, y) = index.index_to_coordinates(CONFIG.grid_width as usize + 1);
 
   (x as isize + coordinates.0, y as isize + coordinates.1)
+}
+
+/// Returns the new frame position of the model based on the movement.
+///
+/// None is returned if the movement caused the top left of the model to go negative.
+fn calculate_movement_of_model(movement: &ModelMovement, model: &ModelData) -> Option<usize> {
+  match movement {
+    ModelMovement::Absolute(movement) => {
+      // This conversion will be removed once the world becomes infinite and cameras exist.
+      let movement = (movement.0 as usize, movement.1 as usize);
+
+      model.calculate_top_left_index_from(movement)
+    }
+    ModelMovement::Relative(movement) => {
+      calculate_relative_movement_frame_position(model, movement)
+    }
+  }
 }
 
 #[cfg(test)]

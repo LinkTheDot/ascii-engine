@@ -204,6 +204,42 @@ mod model_movement_and_collision_logic {
 
     assert!(model_collisions.is_none());
   }
+
+  #[test]
+  fn check_if_movement_causes_collisions_logic() {
+    let model_one = TestingData::new_test_model(WORLD_POSITION);
+    let model_two = TestingData::new_test_model(WORLD_POSITION.add((5, 0)));
+    let (_, model_manager) = setup_model_manager(vec![model_one.clone(), model_two.clone()]);
+    let movement = (1, 0);
+    let movement = ModelMovement::Relative(movement);
+
+    let expected_collisions = VecDeque::from([model_two.get_hash()]);
+    let expected_model_one_position = model_one.get_world_position();
+
+    let model_collisions = model_manager
+      .check_if_movement_causes_collisions(model_one.get_hash(), movement)
+      .unwrap()
+      .expect("There were no collisions detected.");
+
+    assert_eq!(model_one.get_hash(), model_collisions.collider);
+    assert_eq!(movement, model_collisions.caused_movement);
+    assert_eq!(expected_collisions, model_collisions.collision_list);
+    assert_eq!(model_one.get_world_position(), expected_model_one_position); // Ensure there was no movement.
+  }
+
+  #[test]
+  fn check_if_movement_causes_collisions_no_collisions() {
+    let model = TestingData::new_test_model(WORLD_POSITION);
+    let (_, model_manager) = setup_model_manager(vec![model.clone()]);
+    let movement = (1, 0);
+    let movement = ModelMovement::Relative(movement);
+
+    let result = model_manager
+      .check_if_movement_causes_collisions(model.get_hash(), movement)
+      .unwrap();
+
+    assert!(result.is_none());
+  }
 }
 
 #[test]
