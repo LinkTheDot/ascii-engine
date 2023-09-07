@@ -37,7 +37,7 @@ use std::thread::JoinHandle;
 ///  }
 /// ```
 ///
-/// To create your own models refer to [`ModelData`](crate::models::model_data::ModelData).
+/// To create your own models refer to [`ModelData`](model_data_structures::models::model_data::ModelData).
 /// For adding them to the screen look to [add_model()](crate::screen::screen_data::ScreenData::add_model()).
 pub struct ScreenData {
   printer: ScreenPrinter,
@@ -76,7 +76,7 @@ impl ScreenData {
   ///  }
   /// ```
   ///
-  /// To create your own models refer to [`ModelData`](crate::models::model_data::ModelData).
+  /// To create your own models refer to [`ModelData`](model_data_structures::models::model_data::ModelData).
   /// For adding them to the screen look to [add_model()](crate::screen::screen_data::ScreenData::add_model()).
   pub fn new() -> ScreenData {
     print!("{}", termion::clear::All);
@@ -159,7 +159,7 @@ impl ScreenData {
   ///
   /// Returns the hash of that model
   ///
-  /// Refer to [`ModelData`](crate::models::model_data::ModelData) on how to create your own model.
+  /// Refer to [`ModelData`](model_data_structures::models::model_data::ModelData) on how to create your own model.
   ///
   /// # Errors
   ///

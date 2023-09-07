@@ -1,5 +1,5 @@
 use crate::errors::*;
-use engine_math::rectangle::*;
+use engine_math::{prelude::UsizeMethods, rectangle::*};
 
 /// The required data to create a hitbox.
 ///
@@ -61,76 +61,16 @@ impl HitboxCreationData {
   ///
   ///
   /// If the skin string is empty, returns an [`empty hitbox`](Hitbox::create_empty).
-  fn get_hitbox(self, anchor_skin_coordinates: (isize, isize)) -> Hitbox {
+  fn get_hitbox(self) -> Hitbox {
     if self.dimensions.area() == 0 {
       return Hitbox::create_empty();
     }
 
-    let skin_top_left_to_hitbox_top_left =
-      HitboxCreationData::calculate_skin_top_left_to_hitbox_top_left(
-        anchor_skin_coordinates,
-        self.anchor_index as f32,
-        self.dimensions.x as f32,
-      );
-
     Hitbox {
-      skin_top_left_to_hitbox_top_left,
       hitbox_anchor_index: self.anchor_index,
       dimensions: self.dimensions,
       empty_hitbox: false,
     }
-  }
-
-  /// This returns the relative position of the skin's top left to the hitbox's top left
-  ///
-  /// Takes the position of the skin's anchor character interally.
-  ///
-  /// This method also takes the index of where the anchor is in the hitbox string. Does not count newlines.
-  ///
-  /// # Example
-  ///
-  /// Say you have a skin with 'a' as the anchor, that looks like this:
-  /// ```no_run,bash,ignore
-  /// xxx
-  /// xax
-  /// xxx
-  /// ```
-  /// In this case, the first argument would be (1, 1).
-  /// This is because the anchor character is within position (1, 1) of the ``model's skin``.
-  ///
-  /// Now say your hitbox looks the exact same as the skin.
-  /// The other arguments would be 4 and 3.
-  ///
-  /// With this data, this method would return (0, 0).
-  ///
-  /// ```ignore
-  /// use ascii_engine::models::hitboxes::HitboxCreationData;                        
-  ///
-  /// let skin_relative_anchor: (isize, isize) = (1, 1);
-  /// let hitbox_anchor_index: f32 = 4.0;
-  /// let hitbox_width: f32 = 3.0;
-  ///
-  /// let skin_to_hitbox_anchor =
-  ///   HitboxCreationData::calculate_skin_top_left_to_hitbox_top_left(
-  ///     skin_relative_anchor,
-  ///     hitbox_anchor_index,
-  ///     hitbox_width
-  ///   );
-  ///
-  /// assert_eq!(skin_to_hitbox_anchor, (0, 0));
-  /// ```
-  pub(crate) fn calculate_skin_top_left_to_hitbox_top_left(
-    skin_anchor_to_top_left: (isize, isize),
-    hitbox_anchor_index: f32,
-    hitbox_width: f32,
-  ) -> (isize, isize) {
-    let hitbox_anchor_to_top_left_x = (hitbox_anchor_index % hitbox_width).round() as isize;
-    let hitbox_anchor_to_top_left_y = (hitbox_anchor_index / hitbox_width).round() as isize;
-
-    (
-      hitbox_anchor_to_top_left_x - skin_anchor_to_top_left.0,
-      hitbox_anchor_to_top_left_y - skin_anchor_to_top_left.1,
-    )
   }
 }
 
@@ -161,8 +101,6 @@ impl HitboxCreationData {
 /// From there, you can create a hitbox with that and the relative anchor to the skin using the [`Hitbox::from()`](Hitbox::from) method.
 #[derive(Debug, Eq, PartialEq)]
 pub struct Hitbox {
-  // TODO: Is it really the hitbox's job to know this?
-  skin_top_left_to_hitbox_top_left: (isize, isize),
   hitbox_anchor_index: usize,
   dimensions: Rectangle,
   empty_hitbox: bool,
@@ -181,8 +119,8 @@ impl Hitbox {
   /// xxx
   /// ```
   /// you would pass in (1, 1).
-  pub fn from(hitbox_data: HitboxCreationData, skin_anchor_coordinates: (isize, isize)) -> Self {
-    hitbox_data.get_hitbox(skin_anchor_coordinates)
+  pub fn from(hitbox_data: HitboxCreationData) -> Self {
+    hitbox_data.get_hitbox()
   }
 
   /// Returns an empty hitbox.
@@ -193,7 +131,7 @@ impl Hitbox {
   /// This means an object with an "empty hitbox" will never interact with the world.
   fn create_empty() -> Self {
     Self {
-      skin_top_left_to_hitbox_top_left: (0, 0),
+      // skin_top_left_to_hitbox_top_left: (0, 0),
       hitbox_anchor_index: 0,
       dimensions: Rectangle::default(),
       empty_hitbox: true,
@@ -224,8 +162,13 @@ impl Hitbox {
     &self.dimensions
   }
 
-  // This will be changed once all movement logic is cleaned up.
-  pub fn sprite_to_hitbox_anchor_difference(&self) -> (isize, isize) {
-    self.skin_top_left_to_hitbox_top_left
+  pub fn get_anchor_index(&self) -> usize {
+    self.hitbox_anchor_index
+  }
+
+  pub fn get_anchor_as_coordinates(&self) -> (usize, usize) {
+    self
+      .hitbox_anchor_index
+      .index_to_coordinates(self.dimensions.x)
   }
 }

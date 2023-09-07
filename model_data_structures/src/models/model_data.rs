@@ -9,7 +9,7 @@ use engine_math::{coordinates::*, hasher, rectangle::*};
 use std::ffi::OsStr;
 use std::fs::File;
 use std::path::Path;
-use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
+use std::sync::{Arc, Mutex, RwLock};
 
 #[derive(Debug, Clone)]
 pub struct ModelData {
@@ -152,9 +152,6 @@ impl ModelData {
   }
 
   /// Returns a reference to the stored [`Sprite`](crate::models::sprites::Sprite) value on this model.
-  // This will end up breaking hitboxes because they store some data based on this.
-  // For literally no reason...
-  // TODO: Change that...
   pub fn get_sprite(&self) -> Arc<RwLock<Sprite>> {
     self.inner.lock().unwrap().sprite.clone()
   }
@@ -165,20 +162,9 @@ impl ModelData {
 
   /// Replaces the currently stored hitbox with the new one.
   pub fn change_hitbox(&mut self, new_hitbox_data: HitboxCreationData) {
-    let mut internal_data = self.inner.lock().unwrap();
-    // Seriously, remove this from hitboxes...
-    let sprite = internal_data.read_sprite();
-    let sprite_width = sprite.get_dimensions().x;
-    let sprite_anchor_index = sprite.get_anchor_index();
-    let sprite_anchor_shape_coordinates = sprite_anchor_index
-      .index_to_coordinates(sprite_width)
-      .to_isize();
+    let new_hitbox = Hitbox::from(new_hitbox_data);
 
-    drop(sprite);
-
-    let new_hitbox = Hitbox::from(new_hitbox_data, sprite_anchor_shape_coordinates);
-
-    let _ = std::mem::replace(&mut internal_data.hitbox, new_hitbox);
+    let _ = std::mem::replace(&mut self.inner.lock().unwrap().hitbox, new_hitbox);
   }
 
   /// Returns a reference to the stored [`ModelAnimationData`](crate::models::animation::ModelAnimationData).
@@ -206,18 +192,26 @@ impl ModelData {
   }
 
   pub fn sprite_to_hitbox_anchor_difference(&self) -> (isize, isize) {
-    self
+    // self .inner .lock() .unwrap() .hitbox .sprite_to_hitbox_anchor_difference()
+    // let inner = self.inner.lock().unwrap();
+    let sprite = self.get_sprite();
+    let sprite = sprite.read().unwrap();
+    let sprite_anchor = sprite.get_anchor_as_coordinates();
+    drop(sprite);
+    let hitbox_anchor = self
       .inner
       .lock()
       .unwrap()
       .hitbox
-      .sprite_to_hitbox_anchor_difference()
+      .get_anchor_as_coordinates();
+
+    hitbox_anchor.subtract(sprite_anchor)
   }
 
   /// Returns the top left of the model in the frame based on the given position.
   ///
   /// This does not use the current position for the model. Rather, it takes a hypothetical
-  /// world position for the model. It then returns where the model's top left position would be
+  /// world position for the model, returning where the model's top left position would be
   /// if it were in this position.
   ///
   /// None is returned if the position was OutOfBounds in the negative direction.
@@ -254,17 +248,13 @@ impl InternalModelData {
     strata: Strata,
     assigned_name: String,
   ) -> Result<Self, ModelError> {
-    let sprite_anchor_coordinates = sprite
-      .get_anchor_index()
-      .index_to_coordinates(sprite.get_dimensions().x);
-
     let Some(position_in_frame) =
       ModelData::caluculate_top_left_index(&sprite, model_world_position)
     else {
       return Err(ModelError::ModelOutOfBounds);
     };
 
-    let hitbox = Hitbox::from(hitbox_data, sprite_anchor_coordinates.to_isize());
+    let hitbox = Hitbox::from(hitbox_data);
 
     // Will be removed once replaced with a Z axis.
     if !strata.correct_range() {
@@ -280,11 +270,6 @@ impl InternalModelData {
       hitbox,
       animation_data: None,
     })
-  }
-
-  /// Returns a read guard on the internally stored sprite.
-  fn read_sprite(&self) -> RwLockReadGuard<Sprite> {
-    self.sprite.read().unwrap()
   }
 }
 
