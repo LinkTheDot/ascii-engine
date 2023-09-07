@@ -279,7 +279,7 @@ fn calculate_relative_movement_frame_position(
 
   let new_position = added_position.0 + (screen_width * added_position.1) + model_frame_top_left;
 
-  if new_position > 0 {
+  if new_position >= 0 {
     Some(new_position as usize)
   } else {
     None

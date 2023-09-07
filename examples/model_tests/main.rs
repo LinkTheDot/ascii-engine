@@ -45,8 +45,31 @@ fn main() {
     let movement = ModelMovement::Relative(movement);
 
     // Don't care about the collisions for now.
-    let _ = model_manager.move_model(player.model_hash, movement);
+    let _ = model_manager
+      .move_model(player.model_hash, movement)
+      .log_if_err();
   }
 
   let _ = printing_thread_kill_sender.send(());
+}
+
+trait ResultTraits<T> {
+  /// Logs the result if it's an error.
+  /// The message will be under 'Error' when logged.
+  fn log_if_err(self) -> Option<T>;
+}
+
+impl<T, E> ResultTraits<T> for Result<T, E>
+where
+  E: std::fmt::Debug,
+{
+  fn log_if_err(self) -> Option<T> {
+    if let Err(error) = self {
+      log::error!("{error:?}");
+
+      return None;
+    }
+
+    self.ok()
+  }
 }
