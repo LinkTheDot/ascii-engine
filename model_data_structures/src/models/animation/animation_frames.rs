@@ -91,3 +91,25 @@ impl From<(AnimationLoopCount, Vec<(u32, Sprite)>)> for AnimationFrames {
     AnimationFrames::new(frames, loop_count)
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::models::testing_data::*;
+
+  #[test]
+  fn animation_frame_get_logic() {
+    let test_animation =
+      TestingData::get_test_animation(['l', 'm', 'n'], AnimationLoopCount::Limited(1));
+    let test_frame = test_animation.into_iter().next().unwrap();
+
+    let mut expected_appearance = Sprite::new();
+    expected_appearance.change_anchor_character('a').unwrap();
+    expected_appearance
+      .change_shape("lllll\nllall\nlllll".to_string(), None, Some('l'))
+      .unwrap();
+
+    assert_eq!(test_frame.get_appearance(), &expected_appearance);
+    assert_eq!(test_frame.get_frame_duration(), 1);
+  }
+}

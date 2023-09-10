@@ -57,60 +57,35 @@ impl AnimationFramesIntoIter {
 #[cfg(test)]
 mod frame_tests {
   use super::*;
-  use crate::models::sprites::Sprite;
+  use crate::models::testing_data::TestingData;
 
   #[test]
   fn iter_logic() {
-    let animation_frames = get_test_animation(2);
-    let [frame_1, frame_2, frame_3] = get_test_frames();
+    let animation_frames =
+      TestingData::get_test_animation(['l', 'm', 'n'], AnimationLoopCount::Limited(2));
+    let frame_data = vec![
+      ("lllll\nllall\nlllll".to_string(), 1, 'l'),
+      ("mmmmm\nmmamm\nmmmmm".to_string(), 1, 'm'),
+      ("nnnnn\nnnann\nnnnnn".to_string(), 1, 'n'),
+    ];
+    let frame_data = TestingData::get_test_frames(frame_data);
 
     let mut iter = animation_frames.into_iter();
 
     // Loop 1
-    assert_eq!(iter.next(), Some(frame_1.clone()));
-    assert_eq!(iter.next(), Some(frame_2.clone()));
-    assert_eq!(iter.next(), Some(frame_3.clone()));
+    assert_eq!(iter.next(), Some(frame_data[0].clone()));
+    assert_eq!(iter.next(), Some(frame_data[1].clone()));
+    assert_eq!(iter.next(), Some(frame_data[2].clone()));
 
     // Loop 2
-    assert_eq!(iter.next(), Some(frame_1));
-    assert_eq!(iter.next(), Some(frame_2));
-    assert_eq!(iter.next(), Some(frame_3));
+    assert_eq!(iter.next(), Some(frame_data[0].clone()));
+    assert_eq!(iter.next(), Some(frame_data[1].clone()));
+    assert_eq!(iter.next(), Some(frame_data[2].clone()));
 
-    // Run count hit it's limit.
+    // Run count hit its limit.
     assert_eq!(iter.next(), None);
   }
 
-  // Test Data
-
-  fn get_test_animation(loop_count: u64) -> AnimationFrames {
-    let frames = get_test_frames().to_vec();
-
-    AnimationFrames::new(frames, AnimationLoopCount::Limited(loop_count))
-  }
-
-  fn get_test_frames() -> [AnimationFrame; 3] {
-    let mut base_frame = Sprite::new();
-    base_frame.change_anchor_character('a').unwrap();
-
-    base_frame
-      .change_shape("lllll\nllall\nlllll".to_string(), None, Some('l'))
-      .unwrap();
-    let frame_one = base_frame.clone();
-
-    base_frame
-      .change_shape("mmmmm\nmmamm\nmmmmm".to_string(), None, Some('m'))
-      .unwrap();
-    let frame_two = base_frame.clone();
-
-    base_frame
-      .change_shape("nnnnn\nnnann\nnnnnn".to_string(), None, Some('n'))
-      .unwrap();
-    let frame_three = base_frame;
-
-    [
-      AnimationFrame::new(frame_one, 1),
-      AnimationFrame::new(frame_two, 1),
-      AnimationFrame::new(frame_three, 1),
-    ]
-  }
+  #[test]
+  fn get_from_iteration_logic() {}
 }

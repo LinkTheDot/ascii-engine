@@ -117,11 +117,11 @@ impl ModelAnimationData {
 
   pub fn send_model_animator_request(
     &mut self,
-    model_hash: u64,
+    model_hash: &u64,
     sender: &mpsc::UnboundedSender<AnimationRequest>,
   ) {
     let animation_request = AnimationRequest {
-      model_unique_hash: model_hash,
+      model_unique_hash: *model_hash,
       request: AnimationAction::AddAnimator(self.model_animator.clone()),
     };
 

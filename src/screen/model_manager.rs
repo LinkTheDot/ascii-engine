@@ -94,10 +94,10 @@ impl ModelManager {
 
   pub fn check_if_movement_causes_collisions(
     &self,
-    model_hash: u64,
+    model_hash: &u64,
     movement: ModelMovement,
   ) -> Result<Option<ModelCollisions>, ModelError> {
-    let Some(model) = self.get_model(&model_hash) else {
+    let Some(model) = self.get_model(model_hash) else {
       return Err(ModelError::ModelDoesntExist);
     };
 
@@ -106,7 +106,7 @@ impl ModelManager {
 
     if !collision_list.is_empty() {
       Ok(Some(ModelCollisions {
-        collider: model_hash,
+        collider: *model_hash,
         caused_movement: movement,
         collision_list,
       }))
@@ -155,7 +155,7 @@ impl ModelManager {
   /// - The model had no animation data
   pub fn queue_model_animation(
     &mut self,
-    _model: u64,
+    _model: &u64,
     _animation_name: String,
   ) -> Result<(), ModelError> {
     todo!()
@@ -174,7 +174,7 @@ impl ModelManager {
   /// - The model had no animation data
   pub fn overwrite_current_model_animation(
     &mut self,
-    _model: u64,
+    _model: &u64,
     _animation_name: String,
   ) -> Result<(), ModelError> {
     todo!()
@@ -187,7 +187,7 @@ impl ModelManager {
   ///
   /// - There was no model with that hash
   /// - The model had no animation data
-  pub fn clear_model_animation_queue(&mut self, _model: u64) -> Result<(), ModelError> {
+  pub fn clear_model_animation_queue(&mut self, _model: &u64) -> Result<(), ModelError> {
     todo!()
   }
 
@@ -199,7 +199,7 @@ impl ModelManager {
   /// - The model already contains an animation with the given name
   pub fn add_animation_to_model(
     &mut self,
-    _model: u64,
+    _model: &u64,
     _animation: AnimationFrames,
     _animation_name: String,
   ) -> Result<(), ModelError> {
@@ -214,14 +214,14 @@ impl ModelManager {
   /// - The animation thread isn't started.
   /// - There was no model with that hash
   /// - The model had no animation data
-  pub fn add_model_to_animation_thread(&mut self, model_hash: u64) -> Result<(), ModelError> {
+  pub fn add_model_to_animation_thread(&mut self, model_hash: &u64) -> Result<(), ModelError> {
     let Some(animation_thread_sender) = &self.animation_thread_sender else {
       return Err(ModelError::AnimationError(
         AnimationError::AnimationThreadNotStarted,
       ));
     };
 
-    let Some(mut model_data) = self.get_model(&model_hash) else {
+    let Some(mut model_data) = self.get_model(model_hash) else {
       return Err(ModelError::ModelDoesntExist);
     };
     let Some(model_animation_data) = model_data.get_animation_data() else {

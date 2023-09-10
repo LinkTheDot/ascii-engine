@@ -2,10 +2,10 @@ use model_data_structures::{
   models::{model_data::*, stored_models::StoredDisplayModel},
   prelude::ScreenError,
 };
-use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::PathBuf;
+use std::{collections::HashSet, fs};
 
 /// A storage for the list of models that exist in a given state of the world.
 #[derive(Debug)]
@@ -55,6 +55,14 @@ impl StoredWorld {
     let models: Vec<StoredDisplayModel> = models.into_iter().map(ModelData::to_stored).collect();
 
     Self { models }
+  }
+
+  pub fn get_model_hashes(&self) -> HashSet<u64> {
+    self
+      .models
+      .iter()
+      .map(|stored_model| stored_model.get_hash())
+      .collect()
   }
 
   pub fn load(path: PathBuf) -> Result<Self, ScreenError> {
@@ -230,6 +238,19 @@ mod tests {
     assert!(!temporary_test_file_path.exists());
     assert!(result.is_err());
   }
+
+  #[test]
+  fn load_fake_path() {
+    let path: PathBuf = generate_temporary_test_file_path();
+
+    let expected_result = ScreenError::FileDoesNotExist;
+
+    let result = StoredWorld::load(path).unwrap_err();
+
+    assert_eq!(result, expected_result);
+  }
+
+  // data for tests
 
   #[cfg(test)]
   pub fn get_test_world() -> StoredWorld {

@@ -79,8 +79,8 @@ impl ModelDataBuilder {
     Ok(base_sprite)
   }
 
-  /// Creates [`HitboxCreationData`](crate::models::hitboxes::HitboxCreationData) with the data inside of self.
-  fn build_hitbox_data(&self) -> Result<HitboxCreationData, ModelError> {
+  /// Creates [`HitboxData`](crate::models::hitboxes::Hitbox) from the data inside of self.
+  fn build_hitbox_data(&self) -> Result<Hitbox, ModelError> {
     let hitbox_shape = self.hitbox_dimensions.as_ref().unwrap();
     let anchor_character = self.anchor.unwrap();
 
@@ -92,7 +92,7 @@ impl ModelDataBuilder {
       0
     };
 
-    Ok(HitboxCreationData::new(hitbox_dimensions, anchor_index))
+    Ok(Hitbox::new(hitbox_dimensions, anchor_index))
   }
 
   /// Checks if every field in the given ModelDataBuilder exists.

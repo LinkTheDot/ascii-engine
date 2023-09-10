@@ -42,7 +42,7 @@ impl ModelData {
   pub fn new(
     model_position: Coordinates,
     sprite: Sprite,
-    hitbox_data: HitboxCreationData,
+    hitbox_data: Hitbox,
     strata: Strata,
     assigned_name: String,
   ) -> Result<Self, ModelError> {
@@ -196,9 +196,7 @@ impl ModelData {
   }
 
   /// Replaces the currently stored hitbox with the new one.
-  pub fn change_hitbox(&mut self, new_hitbox_data: HitboxCreationData) {
-    let new_hitbox = Hitbox::from(new_hitbox_data);
-
+  pub fn change_hitbox(&mut self, new_hitbox: Hitbox) {
     let _ = std::mem::replace(&mut self.inner.lock().unwrap().hitbox, new_hitbox);
   }
 
@@ -279,7 +277,7 @@ impl InternalModelData {
   fn new(
     model_world_position: Coordinates,
     sprite: Sprite,
-    hitbox_data: HitboxCreationData,
+    hitbox: Hitbox,
     strata: Strata,
     assigned_name: String,
   ) -> Result<Self, ModelError> {
@@ -288,8 +286,6 @@ impl InternalModelData {
     else {
       return Err(ModelError::ModelOutOfBounds);
     };
-
-    let hitbox = Hitbox::from(hitbox_data);
 
     // Will be removed once replaced with a Z axis.
     if !strata.correct_range() {

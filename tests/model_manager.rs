@@ -217,7 +217,7 @@ mod model_movement_and_collision_logic {
     let expected_model_one_position = model_one.get_world_position();
 
     let model_collisions = model_manager
-      .check_if_movement_causes_collisions(model_one.get_hash(), movement)
+      .check_if_movement_causes_collisions(&model_one.get_hash(), movement)
       .unwrap()
       .expect("There were no collisions detected.");
 
@@ -235,7 +235,7 @@ mod model_movement_and_collision_logic {
     let movement = ModelMovement::Relative(movement);
 
     let result = model_manager
-      .check_if_movement_causes_collisions(model.get_hash(), movement)
+      .check_if_movement_causes_collisions(&model.get_hash(), movement)
       .unwrap();
 
     assert!(result.is_none());
@@ -251,6 +251,20 @@ fn add_animation_connection_through_screen() {
   screen.connect_model_manager_to_animation_thread(&mut model_manager);
 
   assert!(model_manager.is_connected_to_animation_thread());
+}
+
+#[test]
+fn check_if_movement_causes_collisions_model_does_not_exist() {
+  let (_, model_manager) = setup_model_manager(vec![]);
+  let movement = ModelMovement::Relative((0, 0));
+
+  let expected_result = ModelError::ModelDoesntExist;
+
+  let result = model_manager
+    .check_if_movement_causes_collisions(&0, movement)
+    .unwrap_err();
+
+  assert_eq!(result, expected_result);
 }
 
 // data for tests

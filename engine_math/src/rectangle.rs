@@ -27,7 +27,7 @@ impl Rectangle {
   }
 
   pub fn area(&self) -> usize {
-    self.x + self.y
+    self.x * self.y
   }
 
   /// Returns true if the given index is within the bounds of the Rectangle.
@@ -75,16 +75,16 @@ mod tests {
 
     #[test]
     fn valid_index() {
-      let rectangle = Rectangle::from((2, 2));
-      let index = 3;
+      let rectangle = Rectangle::from((2, 20));
+      let index = 39;
 
       assert!(rectangle.index_is_valid(index));
     }
 
     #[test]
     fn invalid_index() {
-      let rectangle = Rectangle::from((2, 2));
-      let index = 4;
+      let rectangle = Rectangle::from((2, 20));
+      let index = 40;
 
       assert!(!rectangle.index_is_valid(index));
     }

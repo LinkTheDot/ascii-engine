@@ -34,6 +34,12 @@ mod display_logic {
 
     assert_eq!(display.chars().count(), expected_pixel_count);
   }
+
+  #[test]
+  fn get_screen_printer_logic() {
+    let screen = ScreenData::new();
+    let _screen_printer = screen.get_screen_printer();
+  }
 }
 
 #[test]
@@ -131,4 +137,39 @@ fn stop_stopped_animation_thread() {
   let mut screen = ScreenData::new();
 
   screen.stop_animation_thread().unwrap();
+}
+
+#[cfg(test)]
+mod world_management_logic {
+  use std::path::PathBuf;
+
+  use ascii_engine::screen::stored_worlds::StoredWorld;
+
+  use super::*;
+
+  #[test]
+  fn reset_world_logic() {
+    let test_world = StoredWorld::load(PathBuf::from("tests/worlds/test_template.world")).unwrap();
+    let test_world_hashes = test_world.get_model_hashes();
+    let mut screen_data = ScreenData::from_world(test_world);
+
+    let reset_world = screen_data.reset_world();
+    let reset_world_hashes = reset_world.get_model_hashes();
+
+    assert_eq!(test_world_hashes, reset_world_hashes)
+  }
+
+  #[test]
+  fn load_world_logic() {
+    let test_world = StoredWorld::load(PathBuf::from("tests/worlds/test_template.world")).unwrap();
+    let mut screen_data = ScreenData::new();
+    let model_manager = screen_data.get_model_manager();
+
+    let empty_world = screen_data.load_world(test_world);
+    assert!(empty_world.get_model_hashes().is_empty());
+
+    model_manager.get_model_list(|model_list| {
+      assert!(model_list.keys().count() == 5);
+    });
+  }
 }
