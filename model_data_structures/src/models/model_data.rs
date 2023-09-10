@@ -3,6 +3,7 @@ use crate::models::animation::ModelAnimationData;
 use crate::models::hitboxes::*;
 use crate::models::model_file_parser::ModelParser;
 use crate::models::sprites::*;
+use crate::models::stored_models::*;
 use crate::models::strata::Strata;
 use crate::CONFIG;
 use engine_math::{coordinates::*, hasher, rectangle::*};
@@ -16,7 +17,7 @@ pub struct ModelData {
   inner: Arc<Mutex<InternalModelData>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InternalModelData {
   unique_hash: u64,
   assigned_name: String,
@@ -86,6 +87,36 @@ impl ModelData {
         Err(ModelError::ModelCreationError(error))
       }
     }
+  }
+
+  pub fn from_stored(stored_model: StoredDisplayModel) -> Result<Self, ModelError> {
+    stored_model.sprite.validity_check()?;
+
+    let internal_model_data = InternalModelData {
+      unique_hash: stored_model.unique_hash,
+      assigned_name: stored_model.name,
+      position_in_frame: stored_model.position,
+      strata: stored_model.strata,
+      sprite: Arc::new(RwLock::new(stored_model.sprite)),
+      hitbox: stored_model.hitbox,
+      animation_data: None,
+    };
+
+    let model = Self {
+      inner: Arc::new(Mutex::new(internal_model_data)),
+    };
+
+    if let Some(animation_data) = stored_model.animation_data {
+      let animation_data = ModelAnimationData::new(model.clone(), animation_data);
+
+      model.inner.lock().unwrap().animation_data = Some(Arc::new(Mutex::new(animation_data)));
+    }
+
+    Ok(model)
+  }
+
+  pub fn to_stored(self) -> StoredDisplayModel {
+    StoredDisplayModel::new(self)
   }
 
   /// Returns a copy of the model's stored unique hash.
@@ -158,6 +189,10 @@ impl ModelData {
 
   pub fn get_hitbox_dimensions(&self) -> Rectangle {
     *self.inner.lock().unwrap().hitbox.get_hitbox_dimensions()
+  }
+
+  pub fn get_hitbox(&self) -> Hitbox {
+    self.inner.lock().unwrap().hitbox.clone()
   }
 
   /// Replaces the currently stored hitbox with the new one.
@@ -282,6 +317,20 @@ impl PartialEq for ModelData {
 impl PartialEq for InternalModelData {
   fn eq(&self, other: &Self) -> bool {
     self.unique_hash == other.unique_hash
+  }
+}
+
+impl Eq for ModelData {}
+
+impl PartialOrd for ModelData {
+  fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    Some(self.cmp(other))
+  }
+}
+
+impl Ord for ModelData {
+  fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    self.get_hash().cmp(&other.get_hash())
   }
 }
 

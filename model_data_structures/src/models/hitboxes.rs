@@ -1,5 +1,6 @@
 use crate::errors::*;
 use engine_math::{prelude::UsizeMethods, rectangle::*};
+use serde::{Deserialize, Serialize};
 
 /// The required data to create a hitbox.
 ///
@@ -99,7 +100,7 @@ impl HitboxCreationData {
 ///
 /// First you much create [`HitboxCreationData`](HitboxCreationData).
 /// From there, you can create a hitbox with that and the relative anchor to the skin using the [`Hitbox::from()`](Hitbox::from) method.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Clone)]
 pub struct Hitbox {
   hitbox_anchor_index: usize,
   dimensions: Rectangle,

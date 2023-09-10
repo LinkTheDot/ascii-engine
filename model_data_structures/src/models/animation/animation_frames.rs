@@ -1,21 +1,22 @@
 pub use crate::models::animation::animation_frames_iterators::*;
 use crate::models::sprites::Sprite;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct AnimationFrames {
   frames: Vec<AnimationFrame>,
   /// Determines if this animation should loop forever or a set amount of times.
   loop_count: AnimationLoopCount,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct AnimationFrame {
   appearance: Sprite,
   /// This is how many ticks this frame should live for.
   frame_duration: u32,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum AnimationLoopCount {
   Forever,
   /// Contains how many times an animation should loop for.

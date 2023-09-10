@@ -29,4 +29,5 @@ pub mod screen {
   pub mod model_storage;
   pub mod printer;
   pub mod screen_data;
+  pub mod stored_worlds;
 }

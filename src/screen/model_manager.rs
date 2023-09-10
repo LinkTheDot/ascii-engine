@@ -67,10 +67,10 @@ impl ModelManager {
   /// - When the passed in model doesn't exist.
   pub fn move_model(
     &mut self,
-    model_hash: u64,
+    model_hash: &u64,
     movement: ModelMovement,
   ) -> Result<Option<ModelCollisions>, ModelError> {
-    let Some(mut model) = self.get_model(&model_hash) else {
+    let Some(mut model) = self.get_model(model_hash) else {
       return Err(ModelError::ModelDoesntExist);
     };
 
@@ -83,7 +83,7 @@ impl ModelManager {
 
     if !collision_list.is_empty() {
       Ok(Some(ModelCollisions {
-        collider: model_hash,
+        collider: *model_hash,
         caused_movement: movement,
         collision_list,
       }))

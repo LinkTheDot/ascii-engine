@@ -8,6 +8,7 @@ lazy_static! {
   static ref TEST_MODEL_PATH: PathBuf = {
     let mut path = PathBuf::from("tests/models");
 
+    // Ensure the path is accessable for tests in sub-directories within the workspace.
     if !path.exists() {
       path = PathBuf::from("..").join(path);
     }
@@ -15,7 +16,6 @@ lazy_static! {
     path
   };
 }
-// const TEST_MODEL_PATH: &str = "tests/models/";
 
 #[test]
 fn test_model_path_exists() {
@@ -42,6 +42,11 @@ impl TestingData {
     test_model_path.push("test_model_no_hitbox.model");
 
     ModelData::from_file(&test_model_path, world_position).unwrap()
+  }
+
+  /// Creates a list of the given amount of models at the given position.
+  pub fn get_multiple_test_models(position: (usize, usize), count: u32) -> Vec<ModelData> {
+    (0..count).map(|_| Self::new_test_model(position)).collect()
   }
 
   // This is temporary until animation file parsers are a thing.

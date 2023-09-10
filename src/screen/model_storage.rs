@@ -1,4 +1,5 @@
 use crate::errors::*;
+use crate::screen::stored_worlds::*;
 use log::{error, info, warn};
 use model_data_structures::models::model_data::*;
 use model_data_structures::models::strata::*;
@@ -111,9 +112,11 @@ impl ModelStorage {
     &self.models
   }
 
-  /// Consumes self and returns the internally stored list of models.
-  pub fn extract_model_list(self) -> HashMap<u64, ModelData> {
-    self.models
+  /// Consumes self and returns a wrapper that contains the list of models that existed.
+  pub fn extract_model_list(self) -> StoredWorld {
+    let models = self.models.into_values().collect::<Vec<ModelData>>();
+
+    StoredWorld::new(models)
   }
 
   /// Insert a model_hash to the model's currently assigned strata.
@@ -495,8 +498,9 @@ mod tests {
       .map(|model| (model.get_hash(), model))
       .collect();
 
-    let model_list = model_storage.extract_model_list();
+    let stored_world = model_storage.extract_model_list();
+    let model_list = ModelStorage::from(stored_world);
 
-    assert_eq!(model_list, expected_list);
+    assert_eq!(model_list.get_model_list(), &expected_list);
   }
 }

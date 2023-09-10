@@ -16,9 +16,13 @@ pub enum ScreenError {
   /// A wrapper for [`AnimationError`](crate::models::errors::AnimationError).
   AnimationError(AnimationError),
 
-  /// This error is returned when an action was made that requires the printer to be running first.
-  PrinterNotStarted,
+  /// Generally a wrapper around other crate's error types.
+  Other(String),
 
-  /// This error is returned when attempting to start the printer when it has already been started.
-  PrinterAlreadyStarted,
+  /// Attempted to read a file that did not exist.
+  FileDoesNotExist,
+
+  /// There was an error when attempting to serialize the data for a world.
+  /// Contains the error that caused this.
+  FailedToLoadWorld(String),
 }

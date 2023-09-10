@@ -30,14 +30,10 @@ impl ModelAnimator {
   pub fn change_model_frame(&mut self, new_frame: AnimationFrame) {
     let mut new_appearance = new_frame.get_appearance().to_owned();
 
-    if let Err(error_list) = new_appearance.validity_check() {
+    if let Err(error) = new_appearance.validity_check() {
       log::error!(
-        "A model produced the following errors when replacing a frame during animation: {}",
-        error_list
-          .into_iter()
-          .map(|err| format!("{err:?}"))
-          .collect::<Vec<String>>()
-          .join(" | ")
+        "A model produced the following errors when replacing a frame during animation: {:?}",
+        error
       );
     }
 

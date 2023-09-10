@@ -1,12 +1,13 @@
 use crate::errors::*;
 use engine_math::{prelude::UsizeMethods, rectangle::Rectangle};
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
 /// The ``Sprite`` contains the data for how a model looks on the screen.
 ///
 /// Also holds the anchor for how the appearance in placed on the screen and where the hitbox is placed
 /// relative to the appearance.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Sprite {
   shape: String,
   anchor_character: char,
@@ -184,7 +185,7 @@ impl Sprite {
   /// - The stored shape isn't rectangular.
   /// - The stored shape doesn't have an anchor.
   /// - The stored shape has multiple anchors.
-  pub fn validity_check(&self) -> Result<(), Vec<ModelError>> {
+  pub fn validity_check(&self) -> Result<(), ModelError> {
     let mut error_list = vec![];
 
     if !Rectangle::string_is_valid_rectangle(&self.shape) {
@@ -200,7 +201,7 @@ impl Sprite {
     }
 
     if !error_list.is_empty() {
-      Err(error_list)
+      Err(ModelError::SpriteValidityChecks(error_list))
     } else {
       Ok(())
     }

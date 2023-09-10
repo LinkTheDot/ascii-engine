@@ -1,5 +1,7 @@
 use config::{builder::DefaultState, Config, ConfigBuilder, ConfigError, File};
 use serde::{Deserialize, Serialize};
+use std::env;
+use std::ffi::OsStr;
 use std::io::Write;
 use std::{fs::OpenOptions, path::Path};
 
@@ -35,15 +37,15 @@ impl Default for ConfigData {
 /// a new one is created and set with default values.
 pub fn get_config() -> Result<ConfigData, ConfigError> {
   let default_config_data = ConfigData::default();
-  let config_path_name = "config.toml";
-  let config_path = Path::new(config_path_name);
+  let config_path_name = get_config_path_name();
+  let config_path = Path::new(&config_path_name);
 
   if !config_path.exists() {
     let _ = create_missing_config_file(config_path, &default_config_data);
   }
 
   Config::builder()
-    .set_data(default_config_data, config_path_name)?
+    .set_data(default_config_data, &config_path_name)?
     .build()?
     .try_deserialize()
 }
@@ -63,6 +65,18 @@ fn create_missing_config_file(
   write!(config_file, "{}", serialized_config_data)?;
 
   Ok(())
+}
+
+fn get_config_path_name() -> String {
+  if let Some(potential_path) = env::args().nth(1) {
+    let path = Path::new(&potential_path);
+
+    if path.exists() && path.extension() == Some(OsStr::new(".toml")) {
+      return potential_path;
+    }
+  }
+
+  "config.toml".to_string()
 }
 
 trait ConfigTraits {

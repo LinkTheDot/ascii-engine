@@ -77,7 +77,7 @@ mod model_movement_and_collision_logic {
     let expected_position = model.calculate_top_left_index_from(new_position).unwrap();
 
     let collisions = model_manager
-      .move_model(model.get_hash(), movement)
+      .move_model(&model.get_hash(), movement)
       .unwrap();
     let new_model_position = model.get_frame_position();
 
@@ -100,7 +100,7 @@ mod model_movement_and_collision_logic {
     let expected_position = model.calculate_top_left_index_from(new_position).unwrap();
 
     let collisions = model_manager
-      .move_model(model.get_hash(), movement)
+      .move_model(&model.get_hash(), movement)
       .unwrap();
     let new_model_position = model.get_frame_position();
 
@@ -120,7 +120,7 @@ mod model_movement_and_collision_logic {
 
     let expected_error = ModelError::ModelDoesntExist;
 
-    let result = model_manager.move_model(0, movement).unwrap_err();
+    let result = model_manager.move_model(&0, movement).unwrap_err();
 
     assert_eq!(result, expected_error);
   }
@@ -135,7 +135,7 @@ mod model_movement_and_collision_logic {
     let expected_error = ModelError::ModelOutOfBounds;
 
     let result = model_manager
-      .move_model(model.get_hash(), movement)
+      .move_model(&model.get_hash(), movement)
       .unwrap_err();
 
     assert_eq!(result, expected_error);
@@ -152,7 +152,7 @@ mod model_movement_and_collision_logic {
     let expected_collisions = VecDeque::from([model_two.get_hash()]);
 
     let model_collisions = model_manager
-      .move_model(model_one.get_hash(), movement)
+      .move_model(&model_one.get_hash(), movement)
       .unwrap()
       .expect("There were no collisions detected.");
 
@@ -177,7 +177,7 @@ mod model_movement_and_collision_logic {
     let mut expected_collisions = VecDeque::from([model_two.get_hash(), model_three.get_hash()]);
 
     let mut model_collisions = model_manager
-      .move_model(model_one.get_hash(), movement)
+      .move_model(&model_one.get_hash(), movement)
       .unwrap()
       .expect("There were no collisions detected.");
 
@@ -199,7 +199,7 @@ mod model_movement_and_collision_logic {
     let movement = ModelMovement::Relative(movement);
 
     let model_collisions = model_manager
-      .move_model(model_one.get_hash(), movement)
+      .move_model(&model_one.get_hash(), movement)
       .unwrap();
 
     assert!(model_collisions.is_none());

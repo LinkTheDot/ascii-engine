@@ -15,6 +15,7 @@ pub mod models {
   pub mod model_file_parser;
   pub mod model_movements;
   pub mod sprites;
+  pub mod stored_models;
   pub mod strata;
   pub mod testing_data;
 }
@@ -22,6 +23,7 @@ pub mod models {
 pub mod screen {
   pub mod errors;
   pub mod model_storage;
+  pub mod world_storage;
 }
 
 pub mod config_builder;

@@ -4,13 +4,15 @@ use crate::models::animation_thread;
 use crate::screen::model_manager::*;
 use crate::screen::model_storage::*;
 use crate::screen::printer::*;
+use crate::screen::stored_worlds::*;
 use crate::CONFIG;
 use event_sync::EventSync;
 use model_data_structures::models::{animation::*, model_data::*};
 use screen_printer::printer::*;
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread::JoinHandle;
+// use std::collections::VecDeque;
+// use std::time::Instant;
 
 /// ScreenData is where all the internal information required to create frames is held.
 ///
@@ -79,6 +81,16 @@ impl ScreenData {
   /// To create your own models refer to [`ModelData`](model_data_structures::models::model_data::ModelData).
   /// For adding them to the screen look to [add_model()](crate::screen::screen_data::ScreenData::add_model()).
   pub fn new() -> ScreenData {
+    Self::new_screen(Default::default())
+  }
+
+  pub fn from_world(world: StoredWorld) -> Self {
+    let stored_models = ModelStorage::from(world);
+
+    Self::new_screen(stored_models)
+  }
+
+  fn new_screen(stored_models: ModelStorage) -> Self {
     print!("{}", termion::clear::All);
 
     // The handle for the file logger, isn't needed right now
@@ -87,7 +99,7 @@ impl ScreenData {
     let printing_position =
       PrintingPosition::new(XPrintingPosition::Middle, YPrintingPosition::Middle);
     let printer = Printer::new_with_printing_position(printing_position);
-    let model_storage: Arc<RwLock<ModelStorage>> = Default::default();
+    let model_storage: Arc<RwLock<ModelStorage>> = Arc::new(RwLock::new(stored_models));
     let printer = ScreenPrinter::new(
       Arc::new(Mutex::new(printer)),
       ModelStorage::create_read_only(model_storage.clone()),
@@ -177,13 +189,25 @@ impl ScreenData {
 
   /// Replaces the currently existing list of all models that exist in the world with a new, empty list.
   ///
-  /// Returns the list of all models that existed prior to calling this method.
-  pub fn reset_world(&mut self) -> HashMap<u64, ModelData> {
+  /// Returns a wrapper for the stored list of models that existed in the world.
+  pub fn reset_world(&mut self) -> StoredWorld {
     let mut existing_models = self.model_storage.write().unwrap();
 
     let old_world_models = std::mem::take(&mut *existing_models);
 
     old_world_models.extract_model_list()
+  }
+
+  /// Replaces the currently stored list of existing models with the given stored list.
+  ///
+  /// Returns the list of models that was stored.
+  pub fn load_world(&mut self, new_world: StoredWorld) -> StoredWorld {
+    let mut existing_models = self.model_storage.write().unwrap();
+
+    let old_model_list = std::mem::take(&mut *existing_models);
+    *existing_models = ModelStorage::from(new_world);
+
+    old_model_list.extract_model_list()
   }
 
   /// Returns a new ModelManager.
@@ -263,9 +287,21 @@ impl ScreenData {
       let mut consecutive_errors = 0;
       let errors_until_exit = consecutive_errors_to_exit.unwrap_or(0); // 0 will never let this check pass.
 
+      // let mut previous_frame_durations: VecDeque<u128> = VecDeque::new();
+      // let previous_frame_duration_count = 10;
+
       while kill_receiver.try_recv().is_err() && consecutive_errors < errors_until_exit
         || errors_until_exit == 0
       {
+        // let frame_duration_average = (previous_frame_durations.iter().sum::<u128>()
+        //   / (previous_frame_durations.len() as u128)
+        //     .min(previous_frame_duration_count)
+        //     .max(1))
+        // .max(1);
+        // log::debug!("Duration: {:?}", 1000000 / frame_duration_average);
+        //
+        // let now = Instant::now();
+        //
         printing_event_sync.wait_for_tick();
 
         if let Err(error) = printer.print_screen() {
@@ -278,6 +314,11 @@ impl ScreenData {
         } else {
           consecutive_errors = 0;
         }
+        //
+        // previous_frame_durations.push_front(now.elapsed().as_micros());
+        // if previous_frame_durations.len() > previous_frame_duration_count as usize {
+        //   previous_frame_durations.pop_back();
+        // }
       }
 
       log::warn!(

@@ -59,6 +59,9 @@ pub enum ModelError {
 
   /// Attempted to place a model out of bounds of the world.
   ModelOutOfBounds,
+
+  /// A stored list of errors returned when checking if a sprite has any issues with it's data.
+  SpriteValidityChecks(Vec<Self>),
 }
 
 /// This is the list of possible errors that could happen when parsing a model file.

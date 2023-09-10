@@ -127,6 +127,11 @@ impl ModelAnimationData {
 
     let _ = sender.send(animation_request);
   }
+
+  /// Returns a reference to the list of animations stored.
+  pub fn get_animation_list(&self) -> &HashMap<String, AnimationFrames> {
+    &self.animations
+  }
 }
 
 impl<I> From<(ModelData, I)> for ModelAnimationData

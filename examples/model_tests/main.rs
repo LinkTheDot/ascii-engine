@@ -46,7 +46,7 @@ fn main() {
 
     // Don't care about the collisions for now.
     let _ = model_manager
-      .move_model(player.model_hash, movement)
+      .move_model(&player.model_hash, movement)
       .log_if_err();
   }
 
