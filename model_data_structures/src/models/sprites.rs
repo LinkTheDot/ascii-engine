@@ -98,10 +98,9 @@ impl Sprite {
       return Err(ModelError::ModelSpriteContainsNewAnchorCharacter);
     }
 
-    let _ = self
+    self.shape = self
       .shape
       .replace(self.anchor_character, &new_anchor_character.to_string());
-
     self.anchor_character = new_anchor_character;
 
     Ok(())
@@ -170,6 +169,7 @@ impl Sprite {
   /// - The stored shape has multiple anchors.
   pub fn calculate_anchor_index(shape: &str, anchor_character: char) -> Result<usize, ModelError> {
     let shape_anchor_indices: Vec<usize> = shape
+      .replace('\n', "")
       .chars()
       .enumerate()
       .filter(|(_, character)| character == &anchor_character)
@@ -192,13 +192,14 @@ impl Sprite {
   }
 
   /// Checks if the sprite is valid or not.
-  /// Returns the list of error(s) that may have been detected with the sprite's data.
+  /// Returns a wrapper of errors that may have been detected with the sprite's data.
   ///
   /// # Errors
   ///
   /// - The stored shape isn't rectangular.
   /// - The stored shape doesn't have an anchor.
   /// - The stored shape has multiple anchors.
+  /// - The anchor and air characters are the same.
   pub fn validity_check(&self) -> Result<(), ModelError> {
     let mut error_list = vec![];
 
@@ -232,5 +233,152 @@ impl Sprite {
   /// Returns a copy of the current air character.
   pub fn air_character(&self) -> char {
     self.air_character
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn change_shape_invalid_rectangle() {
+    let mut sprite = Sprite::default();
+    let invalid_shape = "a\n-sd".to_string();
+
+    let expected_error = ModelError::NonRectangularShape;
+
+    let result = sprite.change_shape(invalid_shape, None, None).unwrap_err();
+
+    assert_eq!(result, expected_error);
+  }
+
+  #[test]
+  fn change_shape_anchor_equals_air_character() {
+    let mut sprite = Sprite::default();
+
+    let expected_error = ModelError::SpriteAnchorMatchesAirCharacter;
+
+    let result = sprite
+      .change_shape("-a-".to_string(), Some('-'), None)
+      .unwrap_err();
+
+    assert_eq!(result, expected_error);
+  }
+
+  #[test]
+  fn change_anchor_character_sprite_contains_new_anchor() {
+    let mut sprite = Sprite::new("-x-\n-a-".to_string(), 'a', '-', '-').unwrap();
+
+    let expected_error = ModelError::ModelSpriteContainsNewAnchorCharacter;
+
+    let result = sprite.change_anchor_character('x').unwrap_err();
+
+    assert_eq!(result, expected_error);
+  }
+
+  #[test]
+  fn change_anchor_character_logic() {
+    let appearance = "|-|\n|a|".to_string();
+    let mut sprite = Sprite::new(appearance.clone(), 'a', '-', '-').unwrap();
+
+    let expected_appearance = appearance.replace('a', "x");
+
+    sprite.change_anchor_character('x').unwrap();
+
+    assert_eq!(sprite.shape, expected_appearance);
+  }
+
+  #[test]
+  fn change_air_character_matching_anchor() {
+    let mut sprite = Sprite::new("-x-\n-a-".to_string(), 'a', '-', '-').unwrap();
+
+    let expected_error = ModelError::SpriteAnchorMatchesAirCharacter;
+
+    let result = sprite.change_air_character('a').unwrap_err();
+
+    assert_eq!(result, expected_error);
+  }
+
+  #[test]
+  fn change_anchor_replacement_character_logic() {
+    let appearance = "-x-\n-a-".to_string();
+    let mut sprite = Sprite::new(appearance.clone(), 'a', '-', '-').unwrap();
+
+    let expected_before = appearance.replace('a', "-");
+    let expected_after = appearance.replace('a', "x");
+
+    let before = sprite.get_appearance();
+    sprite.change_anchor_replacement_character('x');
+    let after = sprite.get_appearance();
+
+    assert_eq!(before, expected_before);
+    assert_eq!(after, expected_after);
+  }
+
+  #[test]
+  fn get_anchor_index_logic() {
+    let sprite = Sprite::new("-x-\n-a-".to_string(), 'a', '-', '-').unwrap();
+
+    let expected_index = 4;
+    let expected_coordinates = (1, 1);
+
+    let index = sprite.get_anchor_index();
+    let coordinates = sprite.get_anchor_as_coordinates();
+
+    assert_eq!(coordinates, expected_coordinates);
+    assert_eq!(index, expected_index);
+  }
+
+  #[test]
+  fn calculate_anchor_index_error_logic() {
+    let anchor_character = 'x';
+    let no_anchor = "---";
+    let multuiple_anchors = "x-x";
+
+    let multiple_anchor_error = ModelError::MultipleAnchorsFound(vec![0, 2]);
+    let no_anchor_error = ModelError::NoAnchor;
+
+    let no_anchor_result = Sprite::calculate_anchor_index(no_anchor, anchor_character).unwrap_err();
+    let multiple_anchor_result =
+      Sprite::calculate_anchor_index(multuiple_anchors, anchor_character).unwrap_err();
+
+    assert_eq!(no_anchor_result, no_anchor_error);
+    assert_eq!(multiple_anchor_result, multiple_anchor_error);
+  }
+
+  #[test]
+  fn calculate_anchor_index_logic() {
+    let anchor_character = 'x';
+    let shape = "---\n-x-";
+
+    let expected_position = 4;
+
+    let position = Sprite::calculate_anchor_index(shape, anchor_character).unwrap();
+
+    assert_eq!(position, expected_position);
+  }
+
+  #[test]
+  fn validity_check_all_errors() {
+    let junk_sprite = Sprite {
+      shape: "x-x\naa".to_string(),
+      anchor_character: 'a',
+      anchor_replacement_character: 'a',
+      air_character: 'a',
+      anchor_character_index: 100,
+    };
+
+    let expected_error_list = vec![
+      ModelError::NonRectangularShape,
+      ModelError::MultipleAnchorsFound(vec![3, 4]),
+      ModelError::SpriteAnchorMatchesAirCharacter,
+    ];
+
+    let ModelError::SpriteValidityChecks(error_list) = junk_sprite.validity_check().unwrap_err()
+    else {
+      panic!("Incorrect error has been returned.");
+    };
+
+    assert_eq!(error_list, expected_error_list);
   }
 }

@@ -303,6 +303,7 @@ fn calculate_movement_of_model(movement: &ModelMovement, model: &ModelData) -> O
 
       model.calculate_top_left_index_from(movement)
     }
+
     ModelMovement::Relative(movement) => {
       calculate_relative_movement_frame_position(model, movement)
     }
@@ -311,8 +312,16 @@ fn calculate_movement_of_model(movement: &ModelMovement, model: &ModelData) -> O
 
 #[cfg(test)]
 mod tests {
-  // use super::*;
-  // use model_data_structures::models::testing_data::*;
-  //
-  // const WORLD_POSITION: (usize, usize) = (10, 10);
+  use super::*;
+  use model_data_structures::models::testing_data::*;
+
+  #[test]
+  fn calculate_relative_movement_frame_position_out_of_bounds() {
+    let model = TestingData::new_test_model((10, 10));
+    let added_position = (-10, -10); // 0, 0 puts top left at -2. -1.
+
+    let result = calculate_relative_movement_frame_position(&model, &added_position);
+
+    assert!(result.is_none());
+  }
 }

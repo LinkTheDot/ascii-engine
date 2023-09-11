@@ -60,11 +60,9 @@ mod model_exists_logic {
 
 #[cfg(test)]
 mod model_movement_and_collision_logic {
-  use std::collections::VecDeque;
-
-  use engine_math::prelude::*;
-
   use super::*;
+  use engine_math::prelude::*;
+  use std::collections::VecDeque;
 
   #[test]
   fn absolute_movement_logic() {
