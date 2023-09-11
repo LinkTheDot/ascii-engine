@@ -33,8 +33,22 @@ impl Default for Sprite {
 /// The anchor_character_index needs recalculating after every change of the shape and anchor_character.
 impl Sprite {
   /// Returns a default of self.
-  pub fn new() -> Self {
-    Self::default()
+  pub fn new(
+    shape: String,
+    anchor_character: char,
+    anchor_replacement_character: char,
+    air_character: char,
+  ) -> Result<Self, ModelError> {
+    let mut sprite = Sprite::default();
+
+    sprite.change_shape(
+      shape,
+      Some(anchor_character),
+      Some(anchor_replacement_character),
+    )?;
+    sprite.change_air_character(air_character)?;
+
+    Ok(sprite)
   }
 
   /// Changes the internally stored shape and recalculates the anchor's index.
@@ -220,9 +234,3 @@ impl Sprite {
     self.air_character
   }
 }
-
-// impl From<(String, char, char, char)> for Sprite {
-//   fn from(item: (String, char, char, char)) -> Result<Self, ModelError> {
-//     todo!()
-//   }
-// }

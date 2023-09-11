@@ -67,16 +67,12 @@ impl ModelDataBuilder {
   ///
   /// - Returns an error when no anchor was found on the appearance of the model.
   fn build_sprite(&self) -> Result<Sprite, ModelError> {
-    let mut base_sprite = Sprite::new();
     let appearance = self.appearance.clone().unwrap();
     let anchor = self.anchor.unwrap();
     let anchor_replacement = self.anchor_replacement.unwrap();
     let air = self.air.unwrap();
 
-    base_sprite.change_shape(appearance, Some(anchor), Some(anchor_replacement))?;
-    base_sprite.change_air_character(air)?;
-
-    Ok(base_sprite)
+    Sprite::new(appearance, anchor, anchor_replacement, air)
   }
 
   /// Creates [`HitboxData`](crate::models::hitboxes::Hitbox) from the data inside of self.

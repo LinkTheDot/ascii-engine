@@ -73,17 +73,12 @@ impl TestingData {
   /// Gets a list of frames with the passed in data (appearance, duration, anchor replacement).
   /// Default anchor is 'a'.
   pub fn get_test_frames(appearances: Vec<(String, u32, char)>) -> Vec<AnimationFrame> {
-    let mut base_frame = Sprite::new();
-    base_frame.change_anchor_character('a').unwrap();
-
     appearances
       .into_iter()
-      .map(|(appearance, duration, center_replacement)| {
-        base_frame
-          .change_shape(appearance, None, Some(center_replacement))
-          .unwrap();
+      .map(|(appearance, duration, anchor_replacement)| {
+        let sprite = Sprite::new(appearance, 'a', anchor_replacement, '-').unwrap();
 
-        AnimationFrame::new(base_frame.clone(), duration)
+        AnimationFrame::new(sprite, duration)
       })
       .collect()
   }

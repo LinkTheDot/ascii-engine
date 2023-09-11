@@ -470,10 +470,7 @@ mod tests {
       let model_animator = ModelAnimator::new(model_sprite);
       let mut model_animator = model_animator.lock().unwrap();
 
-      let mut frame = Sprite::new();
-      frame
-        .change_shape("-----\n--a--\n-----".to_string(), Some('a'), Some('-'))
-        .unwrap();
+      let frame = Sprite::new(TestingData::get_frame_appearance('-'), 'a', '-', '-').unwrap();
       let new_frame = AnimationFrame::new(frame, 1);
 
       let expected_appearance = "-----\n-----\n-----".to_string();

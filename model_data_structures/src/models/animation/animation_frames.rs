@@ -16,7 +16,7 @@ pub struct AnimationFrame {
   frame_duration: u32,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 pub enum AnimationLoopCount {
   Forever,
   /// Contains how many times an animation should loop for.
@@ -103,13 +103,44 @@ mod tests {
       TestingData::get_test_animation(['l', 'm', 'n'], AnimationLoopCount::Limited(1));
     let test_frame = test_animation.into_iter().next().unwrap();
 
-    let mut expected_appearance = Sprite::new();
-    expected_appearance.change_anchor_character('a').unwrap();
-    expected_appearance
-      .change_shape("lllll\nllall\nlllll".to_string(), None, Some('l'))
-      .unwrap();
+    let expected_appearance =
+      Sprite::new(TestingData::get_frame_appearance('l'), 'a', 'l', '-').unwrap();
 
     assert_eq!(test_frame.get_appearance(), &expected_appearance);
     assert_eq!(test_frame.get_frame_duration(), 1);
+  }
+
+  #[test]
+  fn animation_frames_get_logic() {
+    let loop_count = AnimationLoopCount::Limited(1);
+    let test_animation = TestingData::get_test_animation(['l', 'm', 'n'], loop_count);
+    let test_frame_list: Vec<AnimationFrame> = test_animation.clone().into_iter().collect();
+
+    assert_eq!(test_animation.get_frames(), &test_frame_list);
+    assert_eq!(test_animation.get_loop_count(), &loop_count);
+  }
+
+  #[test]
+  fn animation_frames_from_logic() {
+    let loop_count = AnimationLoopCount::Limited(1);
+    let test_animation = TestingData::get_test_animation(['l', 'm', 'n'], loop_count);
+    let test_animation_data = ['l', 'm', 'n']
+      .into_iter()
+      .map(|frame_char| {
+        let sprite = Sprite::new(
+          TestingData::get_frame_appearance(frame_char),
+          'a',
+          frame_char,
+          '-',
+        )
+        .unwrap();
+
+        (1, sprite)
+      })
+      .collect::<Vec<(u32, Sprite)>>();
+
+    let test_animation_from = AnimationFrames::from((loop_count, test_animation_data));
+
+    assert_eq!(test_animation, test_animation_from);
   }
 }
