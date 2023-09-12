@@ -25,6 +25,8 @@ fn test_model_path_exists() {
 pub struct TestingData;
 
 impl TestingData {
+  pub const ANIMATION_NAME: &str = "test";
+
   /// Returns a test model from the models file.
   pub fn new_test_model(world_position: (usize, usize)) -> ModelData {
     let mut test_model_path = TEST_MODEL_PATH.clone();
@@ -44,7 +46,30 @@ impl TestingData {
     ModelData::from_file(&test_model_path, world_position).unwrap()
   }
 
+  /// Returns an animated model with frames build from the characters passed in, and the animation in question.
+  /// The animation can be used as comparisons for testing.
+  ///
+  /// The animation's name is "test" which can be accessed through TestingData::ANIMATION_NAME.
   pub fn new_test_model_animated(
+    world_position: (usize, usize),
+    animation_characters: [char; 3],
+  ) -> (ModelData, AnimationFrames) {
+    let animation_name = Self::ANIMATION_NAME.to_string();
+    let animation = Self::get_test_animation(animation_characters, AnimationLoopCount::Limited(2));
+
+    let model = Self::new_test_model_with_animation(
+      world_position,
+      vec![(animation_name.clone(), animation.clone())],
+    );
+
+    (model, animation)
+  }
+
+  /// Creates an animated model with the list of animations and names.
+  ///
+  /// This can be used instead of [`new_test_model_animated`](TestingData::new_test_model_animated) if
+  /// you want an animated model with no animations or more than 1 animation.
+  pub fn new_test_model_with_animation(
     world_position: (usize, usize),
     animations: Vec<(String, AnimationFrames)>,
   ) -> ModelData {

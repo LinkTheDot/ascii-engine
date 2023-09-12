@@ -16,8 +16,6 @@ pub use animation_connections::*;
 pub use animation_frames::*;
 pub use model_animator::*;
 use std::collections::{hash_map::Entry, HashMap};
-use std::ffi::OsStr;
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 use tokio::sync::mpsc;
 
@@ -41,52 +39,56 @@ impl ModelAnimationData {
     Self::from((model, animation_list))
   }
 
-  // TODO: List the errors.
-  pub fn from_file(animation_directory: std::path::PathBuf) -> Result<Self, AnimationError> {
-    if !animation_directory.is_dir() {
-      log::error!(
-        "Attempted to build an object with an animation file instead of an animation directory"
-      );
+  // // TODO: List the errors.
+  // pub fn from_file(animation_directory: std::path::PathBuf) -> Result<Self, AnimationError> {
+  //   if !animation_directory.is_dir() {
+  //     log::error!(
+  //       "Attempted to build an object with an animation file instead of an animation directory"
+  //     );
+  //
+  //     let animation_path = animation_directory.into_os_string();
+  //
+  //     return Err(AnimationError::AnimationDirectoryIsFile(animation_path));
+  //   } else if !animation_directory.exists() {
+  //     log::error!("Attempted to build an object with an invalid defined animation path");
+  //
+  //     let animation_path = animation_directory.into_os_string();
+  //
+  //     return Err(AnimationError::AnimationDirectoryDoesntExist(
+  //       animation_path,
+  //     ));
+  //   }
+  //
+  //   let Ok(animation_directory_contents) = animation_directory.read_dir() else {
+  //     let error =
+  //       AnimationParserError::CouldntGetAnimationPath(animation_directory.into_os_string());
+  //
+  //     return Err(AnimationError::AnimationParserError(error));
+  //   };
+  //
+  //   let _animation_directory_contents: Vec<PathBuf> = animation_directory_contents
+  //     .filter_map(|file_dir_entry| Some(file_dir_entry.ok()?.path()))
+  //     .filter(|file_path| file_path.extension() == Some(OsStr::new("animate")))
+  //     .collect();
+  //
+  //   todo!()
+  //   // AnimationParser::parse(animation_directory_contents)
+  // }
 
-      let animation_path = animation_directory.into_os_string();
-
-      return Err(AnimationError::AnimationDirectoryIsFile(animation_path));
-    } else if !animation_directory.exists() {
-      log::error!("Attempted to build an object with an invalid defined animation path");
-
-      let animation_path = animation_directory.into_os_string();
-
-      return Err(AnimationError::AnimationDirectoryDoesntExist(
-        animation_path,
-      ));
-    }
-
-    let Ok(animation_directory_contents) = animation_directory.read_dir() else {
-      let error =
-        AnimationParserError::CouldntGetAnimationPath(animation_directory.into_os_string());
-
-      return Err(AnimationError::AnimationParserError(error));
-    };
-
-    let _animation_directory_contents: Vec<PathBuf> = animation_directory_contents
-      .filter_map(|file_dir_entry| Some(file_dir_entry.ok()?.path()))
-      .filter(|file_path| file_path.extension() == Some(OsStr::new("animate")))
-      .collect();
-
-    todo!()
-    // AnimationParser::parse(animation_directory_contents)
-  }
-
+  /// Returns true if there's an animation with the given name.
   pub fn contains_animation(&self, animation_name: &str) -> bool {
     self.animations.contains_key(animation_name)
   }
 
-  pub fn remove_animation_from_list(&mut self, animation_name: String) -> Option<AnimationFrames> {
-    let (_, animation_frames) = self.animations.remove_entry(&animation_name)?;
+  /// Removes the animation from the list of animations, and returns it if it existed.
+  pub fn remove_animation_from_list(&mut self, animation_name: &str) -> Option<AnimationFrames> {
+    let (_, animation_frames) = self.animations.remove_entry(animation_name)?;
 
     Some(animation_frames)
   }
 
+  /// Adds a new animation for the model to be able to run.
+  ///
   /// # Errors
   ///
   /// - An error is returned when the given animation already exists.
@@ -112,6 +114,8 @@ impl ModelAnimationData {
   }
 
   /// Returns the MutexGuard for the internal [`ModelAnimator`](crate::models::animation::model_animator::ModelAnimator).
+  ///
+  /// This can be used to manually manage animations for a model.
   pub fn get_model_animator(&mut self) -> MutexGuard<ModelAnimator> {
     self.model_animator.lock().unwrap()
   }
@@ -155,21 +159,57 @@ mod tests {
   use super::*;
   use crate::models::testing_data::*;
 
-  const WORLD_POSITION: (usize, usize) = (10, 10);
-
   #[test]
   fn model_animation_data_from() {
-    let test_animation_name = "test_animation".to_string();
-    let test_animation =
-      TestingData::get_test_animation(['r', 's', 't'], AnimationLoopCount::Limited(1));
-    let animation_list: Vec<(String, AnimationFrames)> =
-      vec![(test_animation_name.clone(), test_animation.clone())];
-    let model = TestingData::new_test_model(WORLD_POSITION);
+    let test_animation_name = TestingData::ANIMATION_NAME.to_owned();
+    let (model, test_animation) = TestingData::new_test_model_animated((10, 10), ['1', '2', '3']);
 
-    let expected_animations_list = HashMap::from([(test_animation_name, test_animation)]);
+    let expected_animations_list =
+      HashMap::from([(test_animation_name.clone(), test_animation.clone())]);
 
-    let animation_data = ModelAnimationData::from((model, animation_list));
+    let animation_data =
+      ModelAnimationData::from((model, vec![(test_animation_name, test_animation)]));
 
     assert_eq!(animation_data.animations, expected_animations_list);
+  }
+
+  #[test]
+  fn contains_animation_logic() {
+    let test_animation_name = TestingData::ANIMATION_NAME;
+    let (mut model, _) = TestingData::new_test_model_animated((10, 10), ['1', '2', '3']);
+
+    let model_animation_data = model.get_animation_data().unwrap();
+    let mut model_animation_data = model_animation_data.lock().unwrap();
+
+    assert!(model_animation_data.contains_animation(test_animation_name));
+
+    let _ = model_animation_data
+      .remove_animation_from_list(test_animation_name)
+      .unwrap();
+
+    assert!(!model_animation_data.contains_animation(test_animation_name));
+  }
+
+  #[test]
+  fn add_new_animation_to_list_logic() {
+    let animation_name = "test";
+    let animation =
+      TestingData::get_test_animation(['1', '2', '3'], AnimationLoopCount::Limited(1));
+    let mut model = TestingData::new_test_model_with_animation((10, 10), vec![]);
+
+    let model_animation_data = model.get_animation_data().unwrap();
+    let mut model_animation_data = model_animation_data.lock().unwrap();
+
+    model_animation_data
+      .add_new_animation_to_list(animation_name.to_owned(), animation.clone())
+      .unwrap();
+
+    assert!(model_animation_data.contains_animation(animation_name));
+
+    let result = model_animation_data
+      .add_new_animation_to_list(animation_name.to_owned(), animation)
+      .unwrap_err();
+
+    assert_eq!(result, AnimationError::AnimationAlreadyExists);
   }
 }

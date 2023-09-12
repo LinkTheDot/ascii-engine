@@ -286,8 +286,7 @@ mod animation_tests {
 
     #[test]
     fn animation_doesnt_exist() {
-      let model = TestingData::new_test_model_animated((10, 10), vec![]);
-
+      let model = TestingData::new_test_model_with_animation((10, 10), vec![]);
       let (_, mut model_manager) = setup_model_manager(vec![model.clone()]);
 
       let expected_result = ModelError::AnimationError(AnimationError::AnimationDoesntExist);
@@ -315,18 +314,15 @@ mod animation_tests {
 
     #[test]
     fn expected_result() {
-      let test_animation =
-        TestingData::get_test_animation(['1', '2', '3'], AnimationLoopCount::Limited(2));
-      let mut model = TestingData::new_test_model_animated(
-        (10, 10),
-        vec![("test".to_string(), test_animation.clone())],
-      );
+      let animation_name = TestingData::ANIMATION_NAME;
+      let (mut model, test_animation) =
+        TestingData::new_test_model_animated((10, 10), ['1', '2', '3']);
       let (_, mut model_manager) = setup_model_manager(vec![model.clone()]);
 
       let expected_first_frame = test_animation.get_frames().get(0).cloned();
 
       model_manager
-        .queue_model_animation(&model.get_hash(), "test")
+        .queue_model_animation(&model.get_hash(), animation_name)
         .unwrap();
 
       let model_animation_data = model.get_animation_data().unwrap();
@@ -358,8 +354,7 @@ mod animation_tests {
 
     #[test]
     fn animation_doesnt_exist() {
-      let model = TestingData::new_test_model_animated((10, 10), vec![]);
-
+      let model = TestingData::new_test_model_with_animation((10, 10), vec![]);
       let (_, mut model_manager) = setup_model_manager(vec![model.clone()]);
 
       let expected_result = ModelError::AnimationError(AnimationError::AnimationDoesntExist);
@@ -391,7 +386,7 @@ mod animation_tests {
         TestingData::get_test_animation(['o', 'n', 'e'], AnimationLoopCount::Limited(2));
       let animation_two =
         TestingData::get_test_animation(['t', 'w', 'o'], AnimationLoopCount::Limited(2));
-      let mut model = TestingData::new_test_model_animated(
+      let mut model = TestingData::new_test_model_with_animation(
         (10, 10),
         vec![
           ("test_one".to_string(), animation_one),
@@ -464,7 +459,7 @@ mod animation_tests {
       let animation_name = "test".to_string();
       let test_animation =
         TestingData::get_test_animation(['o', 'n', 'e'], AnimationLoopCount::Limited(2));
-      let mut model = TestingData::new_test_model_animated((10, 10), vec![]);
+      let mut model = TestingData::new_test_model_with_animation((10, 10), vec![]);
       let (_, mut model_manager) = setup_model_manager(vec![model.clone()]);
 
       let expected_animations = HashMap::from([(animation_name.clone(), test_animation.clone())]);
@@ -514,16 +509,14 @@ mod animation_tests {
 
     #[test]
     fn expected_result() {
-      let animation =
-        TestingData::get_test_animation(['o', 'n', 'e'], AnimationLoopCount::Limited(2));
-      let mut model =
-        TestingData::new_test_model_animated((10, 10), vec![("test".to_string(), animation)]);
+      let animation_name = TestingData::ANIMATION_NAME;
+      let (mut model, _) = TestingData::new_test_model_animated((10, 10), ['1', '2', '3']);
       let (_, mut model_manager) = setup_model_manager(vec![model.clone()]);
 
       // Queue the animation twice to have an instance running and another in queue.
       for _ in 0..2 {
         model_manager
-          .queue_model_animation(&model.get_hash(), "test")
+          .queue_model_animation(&model.get_hash(), animation_name)
           .unwrap();
       }
 
