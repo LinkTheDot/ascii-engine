@@ -31,6 +31,7 @@ impl Hitbox {
     }
   }
 
+  // TODO: List the errors.
   pub fn assign_anchor_index(&mut self, new_index: usize) -> Result<(), ModelError> {
     if !Rectangle::index_is_valid(&self.dimensions, new_index) {
       return Err(ModelError::IndexLargerThanHitboxArea);
@@ -41,6 +42,7 @@ impl Hitbox {
     Ok(())
   }
 
+  // TODO: List the errors.
   pub fn assign_dimensions(&mut self, new_dimensions: Rectangle) -> Result<(), ModelError> {
     if !Rectangle::index_is_valid(&new_dimensions, self.hitbox_anchor_index) {
       return Err(ModelError::IndexLargerThanHitboxArea);

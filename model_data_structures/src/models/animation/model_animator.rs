@@ -48,6 +48,7 @@ impl ModelAnimator {
   /// Removes an animation from the front of the queue and assigns it to the currently looping animation.
   ///
   /// This method also restarts the ``current_animation_iteration_counter``.
+  // TODO: List the errors.
   pub fn overwrite_current_animation_with_first_in_queue(&mut self) -> Result<(), AnimationError> {
     if let Some(new_animation) = self.animation_queue.pop_front() {
       self.overwrite_current_animation(new_animation);

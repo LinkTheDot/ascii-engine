@@ -17,6 +17,7 @@ use log4rs::{
 /// long: "(Hour:Minute:Second)(TimeZone) | FilePath: Line | Level - Message".
 /// short: "FilePath: Line | Level - Message".
 /// shortest: Level - "Message"
+// TODO: List the errors.
 pub fn setup_file_logger() -> Result<log4rs::Handle, SetLoggerError> {
   let date = Utc::now();
   let log_file_path = format!("logs/{date}").replace(' ', "-");

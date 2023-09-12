@@ -39,6 +39,7 @@ impl ModelData {
   /// what strata or layer the model sits on, the position, and more.
   ///
   /// For information on creating a model, refer to [`ModelData`](ModelData).
+  // TODO: List the errors.
   pub fn new(
     model_position: Coordinates,
     sprite: Sprite,
@@ -89,6 +90,7 @@ impl ModelData {
     }
   }
 
+  // TODO: List the errors.
   pub fn from_stored(stored_model: StoredDisplayModel) -> Result<Self, ModelError> {
     stored_model.sprite.validity_check()?;
 
@@ -264,6 +266,13 @@ impl ModelData {
 
     // Add 1 to account for new lines.
     Some(position_in_coordinates.coordinates_to_index(screen_size) + 1)
+  }
+
+  /// Assigns the given animation data to the model.
+  // This method should be temporary until the model builder is completed.
+  // The model builder will create the ModelAnimationData, and store it in the StoredDisplayModel.
+  pub(crate) fn assign_model_animation(&mut self, animation_data: ModelAnimationData) {
+    self.inner.lock().unwrap().animation_data = Some(Arc::new(Mutex::new(animation_data)));
   }
 }
 

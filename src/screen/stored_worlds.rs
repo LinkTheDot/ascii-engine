@@ -65,6 +65,7 @@ impl StoredWorld {
       .collect()
   }
 
+  // TODO: List the errors.
   pub fn load(path: PathBuf) -> Result<Self, ScreenError> {
     if !path.exists() {
       return Err(ScreenError::FileDoesNotExist);
@@ -101,6 +102,7 @@ impl StoredWorld {
 
   /// Writes the data for the world in a file at the given path.
   /// Overwrites any file that was in that location.
+  // TODO: List the errors.
   pub fn save(&self, path: PathBuf) -> Result<(), ScreenError> {
     let serialized_world = match bincode::serialize(&self.models) {
       Ok(serialized_world) => serialized_world,

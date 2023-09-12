@@ -1,14 +1,11 @@
 use log::error;
 use log::info;
-use model_data_structures::screen::errors::ScreenError;
 use oneshot::Sender;
 use std::io;
 use std::io::{Read, Write};
 use std::sync::mpsc::{channel, Receiver};
 use std::thread;
 use termios::{tcsetattr, Termios, ECHO, ICANON, TCSANOW};
-
-pub const ERROR_CHARACTER: &str = "|";
 
 /// Gets a user's input without canonical mode.
 ///
@@ -28,9 +25,7 @@ pub fn get_user_input() -> String {
   if io::stdin().read_exact(&mut buffer).is_err() {
     error!("The input thread was interrupted when attempting to read from stdin");
 
-    tcsetattr(stdin, TCSANOW, &termios).unwrap(); // reset the stdin to original termios data
-
-    return String::from(ERROR_CHARACTER);
+    buffer = vec![0];
   }
 
   tcsetattr(stdin, TCSANOW, &termios).unwrap(); // reset the stdin to original termios data
@@ -41,10 +36,7 @@ pub fn get_user_input() -> String {
 /// Spawns a thread that will request an input from the user at every moment.
 ///
 /// The Receiver for the user's input, and a sender to kill the input thread is returned.
-///
-/// DO NOT use "|", as that character is a character SPECIFICALLY USED for when something unexpected happened.
-/// Sometimes "|" is used for dropping the lock the thread holds on stdio, so don't panic when "|" is returned.
-pub fn spawn_input_thread() -> Result<(Receiver<String>, Sender<()>), ScreenError> {
+pub fn spawn_input_thread() -> (Receiver<String>, Sender<()>) {
   let (input_sender, input_receiver) = channel();
   let (kill_sender, kill_receiver) = oneshot::channel();
 
@@ -61,5 +53,5 @@ pub fn spawn_input_thread() -> Result<(Receiver<String>, Sender<()>), ScreenErro
     info!("Input thread killed.");
   });
 
-  Ok((input_receiver, kill_sender))
+  (input_receiver, kill_sender)
 }

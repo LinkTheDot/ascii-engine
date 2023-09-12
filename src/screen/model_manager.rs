@@ -16,6 +16,14 @@ pub struct ModelManager {
   animation_thread_sender: Option<mpsc::UnboundedSender<AnimationRequest>>,
 }
 
+enum AnimationEvent {
+  QueueAnimation,
+  OverwriteCurrentlyRunningAnimation,
+  ClearQueue,
+  /// Contains the frames to be added.
+  AddAnimation(AnimationFrames),
+}
+
 impl ModelManager {
   pub(crate) fn new(model_storage: Arc<RwLock<ModelStorage>>) -> Self {
     Self {
@@ -92,6 +100,7 @@ impl ModelManager {
     }
   }
 
+  // TODO: List the errors.
   pub fn check_if_movement_causes_collisions(
     &self,
     model_hash: &u64,
@@ -148,6 +157,9 @@ impl ModelManager {
 
   /// Queues the animation of with the given name for the model.
   ///
+  /// The animation will be run once all other animations added before it have finished running in the queue.
+  /// To force an animation to run over all others, use [`model_manager.overwrite_current_model_animation`](ModelManager::overwrite_current_model_animation).
+  ///
   /// # Errors
   ///
   /// - There was no model with that hash
@@ -155,10 +167,12 @@ impl ModelManager {
   /// - The model had no animation data
   pub fn queue_model_animation(
     &mut self,
-    _model: &u64,
-    _animation_name: String,
+    model_hash: &u64,
+    animation_name: &str,
   ) -> Result<(), ModelError> {
-    todo!()
+    let event = AnimationEvent::QueueAnimation;
+
+    self.run_animation_event(model_hash, Some(animation_name), event)
   }
 
   /// Force stops the currently running animation and starts running the animation
@@ -174,21 +188,12 @@ impl ModelManager {
   /// - The model had no animation data
   pub fn overwrite_current_model_animation(
     &mut self,
-    _model: &u64,
-    _animation_name: String,
+    model_hash: &u64,
+    animation_name: &str,
   ) -> Result<(), ModelError> {
-    todo!()
-  }
+    let event = AnimationEvent::OverwriteCurrentlyRunningAnimation;
 
-  /// Clears the queue of animations to be run on the model, and stops the currently running animation.
-  ///
-  ///
-  /// # Errors
-  ///
-  /// - There was no model with that hash
-  /// - The model had no animation data
-  pub fn clear_model_animation_queue(&mut self, _model: &u64) -> Result<(), ModelError> {
-    todo!()
+    self.run_animation_event(model_hash, Some(animation_name), event)
   }
 
   /// Adds the animation to the model's list of stored animations.
@@ -199,11 +204,26 @@ impl ModelManager {
   /// - The model already contains an animation with the given name
   pub fn add_animation_to_model(
     &mut self,
-    _model: &u64,
-    _animation: AnimationFrames,
-    _animation_name: String,
+    model_hash: &u64,
+    animation: AnimationFrames,
+    animation_name: String,
   ) -> Result<(), ModelError> {
-    todo!()
+    let event = AnimationEvent::AddAnimation(animation);
+
+    self.run_animation_event(model_hash, Some(&animation_name), event)
+  }
+
+  /// Clears the queue of animations to be run on the model, and stops the currently running animation.
+  ///
+  ///
+  /// # Errors
+  ///
+  /// - There was no model with that hash
+  /// - The model had no animation data
+  pub fn clear_model_animation_queue(&mut self, model_hash: &u64) -> Result<(), ModelError> {
+    let event = AnimationEvent::ClearQueue;
+
+    self.run_animation_event(model_hash, None, event)
   }
 
   /// Adds a model to the animation thread to run it's animations.
@@ -232,6 +252,82 @@ impl ModelManager {
     let mut model_animation_data = model_animation_data.lock().unwrap();
 
     model_animation_data.send_model_animator_request(model_hash, animation_thread_sender);
+
+    Ok(())
+  }
+
+  /// Runs any given animation method based on the [`AnimationEvent`](AnimationEvent) given.
+  ///
+  /// Takes an optional string for the methods that require a name for an animation.
+  /// The name could either be used for geting an animation or assign a name to a new animation.
+  // Abstracted because 98% of this code would be reused 4+ times.
+  // TODO: List the errors.
+  fn run_animation_event(
+    &mut self,
+    model_hash: &u64,
+    animation_name: Option<&str>,
+    event: AnimationEvent,
+  ) -> Result<(), ModelError> {
+    let Some(mut model) = self.get_model(model_hash) else {
+      return Err(ModelError::ModelDoesntExist);
+    };
+
+    let Some(model_animation_data) = model.get_animation_data() else {
+      return Err(ModelError::AnimationError(
+        AnimationError::ModelHasNoAnimationData,
+      ));
+    };
+    let mut model_animation_data = model_animation_data.lock().unwrap();
+
+    let animation: Option<AnimationFrames> = if let Some(animation_name) = animation_name {
+      model_animation_data.get_animation(animation_name).cloned()
+    } else {
+      None
+    };
+
+    let mut model_animator = model_animation_data.get_model_animator();
+
+    match event {
+      AnimationEvent::QueueAnimation => {
+        let Some(animation) = animation else {
+          return Err(ModelError::AnimationError(
+            AnimationError::AnimationDoesntExist,
+          ));
+        };
+
+        model_animator.add_new_animation_to_queue(animation);
+      }
+
+      AnimationEvent::OverwriteCurrentlyRunningAnimation => {
+        let Some(animation) = animation else {
+          return Err(ModelError::AnimationError(
+            AnimationError::AnimationDoesntExist,
+          ));
+        };
+
+        model_animator.overwrite_current_animation(animation);
+      }
+
+      AnimationEvent::AddAnimation(animation) => {
+        drop(model_animator);
+
+        let Some(animation_name) = animation_name else {
+          log::error!("Failed to get an animation name when adding a new animation to a model.");
+
+          return Ok(());
+        };
+
+        if let Err(error) =
+          model_animation_data.add_new_animation_to_list(animation_name.to_owned(), animation)
+        {
+          return Err(ModelError::AnimationError(error));
+        }
+      }
+
+      AnimationEvent::ClearQueue => {
+        model_animator.clear_queue();
+      }
+    }
 
     Ok(())
   }

@@ -44,6 +44,18 @@ impl TestingData {
     ModelData::from_file(&test_model_path, world_position).unwrap()
   }
 
+  pub fn new_test_model_animated(
+    world_position: (usize, usize),
+    animations: Vec<(String, AnimationFrames)>,
+  ) -> ModelData {
+    let mut model_data = Self::new_test_model(world_position);
+    let animation_data = ModelAnimationData::new(model_data.clone(), animations);
+
+    model_data.assign_model_animation(animation_data);
+
+    model_data
+  }
+
   /// Creates a list of the given amount of models at the given position.
   pub fn get_multiple_test_models(position: (usize, usize), count: u32) -> Vec<ModelData> {
     (0..count).map(|_| Self::new_test_model(position)).collect()
@@ -85,9 +97,10 @@ impl TestingData {
 
   /// Creates a 5x3 frame of the given character with 'a' as the anchor at index 7.
   pub fn get_frame_appearance(character: char) -> String {
-    let top_bottom_row: String = std::iter::repeat(character).take(5).collect();
+    // let top_bottom_row: String = std::iter::repeat(character).take(5).collect();
+    let row_of_character: String = character.to_string().as_str().repeat(5);
     let middle_row = format!("{c}{c}a{c}{c}", c = character);
 
-    format!("{}\n{}\n{}", top_bottom_row, middle_row, top_bottom_row)
+    format!("{}\n{}\n{}", row_of_character, middle_row, row_of_character)
   }
 }

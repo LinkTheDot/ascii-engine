@@ -21,6 +21,7 @@ impl ScreenPrinter {
     }
   }
 
+  // TODO: list the errors
   pub fn print_screen(&mut self) -> Result<(), ScreenError> {
     let frame = self.display();
 

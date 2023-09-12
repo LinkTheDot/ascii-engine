@@ -41,6 +41,7 @@ impl ModelAnimationData {
     Self::from((model, animation_list))
   }
 
+  // TODO: List the errors.
   pub fn from_file(animation_directory: std::path::PathBuf) -> Result<Self, AnimationError> {
     if !animation_directory.is_dir() {
       log::error!(

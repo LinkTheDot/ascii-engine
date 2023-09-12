@@ -265,6 +265,285 @@ fn check_if_movement_causes_collisions_model_does_not_exist() {
   assert_eq!(result, expected_result);
 }
 
+#[cfg(test)]
+mod animation_tests {
+  use super::*;
+
+  #[cfg(test)]
+  mod queue_model_animation_logic {
+    use super::*;
+
+    #[test]
+    fn model_doesnt_exist() {
+      let (_, mut model_manager) = setup_model_manager(vec![]);
+
+      let expected_result = ModelError::ModelDoesntExist;
+
+      let result = model_manager.queue_model_animation(&0, "").unwrap_err();
+
+      assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn animation_doesnt_exist() {
+      let model = TestingData::new_test_model_animated((10, 10), vec![]);
+
+      let (_, mut model_manager) = setup_model_manager(vec![model.clone()]);
+
+      let expected_result = ModelError::AnimationError(AnimationError::AnimationDoesntExist);
+
+      let result = model_manager
+        .queue_model_animation(&model.get_hash(), "")
+        .unwrap_err();
+
+      assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn model_isnt_animated() {
+      let model = TestingData::new_test_model((10, 10));
+      let (_, mut model_manager) = setup_model_manager(vec![model.clone()]);
+
+      let expected_result = ModelError::AnimationError(AnimationError::ModelHasNoAnimationData);
+
+      let result = model_manager
+        .queue_model_animation(&model.get_hash(), "")
+        .unwrap_err();
+
+      assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn expected_result() {
+      let test_animation =
+        TestingData::get_test_animation(['1', '2', '3'], AnimationLoopCount::Limited(2));
+      let mut model = TestingData::new_test_model_animated(
+        (10, 10),
+        vec![("test".to_string(), test_animation.clone())],
+      );
+      let (_, mut model_manager) = setup_model_manager(vec![model.clone()]);
+
+      let expected_first_frame = test_animation.get_frames().get(0).cloned();
+
+      model_manager
+        .queue_model_animation(&model.get_hash(), "test")
+        .unwrap();
+
+      let model_animation_data = model.get_animation_data().unwrap();
+      let mut model_animation_data = model_animation_data.lock().unwrap();
+      let mut model_animator = model_animation_data.get_model_animator();
+
+      let first_frame = model_animator.next_frame();
+
+      assert_eq!(first_frame, expected_first_frame);
+    }
+  }
+
+  #[cfg(test)]
+  mod overwrite_current_model_animation_logic {
+    use super::*;
+
+    #[test]
+    fn model_doesnt_exist() {
+      let (_, mut model_manager) = setup_model_manager(vec![]);
+
+      let expected_result = ModelError::ModelDoesntExist;
+
+      let result = model_manager
+        .overwrite_current_model_animation(&0, "")
+        .unwrap_err();
+
+      assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn animation_doesnt_exist() {
+      let model = TestingData::new_test_model_animated((10, 10), vec![]);
+
+      let (_, mut model_manager) = setup_model_manager(vec![model.clone()]);
+
+      let expected_result = ModelError::AnimationError(AnimationError::AnimationDoesntExist);
+
+      let result = model_manager
+        .overwrite_current_model_animation(&model.get_hash(), "")
+        .unwrap_err();
+
+      assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn model_isnt_animated() {
+      let model = TestingData::new_test_model((10, 10));
+      let (_, mut model_manager) = setup_model_manager(vec![model.clone()]);
+
+      let expected_result = ModelError::AnimationError(AnimationError::ModelHasNoAnimationData);
+
+      let result = model_manager
+        .overwrite_current_model_animation(&model.get_hash(), "")
+        .unwrap_err();
+
+      assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn expected_result() {
+      let animation_one =
+        TestingData::get_test_animation(['o', 'n', 'e'], AnimationLoopCount::Limited(2));
+      let animation_two =
+        TestingData::get_test_animation(['t', 'w', 'o'], AnimationLoopCount::Limited(2));
+      let mut model = TestingData::new_test_model_animated(
+        (10, 10),
+        vec![
+          ("test_one".to_string(), animation_one),
+          ("test_two".to_string(), animation_two.clone()),
+        ],
+      );
+      let (_, mut model_manager) = setup_model_manager(vec![model.clone()]);
+
+      let expected_first_frame = animation_two.get_frames().get(0).cloned();
+
+      model_manager
+        .queue_model_animation(&model.get_hash(), "test_one")
+        .unwrap();
+      model_manager
+        .overwrite_current_model_animation(&model.get_hash(), "test_two")
+        .unwrap();
+
+      let model_animation_data = model.get_animation_data().unwrap();
+      let mut model_animation_data = model_animation_data.lock().unwrap();
+      let mut model_animator = model_animation_data.get_model_animator();
+
+      let first_frame = model_animator.next_frame();
+
+      assert_eq!(first_frame, expected_first_frame);
+    }
+  }
+
+  #[cfg(test)]
+  mod add_animation_to_model_logic {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn model_doesnt_exist() {
+      let animation =
+        TestingData::get_test_animation(['1', '2', '3'], AnimationLoopCount::Limited(2));
+      let (_, mut model_manager) = setup_model_manager(vec![]);
+
+      let expected_result = ModelError::ModelDoesntExist;
+
+      let result = model_manager
+        .add_animation_to_model(&0, animation, "This model does not exist.".to_string())
+        .unwrap_err();
+
+      assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn model_isnt_animated() {
+      let animation =
+        TestingData::get_test_animation(['1', '2', '3'], AnimationLoopCount::Limited(2));
+      let model = TestingData::new_test_model((10, 10));
+      let (_, mut model_manager) = setup_model_manager(vec![model.clone()]);
+
+      let expected_result = ModelError::AnimationError(AnimationError::ModelHasNoAnimationData);
+
+      let result = model_manager
+        .add_animation_to_model(
+          &model.get_hash(),
+          animation,
+          "This model isn't event animated.".to_string(),
+        )
+        .unwrap_err();
+
+      assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn expected_result() {
+      let animation_name = "test".to_string();
+      let test_animation =
+        TestingData::get_test_animation(['o', 'n', 'e'], AnimationLoopCount::Limited(2));
+      let mut model = TestingData::new_test_model_animated((10, 10), vec![]);
+      let (_, mut model_manager) = setup_model_manager(vec![model.clone()]);
+
+      let expected_animations = HashMap::from([(animation_name.clone(), test_animation.clone())]);
+
+      model_manager
+        .add_animation_to_model(&model.get_hash(), test_animation, animation_name)
+        .unwrap();
+
+      let model_animation_data = model.get_animation_data().unwrap();
+      let model_animation_data = model_animation_data.lock().unwrap();
+
+      assert_eq!(
+        model_animation_data.get_animation_list(),
+        &expected_animations
+      );
+    }
+  }
+
+  #[cfg(test)]
+  mod clear_model_animation_queue_logic {
+    use super::*;
+
+    #[test]
+    fn model_doesnt_exist() {
+      let (_, mut model_manager) = setup_model_manager(vec![]);
+
+      let expected_result = ModelError::ModelDoesntExist;
+
+      let result = model_manager.clear_model_animation_queue(&0).unwrap_err();
+
+      assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn model_isnt_animated() {
+      let model = TestingData::new_test_model((10, 10));
+      let (_, mut model_manager) = setup_model_manager(vec![model.clone()]);
+
+      let expected_result = ModelError::AnimationError(AnimationError::ModelHasNoAnimationData);
+
+      let result = model_manager
+        .clear_model_animation_queue(&model.get_hash())
+        .unwrap_err();
+
+      assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn expected_result() {
+      let animation =
+        TestingData::get_test_animation(['o', 'n', 'e'], AnimationLoopCount::Limited(2));
+      let mut model =
+        TestingData::new_test_model_animated((10, 10), vec![("test".to_string(), animation)]);
+      let (_, mut model_manager) = setup_model_manager(vec![model.clone()]);
+
+      // Queue the animation twice to have an instance running and another in queue.
+      for _ in 0..2 {
+        model_manager
+          .queue_model_animation(&model.get_hash(), "test")
+          .unwrap();
+      }
+
+      model_manager
+        .clear_model_animation_queue(&model.get_hash())
+        .unwrap();
+
+      let model_animation_data = model.get_animation_data().unwrap();
+      let mut model_animation_data = model_animation_data.lock().unwrap();
+      let model_animator = model_animation_data.get_model_animator();
+
+      assert!(
+        !model_animator.has_animations_queued(),
+        "{:#?}",
+        model_animator
+      );
+    }
+  }
+}
+
 // data for tests
 
 fn setup_model_manager(models_to_add: Vec<ModelData>) -> (ScreenData, ModelManager) {

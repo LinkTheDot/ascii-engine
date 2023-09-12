@@ -241,6 +241,7 @@ impl ScreenData {
     Ok(())
   }
 
+  // TODO: List the errors.
   pub fn stop_animation_thread(&mut self) -> Result<(), ScreenError> {
     if !self.animation_thread_started() {
       return Err(ScreenError::AnimationError(

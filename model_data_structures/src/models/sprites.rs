@@ -33,6 +33,7 @@ impl Default for Sprite {
 /// The anchor_character_index needs recalculating after every change of the shape and anchor_character.
 impl Sprite {
   /// Returns a default of self.
+  // TODO: List the errors.
   pub fn new(
     shape: String,
     anchor_character: char,

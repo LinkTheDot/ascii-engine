@@ -353,6 +353,7 @@ impl ModelParser {
       .ok_or(ModelCreationError::InvalidStringSizeAtLine(line_number))
   }
 
+  // TODO: List the errors.
   fn animation_path_checks(
     animation_path: &Path,
     line_number: usize,

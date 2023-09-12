@@ -80,6 +80,7 @@ impl AnimationThreadConnection {
     self.request_sender.send(kill_request).unwrap();
   }
 
+  // TODO: List the errors.
   pub fn send_request(&self, request: AnimationRequest) -> Result<(), ModelError> {
     if self.request_sender.send(request).is_err() {
       Err(ModelError::AnimationError(

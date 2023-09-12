@@ -35,6 +35,7 @@ impl Default for ConfigData {
 ///
 /// If a config.toml didn't already exist
 /// a new one is created and set with default values.
+// TODO: List the errors.
 pub fn get_config() -> Result<ConfigData, ConfigError> {
   let default_config_data = ConfigData::default();
   let config_path_name = get_config_path_name();
