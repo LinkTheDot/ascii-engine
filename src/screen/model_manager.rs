@@ -20,6 +20,7 @@ enum AnimationEvent {
   QueueAnimation,
   OverwriteCurrentlyRunningAnimation,
   ClearQueue,
+  StopAnimation,
   /// Contains the frames to be added.
   AddAnimation(AnimationFrames),
 }
@@ -226,6 +227,12 @@ impl ModelManager {
     self.run_animation_event(model_hash, None, event)
   }
 
+  pub fn stop_current_model_animation(&mut self, model_hash: &u64) -> Result<(), ModelError> {
+    let event = AnimationEvent::StopAnimation;
+
+    self.run_animation_event(model_hash, None, event)
+  }
+
   /// Adds a model to the animation thread to run it's animations.
   // Explain how to animate a model.
   ///
@@ -324,9 +331,8 @@ impl ModelManager {
         }
       }
 
-      AnimationEvent::ClearQueue => {
-        model_animator.clear_queue();
-      }
+      AnimationEvent::ClearQueue => model_animator.clear_queue(),
+      AnimationEvent::StopAnimation => model_animator.stop_current_animation(),
     }
 
     Ok(())

@@ -43,12 +43,10 @@ impl ModelAnimator {
     );
   }
 
-  /// Returns an error if the queue was empty.
-  ///
   /// Removes an animation from the front of the queue and assigns it to the currently looping animation.
   ///
-  /// This method also restarts the ``current_animation_iteration_counter``.
-  // TODO: List the errors.
+  /// # Errors
+  /// - The queue was empty
   pub fn overwrite_current_animation_with_first_in_queue(&mut self) -> Result<(), AnimationError> {
     if let Some(new_animation) = self.animation_queue.pop_front() {
       self.overwrite_current_animation(new_animation);
@@ -77,8 +75,6 @@ impl ModelAnimator {
   }
 
   /// Replaces the currently running animation and replaces it with the one that was passed in.
-  ///
-  /// This method also restarts the ``current_animation_iteration_counter``.
   pub fn overwrite_current_animation(&mut self, new_animation: AnimationFrames) {
     self.current_animation = Some(new_animation.into_iter());
   }
@@ -135,6 +131,26 @@ impl ModelAnimator {
   /// Based on the iteration
   pub fn get_iteration_of_last_frame_change(&self) -> u64 {
     self.iteration_of_last_frame_change
+  }
+
+  /// Stops the currently running animation and starts the next one in the queue.
+  pub fn stop_current_animation(&mut self) {
+    self.current_animation = None;
+    let _ = self.overwrite_current_animation_with_first_in_queue();
+  }
+
+  pub fn set_to_resting_frame(&self) -> Result<(), AnimationError> {
+    // let Some(current_animation) = self.current_animation else {
+    //   return Err(AnimationError::NoExistingAnimation);
+    // };
+    //
+    // let Some(resting_frame) = current_animation.get_resting_appearance() else {
+    //   return Err(AnimationError::AnimationHasNoRestingFrame);
+    // };
+    //
+    // self.change_model_frame(resting_frame);
+    //
+    Ok(())
   }
 }
 

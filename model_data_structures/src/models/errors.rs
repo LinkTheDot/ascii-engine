@@ -150,6 +150,9 @@ pub enum AnimationError {
 
   /// Attempted to add a model to the animation thread through the model manager, but there was no connection.
   NoExistingAnimationConnection,
+
+  /// Attempted to assign a resting frame to the model from an animation that doesn't have one.
+  AnimationHasNoRestingFrame,
 }
 
 /// Since almost no error is returned to the user from the animation parser, most errors here will only ever

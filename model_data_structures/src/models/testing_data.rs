@@ -104,7 +104,7 @@ impl TestingData {
         .collect::<Vec<(String, u32, char)>>(),
     );
 
-    AnimationFrames::new(frames, loop_count)
+    AnimationFrames::new(frames, loop_count, None)
   }
 
   /// Gets a list of frames with the passed in data (appearance, duration, anchor replacement).

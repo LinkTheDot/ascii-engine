@@ -1,35 +1,45 @@
 use ascii_engine::prelude::*;
-use std::path::Path;
+use std::path::PathBuf;
 
 mod collision_data;
 mod screen_config;
 
 #[derive(DisplayModel)]
 struct Player {
-  #[allow(unused)]
-  model_hash: u64,
+  //   #[allow(unused)]
+  //   model_hash: u64,
 }
 
 impl Player {
-  fn new() -> (Self, ModelData) {
-    let path = Path::new("examples/models/square.model");
-    let model = ModelData::from_file(path, (10, 10)).unwrap();
-    let model_hash = model.get_hash();
+  pub const HASH: u64 = 10082638465268325417;
 
-    (Self { model_hash }, model)
-  }
+  // fn new() -> (Self, ModelData) {
+  //   let path = Path::new("examples/models/square.model");
+  //   let model = ModelData::from_file(path, (10, 10)).unwrap();
+  //   let model_hash = model.get_hash();
+  //
+  //   (Self { model_hash }, model)
+  // }
 }
 
 fn main() {
-  let mut screen_data = ScreenData::new();
-  let (player, player_model) = Player::new();
+  let path = PathBuf::from("examples/worlds/test_world.wrld");
+  let stored_world = StoredWorld::load(path).unwrap();
+  let mut screen_data = ScreenData::from_world(stored_world);
+  screen_data.start_animation_thread().unwrap();
+  // let (player, player_model) = Player::new();
 
-  screen_data.add_model(player_model).unwrap();
+  // screen_data.add_model(player_model).unwrap();
 
   let (_printing_thread_handle, printing_thread_kill_sender) =
     screen_data.spawn_printing_thread(60, None);
 
   let mut model_manager = screen_data.get_model_manager();
+  screen_data.connect_model_manager_to_animation_thread(&mut model_manager);
+
+  model_manager
+    .add_model_to_animation_thread(&Player::HASH)
+    .unwrap();
 
   loop {
     let input = get_user_input();
@@ -39,6 +49,18 @@ fn main() {
       "a" => (-1, 0),
       "d" => (1, 0),
       "q" => break,
+      "z" => {
+        model_manager
+          .queue_model_animation(&Player::HASH, "test")
+          .unwrap();
+        continue;
+      }
+      "x" => {
+        model_manager
+          .stop_current_model_animation(&Player::HASH)
+          .unwrap();
+        continue;
+      }
       _ => continue,
     };
 
@@ -46,7 +68,7 @@ fn main() {
 
     // Don't care about the collisions for now.
     let _ = model_manager
-      .move_model(&player.model_hash, movement)
+      .move_model(&Player::HASH, movement)
       .log_if_err();
   }
 

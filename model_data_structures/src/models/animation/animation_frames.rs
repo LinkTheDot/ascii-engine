@@ -7,6 +7,9 @@ pub struct AnimationFrames {
   frames: Vec<AnimationFrame>,
   /// Determines if this animation should loop forever or a set amount of times.
   loop_count: AnimationLoopCount,
+  /// The appearance of the model when there are no animations running.
+  resting_appearance: Option<Sprite>,
+  running: bool,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -24,10 +27,16 @@ pub enum AnimationLoopCount {
 }
 
 impl AnimationFrames {
-  pub fn new(animation_frames: Vec<AnimationFrame>, loop_count: AnimationLoopCount) -> Self {
+  pub fn new(
+    animation_frames: Vec<AnimationFrame>,
+    loop_count: AnimationLoopCount,
+    resting_appearance: Option<Sprite>,
+  ) -> Self {
     Self {
       frames: animation_frames,
       loop_count,
+      resting_appearance,
+      running: true,
     }
   }
 
@@ -51,6 +60,22 @@ impl AnimationFrames {
 
   pub fn get_loop_count(&self) -> &AnimationLoopCount {
     &self.loop_count
+  }
+
+  pub fn pause(&mut self) {
+    self.running = false;
+  }
+
+  pub fn start(&mut self) {
+    self.running = true;
+  }
+
+  pub fn is_running(&self) -> bool {
+    self.running
+  }
+
+  pub fn get_resting_appearance(&self) -> Option<&Sprite> {
+    self.resting_appearance.as_ref()
   }
 }
 
@@ -80,15 +105,15 @@ impl AnimationLoopCount {
   }
 }
 
-impl From<(AnimationLoopCount, Vec<(u32, Sprite)>)> for AnimationFrames {
-  fn from(item: (AnimationLoopCount, Vec<(u32, Sprite)>)) -> Self {
-    let (loop_count, frames) = item;
+impl From<(AnimationLoopCount, Vec<(u32, Sprite)>, Option<Sprite>)> for AnimationFrames {
+  fn from(item: (AnimationLoopCount, Vec<(u32, Sprite)>, Option<Sprite>)) -> Self {
+    let (loop_count, frames, resting_appearance) = item;
     let frames: Vec<AnimationFrame> = frames
       .into_iter()
       .map(|(frame_duration, frame)| AnimationFrame::new(frame, frame_duration))
       .collect();
 
-    AnimationFrames::new(frames, loop_count)
+    AnimationFrames::new(frames, loop_count, resting_appearance)
   }
 }
 
@@ -139,7 +164,7 @@ mod tests {
       })
       .collect::<Vec<(u32, Sprite)>>();
 
-    let test_animation_from = AnimationFrames::from((loop_count, test_animation_data));
+    let test_animation_from = AnimationFrames::from((loop_count, test_animation_data, None));
 
     assert_eq!(test_animation, test_animation_from);
   }
