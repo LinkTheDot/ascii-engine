@@ -153,6 +153,9 @@ pub enum AnimationError {
 
   /// Attempted to assign a resting frame to the model from an animation that doesn't have one.
   AnimationHasNoRestingFrame,
+
+  /// Couldn't find the starting time of the current animation.
+  NoAnimationStart,
 }
 
 /// Since almost no error is returned to the user from the animation parser, most errors here will only ever

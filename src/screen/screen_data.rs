@@ -48,8 +48,6 @@ pub struct ScreenData {
 
   /// Hides the terminal cursor as long as this lives
   _cursor_hider: termion::cursor::HideCursor<std::io::Stdout>,
-
-  animation_thread_connection: Option<AnimationThreadConnection>,
 }
 
 impl ScreenData {
@@ -110,7 +108,6 @@ impl ScreenData {
       event_sync: EventSync::new(CONFIG.tick_duration),
       model_storage,
       _cursor_hider: cursor_hider,
-      animation_thread_connection: None,
     }
   }
 
@@ -215,49 +212,6 @@ impl ScreenData {
   /// The ModelManager will handle all actions requested to models in the world.
   pub fn get_model_manager(&self) -> ModelManager {
     ModelManager::new(self.model_storage.clone())
-  }
-
-  pub fn connect_model_manager_to_animation_thread(&self, model_manager: &mut ModelManager) {
-    let Some(animation_thread_connection) = &self.animation_thread_connection else {
-      return;
-    };
-
-    model_manager.add_animation_connection(animation_thread_connection.clone_sender());
-  }
-
-  /// Starts the animation thread for the screen.
-  ///
-  /// This allows for the use of animation methods on Models.
-  ///
-  /// # Errors
-  ///
-  /// - An error is returned if the animation thread was already started.
-  pub fn start_animation_thread(&mut self) -> Result<(), ScreenError> {
-    match animation_thread::start_animation_thread(self) {
-      Ok(animation_connection) => self.animation_thread_connection = Some(animation_connection),
-      Err(animation_error) => return Err(ScreenError::AnimationError(animation_error)),
-    }
-
-    Ok(())
-  }
-
-  // TODO: List the errors.
-  pub fn stop_animation_thread(&mut self) -> Result<(), ScreenError> {
-    if !self.animation_thread_started() {
-      return Err(ScreenError::AnimationError(
-        AnimationError::AnimationThreadNotStarted,
-      ));
-    }
-
-    let animation_thread_connection = self.animation_thread_connection.take().unwrap();
-
-    animation_thread_connection.kill_thread();
-
-    Ok(())
-  }
-
-  pub fn animation_thread_started(&self) -> bool {
-    self.animation_thread_connection.is_some()
   }
 
   pub fn get_event_sync(&self) -> EventSync {

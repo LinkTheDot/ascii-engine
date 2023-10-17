@@ -6,13 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-screen_printer = "0.2.6"
+screen_printer = "0.2.*"
 log = "0.4.*"
 tokio = { version = "1.*", features = ["sync"] }
 serde = { version = "1.0.*", features = ["derive"] }
-toml = "0.7.*"
+toml = "0.8.*"
 config = "0.13.*"
 lazy_static = "1.4.*"
 anyhow = "1.*"
+event_sync = "0.1.6"
 
 engine_math = { path = "../engine_math" }

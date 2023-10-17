@@ -1,4 +1,5 @@
-use crate::models::{animation::*, hitboxes::*, model_data::*, sprites::*, strata::*};
+use crate::models::model_appearance::sprites::*;
+use crate::models::{animation::*, hitboxes::*, model_data::*, strata::*};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
@@ -63,9 +64,10 @@ impl Ord for StoredDisplayModel {
 }
 
 fn get_animations(
-  animation_data: Arc<Mutex<ModelAnimationData>>,
+  _animation_data: Arc<Mutex<ModelAnimationData>>,
 ) -> HashMap<String, AnimationFrames> {
-  animation_data.lock().unwrap().get_animation_list().clone()
+  // animation_data.lock().unwrap().get_animation_list().clone()
+  todo!()
 }
 
 fn extract_arc_rwlock<T: Clone>(item: Arc<RwLock<T>>) -> T {

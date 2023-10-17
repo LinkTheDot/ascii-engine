@@ -3,9 +3,9 @@ pub use crate::{
     animation::{animation_frames::*, *},
     errors::*,
     hitboxes::*,
+    model_appearance::{sprites::*, *},
     model_data::*,
     model_movements::*,
-    sprites::*,
   },
   screen::{errors::*, model_storage::*},
 };

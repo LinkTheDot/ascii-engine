@@ -1,10 +1,11 @@
 use crate::errors::*;
 use crate::models::animation::ModelAnimationData;
 use crate::models::hitboxes::*;
+use crate::models::model_appearance::sprites::*;
 use crate::models::model_file_parser::ModelParser;
-use crate::models::sprites::*;
 use crate::models::stored_models::*;
 use crate::models::strata::Strata;
+use crate::prelude::ModelAppearance;
 use crate::CONFIG;
 use engine_math::{coordinates::*, hasher, rectangle::*};
 use std::ffi::OsStr;
@@ -25,12 +26,8 @@ pub struct InternalModelData {
   // Will be replaced with coordinates once cameras are implemented
   position_in_frame: usize,
   strata: Strata,
-  sprite: Arc<RwLock<Sprite>>,
+  appearance: ModelAppearance,
   hitbox: Hitbox,
-  /// This is created when parsing a model.
-  ///
-  /// None if there was no `.animate` file in the same path of the model, or there was no alternative path given.
-  animation_data: Option<Arc<Mutex<ModelAnimationData>>>,
 }
 
 impl ModelData {
@@ -42,13 +39,18 @@ impl ModelData {
   // TODO: List the errors.
   pub fn new(
     model_position: Coordinates,
-    sprite: Sprite,
+    base_appearance: Sprite,
     hitbox_data: Hitbox,
     strata: Strata,
     assigned_name: String,
   ) -> Result<Self, ModelError> {
-    let internal_data =
-      InternalModelData::new(model_position, sprite, hitbox_data, strata, assigned_name)?;
+    let internal_data = InternalModelData::new(
+      model_position,
+      base_appearance,
+      hitbox_data,
+      strata,
+      assigned_name,
+    )?;
 
     Ok(Self {
       inner: Arc::new(Mutex::new(internal_data)),
@@ -91,30 +93,32 @@ impl ModelData {
   }
 
   // TODO: List the errors.
-  pub fn from_stored(stored_model: StoredDisplayModel) -> Result<Self, ModelError> {
-    stored_model.sprite.validity_check()?;
-
-    let internal_model_data = InternalModelData {
-      unique_hash: stored_model.unique_hash,
-      assigned_name: stored_model.name,
-      position_in_frame: stored_model.position,
-      strata: stored_model.strata,
-      sprite: Arc::new(RwLock::new(stored_model.sprite)),
-      hitbox: stored_model.hitbox,
-      animation_data: None,
-    };
-
-    let model = Self {
-      inner: Arc::new(Mutex::new(internal_model_data)),
-    };
-
-    if let Some(animation_data) = stored_model.animation_data {
-      let animation_data = ModelAnimationData::new(model.clone(), animation_data);
-
-      model.inner.lock().unwrap().animation_data = Some(Arc::new(Mutex::new(animation_data)));
-    }
-
-    Ok(model)
+  pub fn from_stored(_stored_model: StoredDisplayModel) -> Result<Self, ModelError> {
+    todo!()
+    // stored_model.sprite.validity_check()?;
+    //
+    // let internal_model_data = InternalModelData {
+    //   unique_hash: stored_model.unique_hash,
+    //   assigned_name: stored_model.name,
+    //   position_in_frame: stored_model.position,
+    //   strata: stored_model.strata,
+    //   appearance: Arc::new(RwLock::new(stored_model.sprite)),
+    //   hitbox: stored_model.hitbox,
+    //   // animation_data: None,
+    // };
+    //
+    // let model = Self {
+    //   inner: Arc::new(Mutex::new(internal_model_data)),
+    // };
+    //
+    // if let Some(animation_data) = stored_model.animation_data {
+    //   todo!();
+    //   // let animation_data = ModelAnimationData::new(model.clone(), animation_data);
+    //
+    //   // model.inner.lock().unwrap().animation_data = Some(Arc::new(Mutex::new(animation_data)));
+    // }
+    //
+    // Ok(model)
   }
 
   pub fn to_stored(self) -> StoredDisplayModel {
@@ -186,7 +190,8 @@ impl ModelData {
 
   /// Returns a reference to the stored [`Sprite`](crate::models::sprites::Sprite) value on this model.
   pub fn get_sprite(&self) -> Arc<RwLock<Sprite>> {
-    self.inner.lock().unwrap().sprite.clone()
+    todo!()
+    //   self.inner.lock().unwrap().appearance.clone()
   }
 
   pub fn get_hitbox_dimensions(&self) -> Rectangle {
@@ -207,7 +212,8 @@ impl ModelData {
   /// None is returned if the model isn't currently animated.
   // TODO: mention how to animate a model through the screen or a model_manager.
   pub fn get_animation_data(&mut self) -> Option<Arc<Mutex<ModelAnimationData>>> {
-    self.inner.lock().unwrap().animation_data.clone()
+    todo!()
+    // self.inner.lock().unwrap().animation_data.clone()
   }
 
   /// Changes the placement_anchor and top left position of the model.
@@ -250,11 +256,12 @@ impl ModelData {
   /// if it were in this position.
   ///
   /// None is returned if the position was OutOfBounds in the negative direction.
-  pub fn calculate_top_left_index_from(&self, from_position: (usize, usize)) -> Option<usize> {
-    let sprite = &self.inner.lock().unwrap().sprite;
-    let sprite = sprite.read().unwrap();
+  pub fn calculate_top_left_index_from(&self, _from_position: (usize, usize)) -> Option<usize> {
+    let _sprite = &self.inner.lock().unwrap().appearance;
+    // let sprite = sprite.read().unwrap();
+    todo!()
 
-    Self::caluculate_top_left_index(&sprite, from_position)
+    // Self::caluculate_top_left_index(&sprite, from_position)
   }
 
   fn caluculate_top_left_index(sprite: &Sprite, position: (usize, usize)) -> Option<usize> {
@@ -271,8 +278,9 @@ impl ModelData {
   /// Assigns the given animation data to the model.
   // This method should be temporary until the model builder is completed.
   // The model builder will create the ModelAnimationData, and store it in the StoredDisplayModel.
-  pub(crate) fn assign_model_animation(&mut self, animation_data: ModelAnimationData) {
-    self.inner.lock().unwrap().animation_data = Some(Arc::new(Mutex::new(animation_data)));
+  pub(crate) fn assign_model_animation(&mut self, _animation_data: ModelAnimationData) {
+    // self.inner.lock().unwrap().animation_data = Some(Arc::new(Mutex::new(animation_data)));
+    todo!()
   }
 }
 
@@ -305,10 +313,9 @@ impl InternalModelData {
       unique_hash: hasher::get_unique_hash(),
       assigned_name,
       strata,
-      sprite: Arc::new(RwLock::new(sprite)),
+      appearance: ModelAppearance::new(sprite, None),
       position_in_frame,
       hitbox,
-      animation_data: None,
     })
   }
 }

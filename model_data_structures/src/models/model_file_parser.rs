@@ -1,6 +1,6 @@
 // use crate::models::animation::ModelAnimationData;
 use crate::models::errors::*;
-use crate::models::{hitboxes::*, model_data::*, sprites::*, strata::*};
+use crate::models::{hitboxes::*, model_appearance::sprites::*, model_data::*, strata::*};
 use engine_math::rectangle::Rectangle;
 use log::error;
 use std::io::Read;

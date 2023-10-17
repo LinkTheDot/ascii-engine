@@ -11,10 +11,10 @@ pub mod models {
   pub mod animation;
   pub mod errors;
   pub mod hitboxes;
+  pub mod model_appearance;
   pub mod model_data;
   pub mod model_file_parser;
   pub mod model_movements;
-  pub mod sprites;
   pub mod stored_models;
   pub mod strata;
   pub mod testing_data;

@@ -70,15 +70,16 @@ impl TestingData {
   /// This can be used instead of [`new_test_model_animated`](TestingData::new_test_model_animated) if
   /// you want an animated model with no animations or more than 1 animation.
   pub fn new_test_model_with_animation(
-    world_position: (usize, usize),
-    animations: Vec<(String, AnimationFrames)>,
+    _world_position: (usize, usize),
+    _animations: Vec<(String, AnimationFrames)>,
   ) -> ModelData {
-    let mut model_data = Self::new_test_model(world_position);
-    let animation_data = ModelAnimationData::new(model_data.clone(), animations);
-
-    model_data.assign_model_animation(animation_data);
-
-    model_data
+    todo!()
+    // let mut model_data = Self::new_test_model(world_position);
+    // let animation_data = ModelAnimationData::new(model_data.clone(), animations);
+    //
+    // model_data.assign_model_animation(animation_data);
+    //
+    // model_data
   }
 
   /// Creates a list of the given amount of models at the given position.
@@ -127,5 +128,9 @@ impl TestingData {
     let middle_row = format!("{c}{c}a{c}{c}", c = character);
 
     format!("{}\n{}\n{}", row_of_character, middle_row, row_of_character)
+  }
+
+  pub fn get_test_model_animation_data() -> ModelAnimationData {
+    todo!()
   }
 }

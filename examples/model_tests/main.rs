@@ -25,8 +25,7 @@ impl Player {
 fn main() {
   let path = PathBuf::from("examples/worlds/test_world.wrld");
   let stored_world = StoredWorld::load(path).unwrap();
-  let mut screen_data = ScreenData::from_world(stored_world);
-  screen_data.start_animation_thread().unwrap();
+  let screen_data = ScreenData::from_world(stored_world);
   // let (player, player_model) = Player::new();
 
   // screen_data.add_model(player_model).unwrap();
@@ -35,11 +34,6 @@ fn main() {
     screen_data.spawn_printing_thread(60, None);
 
   let mut model_manager = screen_data.get_model_manager();
-  screen_data.connect_model_manager_to_animation_thread(&mut model_manager);
-
-  model_manager
-    .add_model_to_animation_thread(&Player::HASH)
-    .unwrap();
 
   loop {
     let input = get_user_input();

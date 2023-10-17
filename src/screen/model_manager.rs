@@ -7,13 +7,11 @@ use model_data_structures::models::{
 use model_data_structures::prelude::AnimationFrames;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
-use tokio::sync::mpsc;
 
 // Describe the use of the model_manager
 #[derive(Debug)]
 pub struct ModelManager {
   model_storage: Arc<RwLock<ModelStorage>>,
-  animation_thread_sender: Option<mpsc::UnboundedSender<AnimationRequest>>,
 }
 
 enum AnimationEvent {
@@ -27,21 +25,7 @@ enum AnimationEvent {
 
 impl ModelManager {
   pub(crate) fn new(model_storage: Arc<RwLock<ModelStorage>>) -> Self {
-    Self {
-      model_storage,
-      animation_thread_sender: None,
-    }
-  }
-
-  pub(crate) fn add_animation_connection(
-    &mut self,
-    connection: mpsc::UnboundedSender<AnimationRequest>,
-  ) {
-    self.animation_thread_sender = Some(connection)
-  }
-
-  pub fn is_connected_to_animation_thread(&self) -> bool {
-    self.animation_thread_sender.is_some()
+    Self { model_storage }
   }
 
   /// Takes a closure that uses the internal list of models.
@@ -233,36 +217,6 @@ impl ModelManager {
     self.run_animation_event(model_hash, None, event)
   }
 
-  /// Adds a model to the animation thread to run it's animations.
-  // Explain how to animate a model.
-  ///
-  /// # Errors
-  ///
-  /// - The animation thread isn't started.
-  /// - There was no model with that hash
-  /// - The model had no animation data
-  pub fn add_model_to_animation_thread(&mut self, model_hash: &u64) -> Result<(), ModelError> {
-    let Some(animation_thread_sender) = &self.animation_thread_sender else {
-      return Err(ModelError::AnimationError(
-        AnimationError::AnimationThreadNotStarted,
-      ));
-    };
-
-    let Some(mut model_data) = self.get_model(model_hash) else {
-      return Err(ModelError::ModelDoesntExist);
-    };
-    let Some(model_animation_data) = model_data.get_animation_data() else {
-      return Err(ModelError::AnimationError(
-        AnimationError::ModelHasNoAnimationData,
-      ));
-    };
-    let mut model_animation_data = model_animation_data.lock().unwrap();
-
-    model_animation_data.send_model_animator_request(model_hash, animation_thread_sender);
-
-    Ok(())
-  }
-
   /// Runs any given animation method based on the [`AnimationEvent`](AnimationEvent) given.
   ///
   /// Takes an optional string for the methods that require a name for an animation.
@@ -292,48 +246,50 @@ impl ModelManager {
       None
     };
 
-    let mut model_animator = model_animation_data.get_model_animator();
+    todo!();
 
-    match event {
-      AnimationEvent::QueueAnimation => {
-        let Some(animation) = animation else {
-          return Err(ModelError::AnimationError(
-            AnimationError::AnimationDoesntExist,
-          ));
-        };
-
-        model_animator.add_new_animation_to_queue(animation);
-      }
-
-      AnimationEvent::OverwriteCurrentlyRunningAnimation => {
-        let Some(animation) = animation else {
-          return Err(ModelError::AnimationError(
-            AnimationError::AnimationDoesntExist,
-          ));
-        };
-
-        model_animator.overwrite_current_animation(animation);
-      }
-
-      AnimationEvent::AddAnimation(animation) => {
-        drop(model_animator);
-
-        let Some(animation_name) = animation_name else {
-          log::error!("Failed to get an animation name when adding a new animation to a model.");
-
-          return Ok(());
-        };
-
-        if let Err(error) =
-          model_animation_data.add_new_animation_to_list(animation_name.to_owned(), animation)
-        {
-          return Err(ModelError::AnimationError(error));
-        }
-      }
-
-      AnimationEvent::ClearQueue => model_animator.clear_queue(),
-      AnimationEvent::StopAnimation => model_animator.stop_current_animation(),
-    }
+    // let mut model_animator = model_animation_data.get_model_animator();
+    //
+    // match event {
+    //   AnimationEvent::QueueAnimation => {
+    //     let Some(animation) = animation else {
+    //       return Err(ModelError::AnimationError(
+    //         AnimationError::AnimationDoesntExist,
+    //       ));
+    //     };
+    //
+    //     model_animator.add_new_animation_to_queue(animation);
+    //   }
+    //
+    //   AnimationEvent::OverwriteCurrentlyRunningAnimation => {
+    //     let Some(animation) = animation else {
+    //       return Err(ModelError::AnimationError(
+    //         AnimationError::AnimationDoesntExist,
+    //       ));
+    //     };
+    //
+    //     model_animator.overwrite_current_animation(animation);
+    //   }
+    //
+    //   AnimationEvent::AddAnimation(animation) => {
+    //     drop(model_animator);
+    //
+    //     let Some(animation_name) = animation_name else {
+    //       log::error!("Failed to get an animation name when adding a new animation to a model.");
+    //
+    //       return Ok(());
+    //     };
+    //
+    //     if let Err(error) =
+    //       model_animation_data.add_new_animation_to_list(animation_name.to_owned(), animation)
+    //     {
+    //       return Err(ModelError::AnimationError(error));
+    //     }
+    //   }
+    //
+    //   AnimationEvent::ClearQueue => model_animator.clear_queue(),
+    //   AnimationEvent::StopAnimation => model_animator.stop_current_animation(),
+    // }
 
     Ok(())
   }
