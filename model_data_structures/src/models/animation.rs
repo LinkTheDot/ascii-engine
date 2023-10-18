@@ -1,27 +1,9 @@
-// // Change models to handle their own animations.
-// // There's no reason to have some sort of communication system with models. It only
-// // increases the complexity a lot.
-// // Instead, a model's ModelAnimationData should contain an Arc<Mutex<ModelAnimatorData>>.
-// // When the model wants to change something about it's current animation state, it'll
-// // use methods tied to the ModelAnimatorData which will return a Guard wrapping the internal
-// // ModelAnimatorData.
-// // From there, the ModelAnimatorData will have methods similar to the AnimationAction.
-// //
-// // For removing the model from the animation list, a method will need to send a request to the
-// // animation thread, then delete the internally stored reference to the ModelAnimator.
-//
-// use crate::errors::*;
 use crate::models::errors::*;
 use crate::models::model_appearance::sprites::Sprite;
-use crate::models::model_data::ModelData;
 pub use animation_frames::*;
 pub use model_animator::*;
+use std::cell::RefCell;
 use std::collections::{hash_map::Entry, HashMap};
-// pub use animation_connections::*;
-// use event_sync::EventSync;
-// use std::collections::VecDeque;
-// use std::sync::{Arc, Mutex, MutexGuard};
-// use tokio::sync::mpsc;
 
 pub mod animation_connections;
 pub mod animation_frames;
@@ -33,63 +15,22 @@ pub mod model_animator;
 #[derive(Default, Clone)]
 pub struct ModelAnimationData {
   animations: HashMap<String, AnimationFrames>,
-  model_animator: ModelAnimator,
-  // /// Contains the list of names of animations to be run.
-  // animation_queue: VecDeque<String>,
-  // /// Contains the name of the current running animation.
-  // current_animation: Option<String>,
-  // /// Contains an EventSync for when the animation started.
-  // /// The tickrate contained is based on the tickrate in the config file.
-  // current_animation_start: Option<EventSync>,
+  model_animator: RefCell<ModelAnimator>,
 }
 
 impl ModelAnimationData {
-  pub fn new<I>(model: ModelData, animation_list: I) -> Self
+  pub fn new<I>(animation_list: I) -> Self
   where
     I: IntoIterator<Item = (String, AnimationFrames)>,
   {
-    Self::from((model, animation_list))
+    Self::from(animation_list)
   }
 
-  //   // // TODO: List the errors.
-  //   // pub fn from_file(animation_directory: std::path::PathBuf) -> Result<Self, AnimationError> {
-  //   //   if !animation_directory.is_dir() {
-  //   //     log::error!(
-  //   //       "Attempted to build an object with an animation file instead of an animation directory"
-  //   //     );
-  //   //
-  //   //     let animation_path = animation_directory.into_os_string();
-  //   //
-  //   //     return Err(AnimationError::AnimationDirectoryIsFile(animation_path));
-  //   //   } else if !animation_directory.exists() {
-  //   //     log::error!("Attempted to build an object with an invalid defined animation path");
-  //   //
-  //   //     let animation_path = animation_directory.into_os_string();
-  //   //
-  //   //     return Err(AnimationError::AnimationDirectoryDoesntExist(
-  //   //       animation_path,
-  //   //     ));
-  //   //   }
-  //   //
-  //   //   let Ok(animation_directory_contents) = animation_directory.read_dir() else {
-  //   //     let error =
-  //   //       AnimationParserError::CouldntGetAnimationPath(animation_directory.into_os_string());
-  //   //
-  //   //     return Err(AnimationError::AnimationParserError(error));
-  //   //   };
-  //   //
-  //   //   let _animation_directory_contents: Vec<PathBuf> = animation_directory_contents
-  //   //     .filter_map(|file_dir_entry| Some(file_dir_entry.ok()?.path()))
-  //   //     .filter(|file_path| file_path.extension() == Some(OsStr::new("animate")))
-  //   //     .collect();
-  //   //
-  //   //   todo!()
-  //   //   // AnimationParser::parse(animation_directory_contents)
-  //   // }
-
-  pub fn get_current_appearance(&mut self) -> Option<&Sprite> {
+  /// Returns the current appearance of the model based on running animations.
+  pub fn get_current_appearance(&self) -> Option<&Sprite> {
     self
       .model_animator
+      .borrow_mut()
       .get_current_model_appearance(&self.animations)
   }
 
@@ -99,6 +40,7 @@ impl ModelAnimationData {
   }
 
   /// Removes the animation from the list of animations, and returns it if it existed.
+  /// This will also stop the animation from running in the queue.
   pub fn remove_animation_from_list(&mut self, animation_name: &str) -> Option<AnimationFrames> {
     let (_, animation_frames) = self.animations.remove_entry(animation_name)?;
 
@@ -131,36 +73,17 @@ impl ModelAnimationData {
     self.animations.get(animation_name)
   }
 
-  //   pub fn get_model_animator(&mut self) -> &ModelAnimator {
-  //     &self.model_animator
-  //   }
-  //
-  //   // pub fn send_model_animator_request(
-  //   //   &mut self,
-  //   //   model_hash: &u64,
-  //   //   sender: &mpsc::UnboundedSender<AnimationRequest>,
-  //   // ) {
-  //   //   let animation_request = AnimationRequest {
-  //   //     model_unique_hash: *model_hash,
-  //   //     request: AnimationAction::AddAnimator(self.model_animator.clone()),
-  //   //   };
-  //   //
-  //   //   let _ = sender.send(animation_request);
-  //   // }
-  //
-  //   /// Returns a reference to the list of animations stored.
-  //   pub fn get_animation_list(&self) -> &HashMap<String, AnimationFrames> {
-  //     &self.animations
-  //   }
+  pub fn queue_animation(&mut self) {
+    //
+  }
 }
 
-impl<I> From<(ModelData, I)> for ModelAnimationData
+impl<I> From<I> for ModelAnimationData
 where
   I: IntoIterator<Item = (String, AnimationFrames)>,
 {
-  fn from((model, animation_list): (ModelData, I)) -> Self {
+  fn from(animation_list: I) -> Self {
     let animation_list: HashMap<String, AnimationFrames> = animation_list.into_iter().collect();
-    let model_sprite = model.get_sprite();
 
     Self {
       animations: animation_list,

@@ -12,13 +12,11 @@ pub struct ModelAppearance {
   /// This is created when parsing a model.
   ///
   /// None if there was no `.animate` file in the same path of the model, or there was no alternative path given.
-  animation_data: Option<RefCell<ModelAnimationData>>,
+  animation_data: Option<ModelAnimationData>,
 }
 
 impl ModelAppearance {
   pub fn new(sprite: Sprite, animation_data: Option<ModelAnimationData>) -> Self {
-    let animation_data = animation_data.map(RefCell::new);
-
     Self {
       default_sprite: sprite,
       animation_data,
@@ -30,22 +28,17 @@ impl ModelAppearance {
     &mut self,
     new_animation_data: ModelAnimationData,
   ) -> Option<ModelAnimationData> {
-    self
-      .animation_data
-      .as_ref()
-      .map(|old_data| old_data.replace(new_animation_data))
+    std::mem::replace(&mut self.animation_data, Some(new_animation_data))
   }
 
   pub fn get_appearance(&self) -> &Sprite {
-    // Check if there's an animation running, check how long it's been running
-    //   since the animation started.
-    //   Adjust the queue of animations if that one expired based on how long the
-    //   previous animation was running.
-    // If no animation is running, get the last idle frame for an animation. If there was
-    //   no idle frame, use the base_sprite.
-    //
-    // The time on an animation should be a RefCell so as to not require &mut self for this method.
-    todo!()
+    if let Some(animation_data) = &self.animation_data {
+      if let Some(current_appearance) = animation_data.get_current_appearance() {
+        return current_appearance;
+      }
+    }
+
+    &self.default_sprite
   }
 
   /// Gets the default sprite, ignoring all animation data that may or may not be running.

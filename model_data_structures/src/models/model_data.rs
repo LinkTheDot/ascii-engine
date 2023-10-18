@@ -274,14 +274,6 @@ impl ModelData {
     // Add 1 to account for new lines.
     Some(position_in_coordinates.coordinates_to_index(screen_size) + 1)
   }
-
-  /// Assigns the given animation data to the model.
-  // This method should be temporary until the model builder is completed.
-  // The model builder will create the ModelAnimationData, and store it in the StoredDisplayModel.
-  pub(crate) fn assign_model_animation(&mut self, _animation_data: ModelAnimationData) {
-    // self.inner.lock().unwrap().animation_data = Some(Arc::new(Mutex::new(animation_data)));
-    todo!()
-  }
 }
 
 impl InternalModelData {

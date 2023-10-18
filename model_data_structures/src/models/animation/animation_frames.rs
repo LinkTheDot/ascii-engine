@@ -78,7 +78,7 @@ impl AnimationFrames {
     self.resting_appearance.as_ref()
   }
 
-  /// Returns the total duration of the animation.
+  /// Returns the total duration of the animation in ticks.
   ///
   /// None is returned if the animation runs to infinity.
   pub fn get_total_duration(&self) -> Option<u64> {

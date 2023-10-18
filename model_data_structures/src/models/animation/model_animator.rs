@@ -38,7 +38,7 @@ impl ModelAnimator {
     if let Err(error) = self.remove_finished_animations(animation_list) {
       log::error!("Animation Error: '{error}'");
 
-      self.step_animation_queue();
+      self.step_animation_queue(animation_list);
     }
 
     let ticks_since_start_of_animation = self
@@ -66,7 +66,7 @@ impl ModelAnimator {
   ) {
     if let Some(current_animation) = self.get_current_animation() {
       if !animation_list.contains_key(current_animation) {
-        self.step_animation_queue();
+        self.step_animation_queue(animation_list);
       }
     }
 
@@ -86,24 +86,54 @@ impl ModelAnimator {
     self.restart_animation_start();
   }
 
-  /// Removes an animation from the front of the queue, and resets the last_run_animation.
-  pub fn step_animation_queue(&mut self) {
-    if let Some(last_run_animation) = self.animation_queue.pop_front() {
-      self.last_run_animation = Some(last_run_animation);
+  /// Removes an animation from the front of the queue, updating the last run animation and start of the new animation.
+  ///
+  /// Should this method be called when the start of the animation is greater than the duration of the current animation.
+  /// The EventSync will be updated accordingly.
+  pub fn step_animation_queue(&mut self, animation_list: &HashMap<String, AnimationFrames>) {
+    if let Some(remaining_time) = self.get_remaining_duration_of_current_animation(animation_list) {
+      self.restart_animation_start_with_remaining_time(remaining_time);
+    } else {
+      self.restart_animation_start();
     }
 
-    self.restart_animation_start();
+    if let Some(last_run_animation) = self.animation_queue.pop_front() {
+      if animation_list.contains_key(&last_run_animation) {
+        self.last_run_animation = Some(last_run_animation);
+      }
+    }
+
+    if self.animation_queue.is_empty() {
+      self.current_animation_start = None;
+    }
   }
 
-  /// Removes the given amount of items from the queue.
-  /// 0 will remove no elements.
-  /// 1 will remove the first element.
-  fn remove_items_from_queue(&mut self, remove_count: usize) {
-    if let Some(final_finished_animation) = self.animation_queue.drain(0..remove_count).last() {
-      self.last_run_animation = Some(final_finished_animation);
-    }
+  /// If the current animation is finished, returns Some(remaining_duration).
+  /// Meaning, if the current animation lasts 3 ticks, and 4.1 ticks have passed since the start of the animation.
+  /// A Duration of 1.1 ticks is returned.
+  /// This can be used to recreate the EventSync for the start of the next animation in the queue.
+  ///
+  /// None is returned if the EventSync should be reset to 0 for any reason.
+  /// None does *NOT* mean the current animation is or isn't finished. If you want to check that use [`ModelAnimator.current_animation_is_finished()`](ModelAnimator::current_animation_is_finished)
+  fn get_remaining_duration_of_current_animation(
+    &self,
+    animation_list: &HashMap<String, AnimationFrames>,
+  ) -> Option<Duration> {
+    let animation_start = self.get_current_animation_start()?;
+    let current_animation = animation_list.get(self.get_current_animation()?)?;
+    let duration_of_last_run_animation = current_animation.get_total_duration()?;
+    let ticks_since_started = animation_start.ticks_since_started().ok()?;
 
-    self.restart_animation_start();
+    if ticks_since_started > duration_of_last_run_animation {
+      let remainder_time = animation_start.time_since_last_tick().ok()?;
+
+      Some(
+        Duration::from_millis(duration_of_last_run_animation * CONFIG.tick_duration as u64)
+          + remainder_time,
+      )
+    } else {
+      None
+    }
   }
 
   /// Gets a reference to the current animation's name.
@@ -133,11 +163,6 @@ impl ModelAnimator {
     } else {
       self.animation_queue.push_back(new_animation);
     }
-  }
-
-  /// Stops the currently running animation and starts the next one in the queue.
-  pub fn stop_current_animation(&mut self) {
-    self.step_animation_queue()
   }
 
   /// Restarts the currently stored EventSync keeping track of the current animation's start.
@@ -218,6 +243,8 @@ impl ModelAnimator {
     Ok(())
   }
 
+  /// Returns true if the current animation should be removed from the list either because it no longer exists,
+  /// or the time that it's been running has exceeded its duration.
   fn current_animation_is_finished(
     &self,
     animation_list: &HashMap<String, AnimationFrames>,
@@ -329,7 +356,7 @@ mod tests {
             .get_current_model_appearance(&animation_list)
             .unwrap();
 
-          model_animator.step_animation_queue();
+          model_animator.step_animation_queue(&animation_list);
 
           frame
         })
@@ -361,7 +388,7 @@ mod tests {
 
       model_animator.add_new_animation_to_queue(animation_name.clone());
 
-      model_animator.step_animation_queue();
+      model_animator.step_animation_queue(&animation_list);
 
       assert!(model_animator.current_animation_start.is_none());
       assert!(model_animator.animation_queue.is_empty());
@@ -370,9 +397,10 @@ mod tests {
 
     #[test]
     fn empty_queue_no_running_animation() {
+      let animation_list = HashMap::new();
       let mut model_animator = ModelAnimator::default();
 
-      model_animator.step_animation_queue();
+      model_animator.step_animation_queue(&animation_list);
 
       assert!(model_animator.current_animation_start.is_none());
       assert!(model_animator.animation_queue.is_empty());
@@ -398,7 +426,7 @@ mod tests {
             .map(String::from)
             .unwrap();
 
-          model_animator.step_animation_queue();
+          model_animator.step_animation_queue(&animation_list);
 
           current_animation
         })
@@ -434,7 +462,7 @@ mod tests {
       let queue_and_current_result = model_animator.has_animations_to_run();
 
       // has current animation but none in queue
-      model_animator.step_animation_queue();
+      model_animator.step_animation_queue(&animation_list);
 
       let empty_queue_and_current_result = model_animator.has_animations_to_run();
 
@@ -643,7 +671,7 @@ mod tests {
       Ok(1)
     );
 
-    model_animator.step_animation_queue();
+    model_animator.step_animation_queue(&animation_list);
 
     // Check that the event_sync has been reset with a new animation.
     assert_eq!(
@@ -655,7 +683,7 @@ mod tests {
       Ok(0)
     );
 
-    model_animator.step_animation_queue();
+    model_animator.step_animation_queue(&animation_list);
 
     // Check that the evnet_sync is removes now that there are no animations.
     assert!(model_animator.current_animation_start.is_none());
