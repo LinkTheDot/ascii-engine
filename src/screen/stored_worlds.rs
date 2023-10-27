@@ -4,7 +4,7 @@ use model_data_structures::{
 };
 use std::fs::OpenOptions;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{collections::HashSet, fs};
 
 /// A storage for the list of models that exist in a given state of the world.
@@ -48,7 +48,7 @@ impl IntoIterator for StoredWorld {
 
 impl StoredWorld {
   /// Creates a new instance of a StoredWorld with the list of models given.
-  pub(crate) fn new<I>(models: I) -> Self
+  pub fn new<I>(models: I) -> Self
   where
     I: IntoIterator<Item = ModelData>,
   {
@@ -66,7 +66,9 @@ impl StoredWorld {
   }
 
   // TODO: List the errors.
-  pub fn load(path: PathBuf) -> Result<Self, ScreenError> {
+  pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, ScreenError> {
+    let path = path.as_ref();
+
     if !path.exists() {
       return Err(ScreenError::FileDoesNotExist);
     }

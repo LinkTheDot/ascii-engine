@@ -1,5 +1,4 @@
 use crate::errors::*;
-use crate::models::animation::ModelAnimationData;
 use crate::models::hitboxes::*;
 use crate::models::model_appearance::sprites::*;
 use crate::models::model_file_parser::ModelParser;
@@ -11,7 +10,7 @@ use engine_math::{coordinates::*, hasher, rectangle::*};
 use std::ffi::OsStr;
 use std::fs::File;
 use std::path::Path;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone)]
 pub struct ModelData {
@@ -26,7 +25,7 @@ pub struct InternalModelData {
   // Will be replaced with coordinates once cameras are implemented
   position_in_frame: usize,
   strata: Strata,
-  appearance: ModelAppearance,
+  appearance: Arc<Mutex<ModelAppearance>>,
   hitbox: Hitbox,
 }
 
@@ -73,7 +72,7 @@ impl ModelData {
     frame_position: (usize, usize),
   ) -> Result<Self, ModelError> {
     if model_file_path.extension() != Some(OsStr::new("model")) {
-      return Err(ModelError::NonModelFile);
+      return Err(ModelCreationError::NonModelFile.into());
     }
     let model_file = File::open(model_file_path);
 
@@ -93,32 +92,36 @@ impl ModelData {
   }
 
   // TODO: List the errors.
-  pub fn from_stored(_stored_model: StoredDisplayModel) -> Result<Self, ModelError> {
-    todo!()
-    // stored_model.sprite.validity_check()?;
-    //
-    // let internal_model_data = InternalModelData {
-    //   unique_hash: stored_model.unique_hash,
-    //   assigned_name: stored_model.name,
-    //   position_in_frame: stored_model.position,
-    //   strata: stored_model.strata,
-    //   appearance: Arc::new(RwLock::new(stored_model.sprite)),
-    //   hitbox: stored_model.hitbox,
-    //   // animation_data: None,
-    // };
-    //
-    // let model = Self {
-    //   inner: Arc::new(Mutex::new(internal_model_data)),
-    // };
-    //
-    // if let Some(animation_data) = stored_model.animation_data {
-    //   todo!();
-    //   // let animation_data = ModelAnimationData::new(model.clone(), animation_data);
-    //
-    //   // model.inner.lock().unwrap().animation_data = Some(Arc::new(Mutex::new(animation_data)));
-    // }
-    //
-    // Ok(model)
+  pub fn from_stored(mut stored_model: StoredDisplayModel) -> Result<Self, ModelError> {
+    if let Err(ModelError::AnimationError(AnimationError::AnimationValidityCheckFailed(
+      error_list,
+    ))) = stored_model.appearance_data.full_validity_check()
+    {
+      for animation_error_data in error_list {
+        log::error!(
+          "Failed to load animation for model {:?}. Reasons: {:?}",
+          stored_model.unique_hash,
+          animation_error_data
+        );
+
+        let _ = stored_model
+          .appearance_data
+          .remove_animation_from_list(&animation_error_data.animation_name);
+      }
+    }
+
+    let internal_model_data = InternalModelData {
+      unique_hash: stored_model.unique_hash,
+      assigned_name: stored_model.name,
+      position_in_frame: stored_model.position,
+      strata: stored_model.strata,
+      appearance: Arc::new(Mutex::new(stored_model.appearance_data)),
+      hitbox: stored_model.hitbox,
+    };
+
+    Ok(Self {
+      inner: Arc::new(Mutex::new(internal_model_data)),
+    })
   }
 
   pub fn to_stored(self) -> StoredDisplayModel {
@@ -149,11 +152,7 @@ impl ModelData {
   pub fn get_world_position(&self) -> (isize, isize) {
     let frame_position = self.get_frame_position();
     let screen_width = CONFIG.grid_width as usize + 1;
-    let model_sprite_coordiates = self
-      .get_sprite()
-      .read()
-      .unwrap()
-      .get_anchor_as_coordinates();
+    let model_sprite_coordiates = self.get_sprite().get_anchor_as_coordinates();
 
     frame_position
       .index_to_coordinates(screen_width)
@@ -188,10 +187,18 @@ impl ModelData {
     Ok(())
   }
 
-  /// Returns a reference to the stored [`Sprite`](crate::models::sprites::Sprite) value on this model.
-  pub fn get_sprite(&self) -> Arc<RwLock<Sprite>> {
-    todo!()
-    //   self.inner.lock().unwrap().appearance.clone()
+  /// Returns a copy to the current [`Sprite`](crate::models::model_appearance::sprites::Sprite) on this model.
+  ///
+  /// Preferably you get a copy of the appearance through [`get_appearance_data`](ModelData::get_appearance_data), and obtain
+  /// a reference to the Sprite instead.
+  // Maybe make sprites internally contain Arcs to their data?
+  pub fn get_sprite(&self) -> Sprite {
+    self
+      .get_appearance_immutably()
+      .lock()
+      .unwrap()
+      .get_appearance()
+      .clone()
   }
 
   pub fn get_hitbox_dimensions(&self) -> Rectangle {
@@ -207,13 +214,10 @@ impl ModelData {
     let _ = std::mem::replace(&mut self.inner.lock().unwrap().hitbox, new_hitbox);
   }
 
-  /// Returns a reference to the stored [`ModelAnimationData`](crate::models::animation::ModelAnimationData).
-  ///
-  /// None is returned if the model isn't currently animated.
+  /// Returns a reference to the [`model's appearance]`(crate::model_data::model_appearance::ModelAppearance).
   // TODO: mention how to animate a model through the screen or a model_manager.
-  pub fn get_animation_data(&mut self) -> Option<Arc<Mutex<ModelAnimationData>>> {
-    todo!()
-    // self.inner.lock().unwrap().animation_data.clone()
+  pub fn get_appearance_data(&mut self) -> Arc<Mutex<ModelAppearance>> {
+    self.inner.lock().unwrap().appearance.clone()
   }
 
   /// Changes the placement_anchor and top left position of the model.
@@ -233,10 +237,7 @@ impl ModelData {
   }
 
   pub fn sprite_to_hitbox_anchor_difference(&self) -> (isize, isize) {
-    // self .inner .lock() .unwrap() .hitbox .sprite_to_hitbox_anchor_difference()
-    // let inner = self.inner.lock().unwrap();
     let sprite = self.get_sprite();
-    let sprite = sprite.read().unwrap();
     let sprite_anchor = sprite.get_anchor_as_coordinates();
     drop(sprite);
     let hitbox_anchor = self
@@ -256,12 +257,12 @@ impl ModelData {
   /// if it were in this position.
   ///
   /// None is returned if the position was OutOfBounds in the negative direction.
-  pub fn calculate_top_left_index_from(&self, _from_position: (usize, usize)) -> Option<usize> {
-    let _sprite = &self.inner.lock().unwrap().appearance;
-    // let sprite = sprite.read().unwrap();
-    todo!()
+  pub fn calculate_top_left_index_from(&self, from_position: (usize, usize)) -> Option<usize> {
+    let appearance = self.get_appearance_immutably();
+    let appearance = appearance.lock().unwrap();
+    let sprite = appearance.get_appearance();
 
-    // Self::caluculate_top_left_index(&sprite, from_position)
+    Self::caluculate_top_left_index(sprite, from_position)
   }
 
   fn caluculate_top_left_index(sprite: &Sprite, position: (usize, usize)) -> Option<usize> {
@@ -273,6 +274,10 @@ impl ModelData {
 
     // Add 1 to account for new lines.
     Some(position_in_coordinates.coordinates_to_index(screen_size) + 1)
+  }
+
+  fn get_appearance_immutably(&self) -> Arc<Mutex<ModelAppearance>> {
+    self.inner.lock().unwrap().appearance.clone()
   }
 }
 
@@ -301,11 +306,13 @@ impl InternalModelData {
       return Err(ModelError::IncorrectStrataRange(strata));
     }
 
+    let model_appearance = Arc::new(Mutex::new(ModelAppearance::new(sprite, None)));
+
     Ok(Self {
       unique_hash: hasher::get_unique_hash(),
       assigned_name,
       strata,
-      appearance: ModelAppearance::new(sprite, None),
+      appearance: model_appearance,
       position_in_frame,
       hitbox,
     })
@@ -362,9 +369,11 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn move_in_negative_direction() {}
 
     #[test]
+    #[ignore]
     fn move_out_of_bounds() {}
   }
 
@@ -387,11 +396,7 @@ mod tests {
       let position = (5, 5);
 
       let screen_size = CONFIG.grid_width as usize + 1;
-      let model_sprite_anchor_index = model
-        .get_sprite()
-        .read()
-        .unwrap()
-        .get_anchor_as_coordinates();
+      let model_sprite_anchor_index = model.get_sprite().get_anchor_as_coordinates();
       // Add 1 to account for new lines
       let expected_index = 1
         + (Coordinates::from_isize(position.subtract(model_sprite_anchor_index))

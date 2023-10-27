@@ -81,17 +81,18 @@ impl ScreenPrinter {
   }
 
   /// Places the appearance of the model in the given frame.
-  fn apply_model_in_frame(model: ModelData, current_frame: &mut String) {
+  fn apply_model_in_frame(mut model: ModelData, current_frame: &mut String) {
     let model_frame_position = model.get_frame_position();
-    let model_sprite = model.get_sprite();
-    let model_sprite = model_sprite.read().unwrap();
+    let model_appearance = model.get_appearance_data();
+    let model_appearance = model_appearance.lock().unwrap();
+    let model_sprite = model_appearance.get_appearance();
     let sprite_width = model_sprite.get_dimensions().x;
     let air_character = model_sprite.air_character();
 
     let model_shape = model_sprite.get_appearance().replace('\n', "");
     let model_characters = model_shape.chars();
 
-    drop(model_sprite);
+    drop(model_appearance);
 
     for (index, character) in model_characters.enumerate() {
       if character != air_character {

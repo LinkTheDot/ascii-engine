@@ -2,25 +2,16 @@ use crate::screen::model_storage::*;
 use crate::CONFIG;
 use engine_math::coordinates::*;
 use model_data_structures::models::{
-  animation::*, errors::*, model_data::ModelData, model_movements::*,
+  errors::*, model_appearance::*, model_data::ModelData, model_movements::*,
 };
 use model_data_structures::prelude::AnimationFrames;
 use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 // Describe the use of the model_manager
 #[derive(Debug)]
 pub struct ModelManager {
   model_storage: Arc<RwLock<ModelStorage>>,
-}
-
-enum AnimationEvent {
-  QueueAnimation,
-  OverwriteCurrentlyRunningAnimation,
-  ClearQueue,
-  StopAnimation,
-  /// Contains the frames to be added.
-  AddAnimation(AnimationFrames),
 }
 
 impl ModelManager {
@@ -155,9 +146,12 @@ impl ModelManager {
     model_hash: &u64,
     animation_name: &str,
   ) -> Result<(), ModelError> {
-    let event = AnimationEvent::QueueAnimation;
+    let model_appearance = self.get_model_appearance(model_hash)?;
+    let mut model_appearance = model_appearance.lock().unwrap();
 
-    self.run_animation_event(model_hash, Some(animation_name), event)
+    model_appearance
+      .queue_model_animation(animation_name)
+      .map_err(Into::into)
   }
 
   /// Force stops the currently running animation and starts running the animation
@@ -176,9 +170,12 @@ impl ModelManager {
     model_hash: &u64,
     animation_name: &str,
   ) -> Result<(), ModelError> {
-    let event = AnimationEvent::OverwriteCurrentlyRunningAnimation;
+    let model_appearance = self.get_model_appearance(model_hash)?;
+    let mut model_appearance = model_appearance.lock().unwrap();
 
-    self.run_animation_event(model_hash, Some(animation_name), event)
+    model_appearance
+      .overwrite_current_model_animation(animation_name)
+      .map_err(Into::into)
   }
 
   /// Adds the animation to the model's list of stored animations.
@@ -190,12 +187,15 @@ impl ModelManager {
   pub fn add_animation_to_model(
     &mut self,
     model_hash: &u64,
-    animation: AnimationFrames,
     animation_name: String,
+    animation: AnimationFrames,
   ) -> Result<(), ModelError> {
-    let event = AnimationEvent::AddAnimation(animation);
+    let model_appearance = self.get_model_appearance(model_hash)?;
+    let mut model_appearance = model_appearance.lock().unwrap();
 
-    self.run_animation_event(model_hash, Some(&animation_name), event)
+    let _ = model_appearance.add_animation_to_model(animation_name, animation);
+
+    Ok(())
   }
 
   /// Clears the queue of animations to be run on the model, and stops the currently running animation.
@@ -206,92 +206,33 @@ impl ModelManager {
   /// - There was no model with that hash
   /// - The model had no animation data
   pub fn clear_model_animation_queue(&mut self, model_hash: &u64) -> Result<(), ModelError> {
-    let event = AnimationEvent::ClearQueue;
+    let model_appearance = self.get_model_appearance(model_hash)?;
+    let mut model_appearance = model_appearance.lock().unwrap();
 
-    self.run_animation_event(model_hash, None, event)
-  }
-
-  pub fn stop_current_model_animation(&mut self, model_hash: &u64) -> Result<(), ModelError> {
-    let event = AnimationEvent::StopAnimation;
-
-    self.run_animation_event(model_hash, None, event)
-  }
-
-  /// Runs any given animation method based on the [`AnimationEvent`](AnimationEvent) given.
-  ///
-  /// Takes an optional string for the methods that require a name for an animation.
-  /// The name could either be used for geting an animation or assign a name to a new animation.
-  // Abstracted because 98% of this code would be reused 4+ times.
-  // TODO: List the errors.
-  fn run_animation_event(
-    &mut self,
-    model_hash: &u64,
-    animation_name: Option<&str>,
-    event: AnimationEvent,
-  ) -> Result<(), ModelError> {
-    let Some(mut model) = self.get_model(model_hash) else {
-      return Err(ModelError::ModelDoesntExist);
-    };
-
-    let Some(model_animation_data) = model.get_animation_data() else {
-      return Err(ModelError::AnimationError(
-        AnimationError::ModelHasNoAnimationData,
-      ));
-    };
-    let mut model_animation_data = model_animation_data.lock().unwrap();
-
-    let animation: Option<AnimationFrames> = if let Some(animation_name) = animation_name {
-      model_animation_data.get_animation(animation_name).cloned()
-    } else {
-      None
-    };
-
-    todo!();
-
-    // let mut model_animator = model_animation_data.get_model_animator();
-    //
-    // match event {
-    //   AnimationEvent::QueueAnimation => {
-    //     let Some(animation) = animation else {
-    //       return Err(ModelError::AnimationError(
-    //         AnimationError::AnimationDoesntExist,
-    //       ));
-    //     };
-    //
-    //     model_animator.add_new_animation_to_queue(animation);
-    //   }
-    //
-    //   AnimationEvent::OverwriteCurrentlyRunningAnimation => {
-    //     let Some(animation) = animation else {
-    //       return Err(ModelError::AnimationError(
-    //         AnimationError::AnimationDoesntExist,
-    //       ));
-    //     };
-    //
-    //     model_animator.overwrite_current_animation(animation);
-    //   }
-    //
-    //   AnimationEvent::AddAnimation(animation) => {
-    //     drop(model_animator);
-    //
-    //     let Some(animation_name) = animation_name else {
-    //       log::error!("Failed to get an animation name when adding a new animation to a model.");
-    //
-    //       return Ok(());
-    //     };
-    //
-    //     if let Err(error) =
-    //       model_animation_data.add_new_animation_to_list(animation_name.to_owned(), animation)
-    //     {
-    //       return Err(ModelError::AnimationError(error));
-    //     }
-    //   }
-    //
-    //   AnimationEvent::ClearQueue => model_animator.clear_queue(),
-    //   AnimationEvent::StopAnimation => model_animator.stop_current_animation(),
-    // }
+    model_appearance.clear_model_animation_queue();
 
     Ok(())
+  }
+
+  pub fn remove_current_model_animation(&mut self, model_hash: &u64) -> Result<(), ModelError> {
+    let model_appearance = self.get_model_appearance(model_hash)?;
+    let mut model_appearance = model_appearance.lock().unwrap();
+
+    model_appearance.stop_current_model_animation();
+
+    Ok(())
+  }
+
+  fn get_model_appearance(
+    &mut self,
+    model_hash: &u64,
+  ) -> Result<Arc<Mutex<ModelAppearance>>, ModelError> {
+    Ok(
+      self
+        .get_model(model_hash)
+        .ok_or(ModelError::ModelDoesntExist)?
+        .get_appearance_data(),
+    )
   }
 }
 

@@ -70,16 +70,17 @@ impl TestingData {
   /// This can be used instead of [`new_test_model_animated`](TestingData::new_test_model_animated) if
   /// you want an animated model with no animations or more than 1 animation.
   pub fn new_test_model_with_animation(
-    _world_position: (usize, usize),
-    _animations: Vec<(String, AnimationFrames)>,
+    world_position: (usize, usize),
+    animations: Vec<(String, AnimationFrames)>,
   ) -> ModelData {
-    todo!()
-    // let mut model_data = Self::new_test_model(world_position);
-    // let animation_data = ModelAnimationData::new(model_data.clone(), animations);
-    //
-    // model_data.assign_model_animation(animation_data);
-    //
-    // model_data
+    let mut model_data = Self::new_test_model(world_position);
+    let animation_data = ModelAnimationData::new(animations);
+
+    let model_appearance = model_data.get_appearance_data();
+    let mut model_appearance = model_appearance.lock().unwrap();
+    model_appearance.add_animation_data(animation_data);
+
+    model_data
   }
 
   /// Creates a list of the given amount of models at the given position.
@@ -130,7 +131,11 @@ impl TestingData {
     format!("{}\n{}\n{}", row_of_character, middle_row, row_of_character)
   }
 
+  /// Generates an instance of ModelAnimationData with animation frames of 'x', 'y', and 'z'.
+  /// A loop count of 2 times is also added with each frame lasting 1 tick.
   pub fn get_test_model_animation_data() -> ModelAnimationData {
-    todo!()
+    let animation = Self::get_test_animation(['x', 'y', 'z'], AnimationLoopCount::Limited(2));
+
+    ModelAnimationData::new([(Self::ANIMATION_NAME.into(), animation)])
   }
 }

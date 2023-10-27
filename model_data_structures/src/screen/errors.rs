@@ -1,3 +1,4 @@
+use crate::models::animation::errors::*;
 use crate::models::errors::*;
 
 /// The list of errors that could happen when dealing with the screen.
@@ -13,7 +14,7 @@ pub enum ScreenError {
   /// A wrapper for [`PrintingError`](screen_printer::printer::PrintingError).
   PrintingError(screen_printer::printer::PrintingError),
 
-  /// A wrapper for [`AnimationError`](crate::models::errors::AnimationError).
+  /// A wrapper for [`AnimationError`](crate::models::animation::errors::AnimationError).
   AnimationError(AnimationError),
 
   /// Generally a wrapper around other crate's error types.

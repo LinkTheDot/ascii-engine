@@ -4,19 +4,21 @@ use crate::CONFIG;
 use anyhow::*;
 use core::result::Result::Ok;
 use event_sync::EventSync;
+use serde::{Deserialize, Serialize};
 use std::{
   collections::{HashMap, VecDeque},
   time::Duration,
 };
 
 /// Handles the current running animations, when they started, and what the last run animation was.
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Deserialize, Serialize)]
 pub struct ModelAnimator {
   /// Contains the list of names of animations to be run.
   /// Should be push_back -> pop_front
   animation_queue: VecDeque<String>,
   /// Contains an EventSync for when the animation started.
   /// The tickrate contained is based on the tickrate in the config file.
+  // #[serde(deserialize_with = "unpause_timer")] Think about this a bit more.
   current_animation_start: Option<EventSync>,
   last_run_animation: Option<String>,
 }
@@ -151,8 +153,19 @@ impl ModelAnimator {
     self.last_run_animation.as_deref()
   }
 
-  pub fn clear_queue(&mut self) {
-    self.animation_queue.clear();
+  /// Removes every animation running in the queue, adding the last existing animation that *would* have been run.
+  pub fn clear_queue(&mut self, animation_list: &HashMap<String, AnimationFrames>) {
+    if let Some(last_run_animation) = self
+      .animation_queue
+      .iter()
+      .rev()
+      .find(|animation_name| animation_list.contains_key(*animation_name))
+      .map(String::to_owned)
+    {
+      self.last_run_animation = Some(last_run_animation);
+    }
+
+    self.current_animation_start = None;
   }
 
   /// Assigns the passed in new animation if there's none currently running.
@@ -535,7 +548,7 @@ mod tests {
             .get_current_model_appearance(&animation_list)
             .unwrap();
 
-          event_sync.wait_for_tick();
+          event_sync.wait_for_tick().unwrap();
 
           frame_appearance
         })
@@ -582,7 +595,7 @@ mod tests {
       model_animator.add_new_animation_to_queue(animation_names[0].clone());
       model_animator.add_new_animation_to_queue(animation_names[1].clone());
       // Wait until the first animation is finished.
-      event_sync.wait_for_x_ticks(3);
+      event_sync.wait_for_x_ticks(3).unwrap();
 
       // Run all 3 frames in the animation
       let frames: Vec<&Sprite> = (0..3)
@@ -591,13 +604,13 @@ mod tests {
             .get_current_model_appearance(&animation_list)
             .unwrap();
 
-          event_sync.wait_for_tick();
+          event_sync.wait_for_tick().unwrap();
 
           frame_appearance
         })
         .collect();
 
-      event_sync.wait_for_tick();
+      event_sync.wait_for_tick().unwrap();
 
       // The animation running is finished after 3 ticks
 
@@ -659,7 +672,7 @@ mod tests {
     model_animator.add_new_animation_to_queue(animation_names[0].clone());
     model_animator.add_new_animation_to_queue(animation_names[1].clone());
 
-    event_sync.wait_for_tick();
+    event_sync.wait_for_tick().unwrap();
 
     // Check that the event_sync exists.
     assert_eq!(

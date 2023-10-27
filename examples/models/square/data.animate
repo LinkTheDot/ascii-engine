@@ -1,7 +1,0 @@
-+- Resting is the appearance of a model when no animation is running
-+- If not defined, the last frame of the last animation will be the model's resting state.
-+Resting+
-xxxxx
-x+c+x
-xxxxx
---

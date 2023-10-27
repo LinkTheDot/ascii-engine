@@ -1,18 +1,25 @@
-use crate::models::errors::*;
+// TODO
+// Add a way to freeze the animation queue and pausing the stored EventSync.
+// Add a way to default to the resting frame of an animation, while pausing the stored EventSync.
+// Add a way to assign a default animation to fall back on when there are none running in the queue.
+
 use crate::models::model_appearance::sprites::Sprite;
 pub use animation_frames::*;
+pub use errors::*;
 pub use model_animator::*;
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::HashMap;
 
 pub mod animation_connections;
 pub mod animation_frames;
 pub mod animation_frames_iterators;
+pub mod errors;
 pub mod model_animator;
 
 /// Stores the list of existing model animations, and the data for the model's
 /// current animation state.
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Deserialize, Serialize)]
 pub struct ModelAnimationData {
   animations: HashMap<String, AnimationFrames>,
   model_animator: RefCell<ModelAnimator>,
@@ -49,21 +56,13 @@ impl ModelAnimationData {
 
   /// Adds a new animation for the model to be able to run.
   ///
-  /// # Errors
-  ///
-  /// - An error is returned when the given animation already exists.
+  /// If an animation of that name already exists, the old one is returned and the new one is stored in its place.
   pub fn add_new_animation_to_list(
     &mut self,
     animation_name: String,
     animation: AnimationFrames,
-  ) -> Result<(), AnimationError> {
-    if let Entry::Vacant(entry) = self.animations.entry(animation_name) {
-      entry.insert(animation);
-    } else {
-      return Err(AnimationError::AnimationAlreadyExists);
-    }
-
-    Ok(())
+  ) -> Option<AnimationFrames> {
+    self.animations.insert(animation_name, animation)
   }
 
   /// Returns a reference to the animation of the given name.
@@ -73,8 +72,74 @@ impl ModelAnimationData {
     self.animations.get(animation_name)
   }
 
-  pub fn queue_animation(&mut self) {
-    //
+  /// Adds an animation to the back of the queue.
+  ///
+  /// # Errors
+  ///
+  /// - An animation of that name doesn't exist, and therefore cannot be added to the queue.
+  pub fn queue_animation(&mut self, animation_name: impl AsRef<str>) -> Result<(), AnimationError> {
+    let animation_name = animation_name.as_ref().to_owned();
+
+    if self.contains_animation(&animation_name) {
+      self
+        .model_animator
+        .borrow_mut()
+        .add_new_animation_to_queue(animation_name);
+    } else {
+      return Err(AnimationError::AnimationDoesntExist {
+        invalid_animation_name: animation_name.clone(),
+      });
+    }
+
+    Ok(())
+  }
+
+  /// Stops the currently running animation, and replaces it with the one passed in.
+  ///
+  /// # Errors
+  ///
+  /// - An animation of that name doesn't exist, and therefore cannot be added to the queue.
+  pub fn overwrite_current_model_animation(
+    &mut self,
+    new_animation: impl AsRef<str>,
+  ) -> Result<(), AnimationError> {
+    let new_animation = new_animation.as_ref();
+
+    if self.contains_animation(new_animation) {
+      self
+        .model_animator
+        .borrow_mut()
+        .overwrite_current_animation(new_animation.to_owned());
+    } else {
+      return Err(AnimationError::AnimationDoesntExist {
+        invalid_animation_name: new_animation.to_string(),
+      });
+    }
+
+    Ok(())
+  }
+
+  /// Removes every animation running in the animation queue.
+  ///
+  /// The last existing animation to be run in the list is assigned to the last_run_animation.
+  pub fn clear_animation_queue(&mut self) {
+    self
+      .model_animator
+      .borrow_mut()
+      .clear_queue(&self.animations)
+  }
+
+  /// Removes the currently running animation from the queue, and moves on to the next animation in queue.
+  pub fn remove_current_model_animation_from_queue(&mut self) {
+    self
+      .model_animator
+      .borrow_mut()
+      .step_animation_queue(&self.animations)
+  }
+
+  /// Returns a reference to the stored animations.
+  pub fn get_animation_list(&self) -> &HashMap<String, AnimationFrames> {
+    &self.animations
   }
 }
 

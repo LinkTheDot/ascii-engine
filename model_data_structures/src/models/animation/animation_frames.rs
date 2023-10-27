@@ -1,3 +1,4 @@
+use crate::errors::*;
 pub use crate::models::animation::animation_frames_iterators::*;
 use crate::models::model_appearance::sprites::Sprite;
 use serde::{Deserialize, Serialize};
@@ -115,7 +116,13 @@ impl AnimationFrames {
       return None;
     }
 
-    let mut remaining_ticks = ticks % self.get_cycle_duration();
+    let cycle_duration = self.get_cycle_duration();
+
+    if cycle_duration == 0 {
+      return None;
+    }
+
+    let mut remaining_ticks = ticks % cycle_duration;
 
     let current_frame = self.frames.iter().position(|frame| {
       let frame_duration = frame.get_frame_duration() as u64;
@@ -130,6 +137,52 @@ impl AnimationFrames {
     })? as u64;
 
     self.get_frame(current_frame)
+  }
+
+  /// Returns an [`AnimationValidityErrorData`](crate::models::animation::errors::AnimationValidityErrorData)
+  /// which contains the list of errors for each invalid frame, and the index tied to it.
+  ///
+  /// Checks every frame in the animation, including the resting frame.
+  ///
+  /// # Sprite Errors
+  ///
+  /// - The stored shape isn't rectangular.
+  /// - The stored shape doesn't have an anchor.
+  /// - The stored shape has multiple anchors.
+  /// - The anchor and air characters are the same.
+  pub fn validity_check(&self, animation_name: &str) -> Result<(), AnimationValidityErrorData> {
+    let resting_appearance_errors = if let Some(Err(ModelError::SpriteValidityChecks(error_list))) =
+      self.resting_appearance.as_ref().map(Sprite::validity_check)
+    {
+      Some(error_list)
+    } else {
+      None
+    };
+
+    let invalid_frame_errors: Vec<(usize, Vec<ModelError>)> = self
+      .get_frames()
+      .iter()
+      .enumerate()
+      .filter_map(|(iteration, frame)| {
+        if let Err(ModelError::SpriteValidityChecks(error_list)) =
+          frame.get_appearance().validity_check()
+        {
+          Some((iteration, error_list))
+        } else {
+          None
+        }
+      })
+      .collect();
+
+    if !invalid_frame_errors.is_empty() || resting_appearance_errors.is_some() {
+      Err(AnimationValidityErrorData {
+        animation_name: animation_name.to_string(),
+        resting_appearance_errors,
+        invalid_frame_errors,
+      })
+    } else {
+      Ok(())
+    }
   }
 }
 

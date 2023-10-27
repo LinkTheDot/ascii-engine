@@ -1,18 +1,15 @@
 use crate::errors::*;
 use crate::general_data::file_logger;
-use crate::models::animation_thread;
 use crate::screen::model_manager::*;
 use crate::screen::model_storage::*;
 use crate::screen::printer::*;
 use crate::screen::stored_worlds::*;
 use crate::CONFIG;
 use event_sync::EventSync;
-use model_data_structures::models::{animation::*, model_data::*};
+use model_data_structures::models::model_data::*;
 use screen_printer::printer::*;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread::JoinHandle;
-// use std::collections::VecDeque;
-// use std::time::Instant;
 
 /// ScreenData is where all the internal information required to create frames is held.
 ///
@@ -257,9 +254,14 @@ impl ScreenData {
         //
         // let now = Instant::now();
         //
-        printing_event_sync.wait_for_tick();
+        if let Err(error) = printing_event_sync.wait_for_tick() {
+          log::error!(
+            "An error prevented the screen from getting printed: {:?}",
+            error
+          );
 
-        if let Err(error) = printer.print_screen() {
+          consecutive_errors += 1;
+        } else if let Err(error) = printer.print_screen() {
           log::error!(
             "An error prevented the screen from getting printed: {:?}",
             error
@@ -287,33 +289,4 @@ impl ScreenData {
 }
 
 #[cfg(test)]
-mod tests {
-  // use super::*;
-  //
-  // const WORLD_POSITION: (usize, usize) = (10, 10);
-  // const SHAPE: &str = "xxxxx\nxxaxx\nxxxxx";
-  //
-  // #[cfg(test)]
-  // mod get_animation_connection_logic {
-  //   use super::*;
-  //
-  //   #[test]
-  //   fn animation_not_started() {
-  //     let screen = ScreenData::new();
-  //
-  //     let result = screen.get_animation_connection();
-  //
-  //     assert!(result.is_none());
-  //   }
-  //
-  //   #[test]
-  //   fn animation_is_started() {
-  //     let mut screen = ScreenData::new();
-  //     screen.start_animation_thread().unwrap();
-  //
-  //     let result = screen.get_animation_connection();
-  //
-  //     assert!(result.is_some());
-  //   }
-  // }
-}
+mod tests {}

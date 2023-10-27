@@ -35,11 +35,12 @@ impl Sprite {
   /// Returns a default of self.
   // TODO: List the errors.
   pub fn new(
-    shape: String,
+    shape: impl AsRef<str>,
     anchor_character: char,
     anchor_replacement_character: char,
     air_character: char,
   ) -> Result<Self, ModelError> {
+    let shape = shape.as_ref().to_string();
     let mut sprite = Sprite::default();
 
     sprite.change_shape(
@@ -268,7 +269,7 @@ mod tests {
 
   #[test]
   fn change_anchor_character_sprite_contains_new_anchor() {
-    let mut sprite = Sprite::new("-x-\n-a-".to_string(), 'a', '-', '-').unwrap();
+    let mut sprite = Sprite::new("-x-\n-a-", 'a', '-', '-').unwrap();
 
     let expected_error = ModelError::ModelSpriteContainsNewAnchorCharacter;
 
@@ -291,7 +292,7 @@ mod tests {
 
   #[test]
   fn change_air_character_matching_anchor() {
-    let mut sprite = Sprite::new("-x-\n-a-".to_string(), 'a', '-', '-').unwrap();
+    let mut sprite = Sprite::new("-x-\n-a-", 'a', '-', '-').unwrap();
 
     let expected_error = ModelError::SpriteAnchorMatchesAirCharacter;
 
@@ -318,7 +319,7 @@ mod tests {
 
   #[test]
   fn get_anchor_index_logic() {
-    let sprite = Sprite::new("-x-\n-a-".to_string(), 'a', '-', '-').unwrap();
+    let sprite = Sprite::new("-x-\n-a-", 'a', '-', '-').unwrap();
 
     let expected_index = 4;
     let expected_coordinates = (1, 1);

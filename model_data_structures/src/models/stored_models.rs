@@ -1,8 +1,6 @@
-use crate::models::model_appearance::sprites::*;
-use crate::models::{animation::*, hitboxes::*, model_data::*, strata::*};
+use crate::models::model_appearance::*;
+use crate::models::{hitboxes::*, model_data::*, strata::*};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[allow(unused)]
@@ -12,25 +10,21 @@ pub struct StoredDisplayModel {
   pub(crate) name: String,
 
   pub(crate) strata: Strata,
-  pub(crate) sprite: Sprite,
+  pub(crate) appearance_data: ModelAppearance,
   pub(crate) hitbox: Hitbox,
-
-  pub(crate) animation_data: Option<HashMap<String, AnimationFrames>>,
 }
 
 impl StoredDisplayModel {
   pub(crate) fn new(mut model_data: ModelData) -> Self {
-    let model_animation_data = model_data.get_animation_data().map(get_animations);
-    let sprite = extract_arc_rwlock(model_data.get_sprite());
+    let appearance_data = model_data.get_appearance_data().lock().unwrap().clone();
 
     Self {
       unique_hash: model_data.get_hash(),
       position: model_data.get_frame_position(),
       name: model_data.get_name(),
       strata: model_data.get_strata(),
-      sprite,
+      appearance_data,
       hitbox: model_data.get_hitbox(),
-      animation_data: model_animation_data,
     }
   }
 
@@ -61,15 +55,4 @@ impl Ord for StoredDisplayModel {
   fn cmp(&self, other: &Self) -> std::cmp::Ordering {
     self.unique_hash.cmp(&other.unique_hash)
   }
-}
-
-fn get_animations(
-  _animation_data: Arc<Mutex<ModelAnimationData>>,
-) -> HashMap<String, AnimationFrames> {
-  // animation_data.lock().unwrap().get_animation_list().clone()
-  todo!()
-}
-
-fn extract_arc_rwlock<T: Clone>(item: Arc<RwLock<T>>) -> T {
-  item.read().unwrap().clone()
 }

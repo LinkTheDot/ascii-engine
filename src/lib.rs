@@ -20,7 +20,6 @@ pub mod general_data {
 
 pub mod models {
   pub mod animation_file_parser;
-  pub mod animation_thread;
   pub mod traits;
 }
 

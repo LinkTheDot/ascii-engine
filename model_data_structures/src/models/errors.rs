@@ -1,71 +1,77 @@
+use crate::models::animation::errors::*;
 use crate::models::strata::Strata;
 use std::ffi::OsString;
+use thiserror::Error;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 /// This is the list of possible errors that could occurr while handling models.
 ///
 /// Includes a wrapper for [`ModelCreationError`](crate::models::errors::ModelCreationError).
 pub enum ModelError {
-  /// While creating the model, no anchor point was found.
+  /// There was no anchor found in the appearance of a [`Sprite`](crate::models::model_appearance::sprites::Sprite).
+  #[error("A model's sprite was missing an anchor point for world and hitbox placement.")]
   NoAnchor,
 
-  /// While creating the model, no every row
-  /// contained the same amount of characters.
+  /// A model's appearance was found to be non-rectangular.
+  /// (Every row must contain the same amount of characters to be rectangular)
+  #[error("A model's sprite was found to be a non-rectangular shape.")]
   NonRectangularShape,
 
-  /// This error is returned when a strata that wasn't 0-100 was passed in.
+  /// A model's [`Strata`](crate::models::strata::Strata) wasn't within 0-100.
+  #[error("A model was found to contain an invalid strata: {:?}", .0)]
   IncorrectStrataRange(Strata),
 
-  /// A thread holding a copy of a model panicked when trying to obtain the lock of said model.
-  FailedToGetLock,
-
   /// When a model that already exists is attempted to be inserted into the screen.
+  #[error("Attempted to insert an already existing model into the world.")]
   ModelAlreadyExists,
 
   /// When internal model data was attempted to be changed with a model hash that doesn't exist.
+  #[error("Attempted to get a model that doesn't exist.")]
   ModelDoesntExist,
 
-  /// There were multiple anchors found in the object's appearance and or hitbox.
-  ///
-  /// Returns the list of indices the anchor was found in.
+  /// A model contained multiple anchors in its [`Sprite`](crate::models::model_appearance::sprites::Sprite).
+  #[error("A model was found to have multiple anchor points in its appearance.")]
   MultipleAnchorsFound(Vec<usize>),
 
-  /// [`ModelData::from_file()`](crate::models::model_data::ModelData::from_file) was called with a path that has the wrong extension.
-  NonModelFile,
-
-  /// When something went wrong but it wasn't enough to warrent it's own type.
-  ///
-  /// Contains a description of what went wrong.
-  Other(String),
-
-  /// This error occurrs when attempting to assign an animation to a model that has already been assigned an animation.
-  ModelAlreadyHasAnimationData,
-
   /// A wrapper for the [`ModelCreationError`](ModelCreationError) error type.
-  ModelCreationError(ModelCreationError),
+  #[error("Failed to create a model. Reason: {:?}", .0)]
+  ModelCreationError(#[from] ModelCreationError),
 
   /// A wrapper for the [`AnimationError`](AnimationError) error type.
-  AnimationError(AnimationError),
+  #[error("An error occurred while animating a model. Reason: {:?}", .0)]
+  AnimationError(#[from] AnimationError),
 
-  /// When changing the air or anchor character for a sprite, both matched each other.
+  /// When changing the air or anchor character for a sprite, both matched each other..
+  #[error("Attempted to change a sprite's anchor/air character to be the same.")]
   SpriteAnchorMatchesAirCharacter,
 
   /// Attempted to change the anchor character on a model that already contained
   /// that character in its appearance.
+  #[error("Attempted to change a sprite's anchor character, but the character already exists in the appearance.")]
   ModelSpriteContainsNewAnchorCharacter,
 
   /// Attempted to create/change a hitbox with an index that's larger than it's area.
+  #[error("Attempted to change a Hitbox to dimensions too small for its stored anchor index.")]
   IndexLargerThanHitboxArea,
 
   /// Attempted to place a model out of bounds of the world.
+  #[error("Model has been place of of bounds of the screen.")]
   ModelOutOfBounds,
 
   /// A stored list of errors returned when checking if a sprite has any issues with it's data.
+  #[error("A sprite was found to be invalid. Reason(s): {:?}", .0)]
   SpriteValidityChecks(Vec<Self>),
+
+  /// When something went wrong but it wasn't enough to warrent it's own type.
+  ///
+  /// Contains a description of what went wrong.
+  #[error("An error has occurred. Reason: {:?}", .0)]
+  Other(String),
 }
 
 /// This is the list of possible errors that could happen when parsing a model file.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Error, Debug, PartialEq, Eq)]
+// This error won't be implemented for this as model files are going to be replaced in the near future.
 pub enum ModelCreationError {
   /// Invalid syntax was found with the line it was on being contained in the error.
   InvalidSyntax(usize),
@@ -90,6 +96,9 @@ pub enum ModelCreationError {
   /// Contains a list of everything that was missing.
   MissingData(Vec<String>),
 
+  /// [`ModelData::from_file()`](crate::models::model_data::ModelData::from_file) was called with a path that has the wrong extension.
+  NonModelFile,
+
   /// Failed to find the model file with the given path.
   ///
   /// Contains the path that was passed in.
@@ -98,108 +107,8 @@ pub enum ModelCreationError {
   /// The model file exists, but has no content inside of it.
   ModelFileIsEmpty,
 }
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum AnimationError {
-  /// This is a wrapper for the AnimationParserError.
-  AnimationParserError(AnimationParserError),
-
-  /// This is when a model tried starting it's animation thread when it was already started.
-  AnimationAlreadyStarted,
-
-  /// This is returned when a model tries to send an animation request when the animation wasn't started yet.
-  AnimationNotStarted,
-
-  /// This is when a model attempted to take an action that requires animation_data, but it doesn't have any.
-  ModelHasNoAnimationData,
-
-  /// This is returned when AnimationData was called with a filepath that wasn't an animation file.
-  NonAnimationFile,
-
-  /// Used internally to signify when the animation queue has run out of animations
-  EmptyQueue,
-
-  /// This error happens when trying to request an animation that doesn't exist in the animation list.
-  AnimationDoesntExist,
-
-  /// This error happens when attempting to add an animation of a duplicate name into a model's animation_data.
-  AnimationAlreadyExists,
-
-  /// This error happens when attempting to assign a connection to an instance of ModelAnimationData that already has one.
-  AnimationDataAlreadyHasConnection,
-
-  /// This error happens when attempting to start a model's animation without ever starting the animation thread.
-  AnimationThreadNotStarted,
-
-  /// This error is returned when attempting to start the animation thread when it has already been started.
-  AnimationThreadAlreadyStarted,
-
-  /// The connection was severed when attempting to send a request to the animation thread.
-  AnimationThreadClosed,
-
-  /// This error is returned when attempting to increment the changed frames on a model animator that has no current animation.
-  NoExistingAnimation,
-
-  /// This error is returned when attempting to parse an animation directory for a model, but the path
-  /// defined in the model's file doesn't exist.
-  AnimationDirectoryDoesntExist(OsString),
-
-  /// This error is returned when attempting to parse an animation directory for a model, but the path
-  /// defined in the model's file leads to a file instead of a directory containing animation files.
-  AnimationDirectoryIsFile(OsString),
-
-  /// Attempted to add a model to the animation thread through the model manager, but there was no connection.
-  NoExistingAnimationConnection,
-
-  /// Attempted to assign a resting frame to the model from an animation that doesn't have one.
-  AnimationHasNoRestingFrame,
-
-  /// Couldn't find the starting time of the current animation.
-  NoAnimationStart,
-}
-
-/// Since almost no error is returned to the user from the animation parser, most errors here will only ever
-/// be logged during parsing.
-/// This means that it is up to the animation parser to log both the file and error if anything goes wrong,
-/// and not up to the error to hold a copy of the file's name.
-#[derive(Debug, PartialEq, Eq)]
-pub enum AnimationParserError {
-  /// This error is returned when the animation file parser failed to get a handle on an animation file in a
-  /// model's directory.
-  CouldntGetAnimationPath(OsString),
-
-  /// This error is returned when the animation file parser attempts to parse an empty animation file.
-  AnimationFileIsEmpty,
-
-  /// This error is returned when an error was returned after attempting to read the contents of an
-  /// animation file. This could've been caused by something like invalid UTF-8 being contained in the file.
-  CouldntReadAnimationFile,
-
-  /// Invalid syntax was found with the line it was on being contained in the error.
-  InvalidSyntax(usize),
-
-  /// This error is returned when the contents of a variable were incorrect.
-  /// The line in which this happened is contained in the error.
-  InvalidLineContents(usize),
-
-  /// This error is returned when a duplicate variable was found during animation file parsing.
-  /// The line in which this happened is contained in the error.
-  DuplicateVariable(usize),
-
-  /// This error is returned when an animation hasn't defined how many times it should run.
-  MissingLoopCount,
-
-  /// This error is returned when an animation has a frame defined with a duration of 0.
-  /// The line this happens is contained in the error.
-  FrameDurationOfZero(usize),
-
-  /// This error is returned when an animation has a frame with an invalid shape.
-  /// This means the animation's frame is NOT a rectangle.
-  InvalidFrameDimensions(usize),
-
-  /// This error is returned when the first animation has defined it's duration two times.
-  FrameDurationDefinedTwice(usize),
-
-  /// This error is returned when attempting to initialize a frame that has no appearance.
-  FrameHasNoAppearance,
+impl std::fmt::Display for ModelCreationError {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+    write!(f, "{:?}", self)
+  }
 }
