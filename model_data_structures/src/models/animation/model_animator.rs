@@ -576,10 +576,6 @@ mod tests {
     // when it's finished, and is replacing it with the first in queue.
     #[test]
     fn current_animation_is_finished_with_items_in_queue() {
-      // PROBLEM: The amount of ticks that overflows from the previous animation isn't accounted for.
-      // Meaning, if an animation expires with 1 additional tick, that tick is forgotten about once
-      //   the new animation is started.
-      // There needs to be some way to create an EventSync from some start time.
       let animation_list = get_test_animation_list();
       let animation_names: Vec<String> = animation_list.keys().map(|k| k.to_owned()).collect();
       let mut model_animator = ModelAnimator::default();

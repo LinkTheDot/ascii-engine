@@ -113,12 +113,13 @@ impl ConfigTraits for ConfigBuilder<DefaultState> {
   where
     Self: Sized,
   {
-    let config_with_defaults = self.set_defaults(default_data);
+    let config_with_defaults = self.set_defaults(default_data)?;
 
     if !running_on_test_build() {
-      Ok(config_with_defaults?.add_source(File::with_name(path)))
+      Ok(config_with_defaults.add_source(File::with_name(path)))
     } else {
-      config_with_defaults
+      // Increase the duration of a tick to reduce required accuracy of tests for github actions.
+      Ok(config_with_defaults.set_default("tick_duration", 48)?)
     }
   }
 
