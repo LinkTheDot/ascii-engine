@@ -194,6 +194,7 @@ impl ModelAnimator {
       Some(EventSync::from_starting_time(
         CONFIG.tick_duration,
         remaining_time,
+        false,
       ))
     } else {
       None

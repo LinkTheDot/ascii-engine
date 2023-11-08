@@ -288,9 +288,9 @@ checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
 
 [[package]]
 name = "event_sync"
-version = "0.1.7"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7305c122709e494964200788ee18aea87e8334da1d6275d7835e18043632cf44"
+checksum = "21004b8c3ee4dfff8797f9532b73277ceb47e93b9b4b1435195878902f12c818"
 dependencies = [
  "serde",
  "thiserror",
