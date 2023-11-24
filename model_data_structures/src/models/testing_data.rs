@@ -25,7 +25,8 @@ fn test_model_path_exists() {
 pub struct TestingData;
 
 impl TestingData {
-  pub const ANIMATION_NAME: &str = "test";
+  // Tarpaulin is dumb for wanting a lifetime here.
+  pub const ANIMATION_NAME: &'static str = "test";
 
   /// Returns a test model from the models file.
   pub fn new_test_model(world_position: (usize, usize)) -> ModelData {

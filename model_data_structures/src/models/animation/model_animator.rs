@@ -18,7 +18,6 @@ pub struct ModelAnimator {
   animation_queue: VecDeque<String>,
   /// Contains an EventSync for when the animation started.
   /// The tickrate contained is based on the tickrate in the config file.
-  // #[serde(deserialize_with = "unpause_timer")] Think about this a bit more.
   current_animation_start: Option<EventSync>,
   last_run_animation: Option<String>,
 }
@@ -281,19 +280,9 @@ impl ModelAnimator {
     Ok(ticks_since_animation_start >= animation_duration)
   }
 
-  //   pub fn set_to_resting_frame(&self) -> Result<(), AnimationError> {
-  //     // let Some(current_animation) = self.current_animation else {
-  //     //   return Err(AnimationError::NoExistingAnimation);
-  //     // };
-  //     //
-  //     // let Some(resting_frame) = current_animation.get_resting_appearance() else {
-  //     //   return Err(AnimationError::AnimationHasNoRestingFrame);
-  //     // };
-  //     //
-  //     // self.change_model_frame(resting_frame);
-  //     //
-  //     Ok(())
-  //   }
+  pub fn clear_all_data(&mut self) {
+    std::mem::take(self);
+  }
 }
 
 impl std::fmt::Debug for ModelAnimator {
@@ -304,7 +293,7 @@ impl std::fmt::Debug for ModelAnimator {
     let animation_start = self
       .current_animation_start
       .as_ref()
-      .map(|e| e.time_since_started());
+      .map(EventSync::time_since_started);
 
     formatter
       .debug_struct("ModelAnimator")
@@ -530,7 +519,6 @@ mod tests {
       let animation_list = get_test_animation_list();
       let animation_name = "TestOne".to_string();
       let mut model_animator = ModelAnimator::default();
-      let event_sync = EventSync::new(CONFIG.tick_duration);
 
       model_animator.add_new_animation_to_queue(animation_name.clone());
 
@@ -549,7 +537,12 @@ mod tests {
             .get_current_model_appearance(&animation_list)
             .unwrap();
 
-          event_sync.wait_for_tick().unwrap();
+          model_animator
+            .current_animation_start
+            .as_ref()
+            .unwrap()
+            .wait_for_tick()
+            .unwrap();
 
           frame_appearance
         })
@@ -580,7 +573,6 @@ mod tests {
       let animation_list = get_test_animation_list();
       let animation_names: Vec<String> = animation_list.keys().map(|k| k.to_owned()).collect();
       let mut model_animator = ModelAnimator::default();
-      let event_sync = EventSync::new(CONFIG.tick_duration);
 
       let expected_animation = animation_list.get(&animation_names[1]).unwrap().clone();
       let expected_frames: Vec<&Sprite> = expected_animation
@@ -592,7 +584,12 @@ mod tests {
       model_animator.add_new_animation_to_queue(animation_names[0].clone());
       model_animator.add_new_animation_to_queue(animation_names[1].clone());
       // Wait until the first animation is finished.
-      event_sync.wait_for_x_ticks(3).unwrap();
+      model_animator
+        .current_animation_start
+        .as_ref()
+        .unwrap()
+        .wait_for_x_ticks(3)
+        .unwrap();
 
       // Run all 3 frames in the animation
       let frames: Vec<&Sprite> = (0..3)
@@ -601,13 +598,23 @@ mod tests {
             .get_current_model_appearance(&animation_list)
             .unwrap();
 
-          event_sync.wait_for_tick().unwrap();
+          model_animator
+            .current_animation_start
+            .as_ref()
+            .unwrap()
+            .wait_for_tick()
+            .unwrap();
 
           frame_appearance
         })
         .collect();
 
-      event_sync.wait_for_tick().unwrap();
+      model_animator
+        .current_animation_start
+        .as_ref()
+        .unwrap()
+        .wait_for_tick()
+        .unwrap();
 
       // The animation running is finished after 3 ticks
 
@@ -664,12 +671,16 @@ mod tests {
     let animation_list = get_test_animation_list();
     let animation_names: Vec<String> = animation_list.keys().map(|k| k.to_owned()).collect();
     let mut model_animator = ModelAnimator::default();
-    let event_sync = EventSync::new(CONFIG.tick_duration);
 
     model_animator.add_new_animation_to_queue(animation_names[0].clone());
     model_animator.add_new_animation_to_queue(animation_names[1].clone());
 
-    event_sync.wait_for_tick().unwrap();
+    model_animator
+      .current_animation_start
+      .as_ref()
+      .unwrap()
+      .wait_for_tick()
+      .unwrap();
 
     // Check that the event_sync exists.
     assert_eq!(

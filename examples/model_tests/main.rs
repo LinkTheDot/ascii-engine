@@ -5,17 +5,9 @@ mod collision_data;
 mod screen_config;
 
 #[derive(DisplayModel)]
-struct Player {
-  //   #[allow(unused)]
-  //   model_hash: u64,
-}
+struct Player {}
 
 impl Player {
-  /// Large world hash
-  pub const HASH: u64 = 6026848879077808290;
-  // /// Small world hash
-  // pub const HASH: u64 = 4543996001266142749;
-
   fn get_model_data() -> ModelData {
     ModelData::from_file(Path::new("examples/models/square.model"), (10, 10)).unwrap()
   }
@@ -42,52 +34,52 @@ impl Player {
 }
 
 fn main() {
-  // create_large_test_world();
+  // // create_large_test_world();
   // let path = PathBuf::from("examples/worlds/test_world.wrld");
-  let path = PathBuf::from("examples/worlds/large_test_world.wrld");
-  let stored_world = StoredWorld::load(&path).unwrap();
-  let screen_data = ScreenData::from_world(stored_world);
-
-  let stored_world = StoredWorld::load(path).unwrap();
-  log::info!("{:#?}", stored_world);
-
-  let (_printing_thread_handle, printing_thread_kill_sender) =
-    screen_data.spawn_printing_thread(60, None);
-
-  let mut model_manager = screen_data.get_model_manager();
-
-  loop {
-    let input = get_user_input();
-    let movement: (isize, isize) = match input.trim() {
-      "w" => (0, -1),
-      "s" => (0, 1),
-      "a" => (-1, 0),
-      "d" => (1, 0),
-      "q" => break,
-      "z" => {
-        model_manager
-          .queue_model_animation(&Player::HASH, "test")
-          .log_if_err();
-        continue;
-      }
-      "x" => {
-        model_manager
-          .remove_current_model_animation(&Player::HASH)
-          .log_if_err();
-        continue;
-      }
-      _ => continue,
-    };
-
-    let movement = ModelMovement::Relative(movement);
-
-    // Don't care about the collisions for now.
-    let _ = model_manager
-      .move_model(&Player::HASH, movement)
-      .log_if_err();
-  }
-
-  let _ = printing_thread_kill_sender.send(());
+  // // let path = PathBuf::from("examples/worlds/large_test_world.wrld");
+  // let stored_world = StoredWorld::load(&path).unwrap();
+  // let screen_data = ScreenData::from_world(stored_world);
+  //
+  // let stored_world = StoredWorld::load(path).unwrap();
+  // log::info!("{:#?}", stored_world);
+  //
+  // let (_printing_thread_handle, printing_thread_kill_sender) =
+  //   screen_data.spawn_printing_thread(60, None);
+  //
+  // let mut model_manager = screen_data.get_model_manager();
+  //
+  // loop {
+  //   let input = get_user_input();
+  //   let movement: (isize, isize) = match input.trim() {
+  //     "w" => (0, -1),
+  //     "s" => (0, 1),
+  //     "a" => (-1, 0),
+  //     "d" => (1, 0),
+  //     "q" => break,
+  //     "z" => {
+  //       model_manager
+  //         .queue_model_animation(&Player::HASH, "test")
+  //         .log_if_err();
+  //       continue;
+  //     }
+  //     "x" => {
+  //       model_manager
+  //         .remove_current_model_animation(&Player::HASH)
+  //         .log_if_err();
+  //       continue;
+  //     }
+  //     _ => continue,
+  //   };
+  //
+  //   let movement = ModelMovement::Relative(movement);
+  //
+  //   // Don't care about the collisions for now.
+  //   let _ = model_manager
+  //     .move_model(&Player::HASH, movement)
+  //     .log_if_err();
+  // }
+  //
+  // let _ = printing_thread_kill_sender.send(());
 }
 
 #[allow(dead_code)]

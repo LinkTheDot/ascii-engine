@@ -7,6 +7,7 @@ use crate::models::model_appearance::sprites::Sprite;
 pub use animation_frames::*;
 pub use errors::*;
 pub use model_animator::*;
+use serde::Serializer;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -22,7 +23,19 @@ pub mod model_animator;
 #[derive(Default, Clone, Deserialize, Serialize)]
 pub struct ModelAnimationData {
   animations: HashMap<String, AnimationFrames>,
+  #[serde(serialize_with = "remove_running_animations")]
   model_animator: RefCell<ModelAnimator>,
+}
+
+/// Reset the ModelAnimator when serializing.
+fn remove_running_animations<S>(
+  _: &RefCell<ModelAnimator>,
+  serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+  S: Serializer,
+{
+  ModelAnimator::default().serialize(serializer)
 }
 
 impl ModelAnimationData {
