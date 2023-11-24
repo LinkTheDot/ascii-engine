@@ -5,7 +5,7 @@ use thiserror::Error;
 /// Contains data for when frame(s) in an animation had invalid sprites, or if the resting frame was invalid.
 ///
 /// The list of invalid frames and their errors is contained.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AnimationValidityErrorData {
   /// The name of the invalid animation.
   pub animation_name: String,
@@ -15,7 +15,7 @@ pub struct AnimationValidityErrorData {
   pub invalid_frame_errors: Vec<(usize, Vec<ModelError>)>,
 }
 
-#[derive(Error, Debug, PartialEq, Eq)]
+#[derive(Error, Debug, PartialEq, Eq, Clone)]
 pub enum AnimationError {
   /// This is a wrapper for the AnimationParserError.
   #[error("Deprecated {:?}", .0)]
@@ -37,7 +37,7 @@ pub enum AnimationError {
 /// be logged during parsing.
 /// This means that it is up to the animation parser to log both the file and error if anything goes wrong,
 /// and not up to the error to hold a copy of the file's name.
-#[derive(Error, Debug, PartialEq, Eq)]
+#[derive(Error, Debug, PartialEq, Eq, Clone)]
 pub enum AnimationParserError {
   /// This error is returned when the animation file parser failed to get a handle on an animation file in a
   /// model's directory.
@@ -88,6 +88,7 @@ pub enum AnimationParserError {
 }
 
 impl std::fmt::Display for AnimationParserError {
+  #[cfg(not(tarpaulin_include))]
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
     write!(f, "{:?}", self)
   }

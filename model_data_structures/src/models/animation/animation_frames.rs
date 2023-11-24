@@ -1,8 +1,8 @@
 use crate::errors::*;
-pub use crate::models::animation::animation_frames_iterators::*;
 use crate::models::model_appearance::sprites::Sprite;
 use serde::{Deserialize, Serialize};
 
+// TODO: Add documentation
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct AnimationFrames {
   frames: Vec<AnimationFrame>,
@@ -10,9 +10,9 @@ pub struct AnimationFrames {
   loop_count: AnimationLoopCount,
   /// The appearance of the model when there are no animations running.
   resting_appearance: Option<Sprite>,
-  running: bool,
 }
 
+// TODO: Add documentation
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct AnimationFrame {
   appearance: Sprite,
@@ -20,6 +20,7 @@ pub struct AnimationFrame {
   frame_duration: u32,
 }
 
+// TODO: Add documentation
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 pub enum AnimationLoopCount {
   Forever,
@@ -28,6 +29,7 @@ pub enum AnimationLoopCount {
 }
 
 impl AnimationFrames {
+  // TODO: Add documentation
   pub fn new(
     animation_frames: Vec<AnimationFrame>,
     loop_count: AnimationLoopCount,
@@ -37,44 +39,55 @@ impl AnimationFrames {
       frames: animation_frames,
       loop_count,
       resting_appearance,
-      running: true,
     }
   }
 
+  /// Returns a reference of the given frame index.
+  ///
+  /// The index does *not* wrap around based on loop count.
+  /// If there are only 3 frames, only 0-2 will be valid.
+  ///
+  /// Returns None when the index in greater than the amount of frames in the animation.
   pub fn get_frame(&self, index: u64) -> Option<&AnimationFrame> {
     self.frames.get(index as usize)
   }
 
+  /// Returns the amount of frames in a single iteration of the animation.
   pub fn frame_count(&self) -> u64 {
     self.frames.len() as u64
   }
 
+  /// Takes an exclusive amount of frames that've been iterated through.
+  ///
+  /// Returns true if the amount of frames iterated exceeds the animation's duration.
+  ///
+  /// The duration of an animation would be frames * loop_count.
   pub fn reached_loop_count(&self, frames_iterated_through: u64) -> bool {
     let animation_loops_occurred = frames_iterated_through / self.frame_count();
 
     self.loop_count.reached_loop_count(animation_loops_occurred)
   }
 
+  /// Returns a reference to the list of frames in the animation.
   pub fn get_frames(&self) -> &Vec<AnimationFrame> {
     &self.frames
   }
 
+  /// Returns the loop count of this animation.
   pub fn get_loop_count(&self) -> &AnimationLoopCount {
     &self.loop_count
   }
 
-  pub fn pause(&mut self) {
-    self.running = false;
+  /// Replaces the current resting appearance with the new given one.
+  ///
+  /// Returns the old resting appearance if it existed.
+  pub fn set_resting_appearance(&mut self, new_resting_appearance: Sprite) -> Option<Sprite> {
+    std::mem::replace(&mut self.resting_appearance, Some(new_resting_appearance))
   }
 
-  pub fn start(&mut self) {
-    self.running = true;
-  }
-
-  pub fn is_running(&self) -> bool {
-    self.running
-  }
-
+  /// Returns a reference to the animation's resting appearance.
+  ///
+  /// The resting appearance is what the animation would look like if it were to stop running for whatever reason.
   pub fn get_resting_appearance(&self) -> Option<&Sprite> {
     self.resting_appearance.as_ref()
   }
@@ -112,12 +125,15 @@ impl AnimationFrames {
   pub fn get_frame_based_on_ticks(&self, ticks: u64) -> Option<&AnimationFrame> {
     let total_animation_duration = self.get_total_duration();
 
-    if total_animation_duration.is_some() && total_animation_duration.unwrap() <= ticks {
-      return None;
+    if let Some(total_animation_duration) = total_animation_duration {
+      if total_animation_duration <= ticks {
+        return None;
+      }
     }
 
     let cycle_duration = self.get_cycle_duration();
 
+    // If there's 0 frames but the loop count is set to 'Forever'.
     if cycle_duration == 0 {
       return None;
     }
@@ -229,29 +245,6 @@ mod tests {
   use super::*;
   use crate::models::testing_data::*;
 
-  // #[test]
-  // fn animation_frame_get_logic() {
-  //   let test_animation =
-  //     TestingData::get_test_animation(['l', 'm', 'n'], AnimationLoopCount::Limited(1));
-  //   let test_frame = test_animation.into_iter().next().unwrap();
-  //
-  //   let expected_appearance =
-  //     Sprite::new(TestingData::get_frame_appearance('l'), 'a', 'l', '-').unwrap();
-  //
-  //   assert_eq!(test_frame.get_appearance(), &expected_appearance);
-  //   assert_eq!(test_frame.get_frame_duration(), 1);
-  // }
-  //
-  // #[test]
-  // fn animation_frames_get_logic() {
-  //   let loop_count = AnimationLoopCount::Limited(1);
-  //   let test_animation = TestingData::get_test_animation(['l', 'm', 'n'], loop_count);
-  //   let test_frame_list: Vec<AnimationFrame> = test_animation.clone().into_iter().collect();
-  //
-  //   assert_eq!(test_animation.get_frames(), &test_frame_list);
-  //   assert_eq!(test_animation.get_loop_count(), &loop_count);
-  // }
-
   #[test]
   fn animation_frames_from_logic() {
     let loop_count = AnimationLoopCount::Limited(1);
@@ -341,6 +334,189 @@ mod tests {
         unlimited_animation.get_frame_based_on_ticks(33),
         expected_frames.get_frame(0)
       );
+    }
+
+    #[test]
+    fn empty_animation() {
+      let animation = AnimationFrames::new(vec![], AnimationLoopCount::Forever, None);
+
+      assert!(animation.get_frame_based_on_ticks(0).is_none());
+      assert!(animation.get_frame_based_on_ticks(1).is_none());
+      assert!(animation.get_frame_based_on_ticks(2).is_none());
+      assert!(animation.get_frame_based_on_ticks(3).is_none());
+    }
+  }
+
+  #[test]
+  fn frame_count_logic() {
+    let loop_count = AnimationLoopCount::Limited(2);
+    let animation = TestingData::get_test_animation(['l', 'm', 'n'], loop_count);
+
+    assert_eq!(animation.frame_count(), 3);
+  }
+
+  #[cfg(test)]
+  mod reached_loop_count_logic {
+    use super::*;
+
+    #[test]
+    fn animation_has_limited_loop_count() {
+      let loop_count_limited = AnimationLoopCount::Limited(2);
+      let limited_animation = TestingData::get_test_animation(['l', 'm', 'n'], loop_count_limited);
+
+      assert!(!limited_animation.reached_loop_count(0));
+      assert!(!limited_animation.reached_loop_count(2));
+      assert!(!limited_animation.reached_loop_count(3));
+      assert!(limited_animation.reached_loop_count(6));
+    }
+
+    #[test]
+    fn animation_has_unlimited_loop_count() {
+      let loop_count_unlimited = AnimationLoopCount::Forever;
+      let unlimited_animation =
+        TestingData::get_test_animation(['l', 'm', 'n'], loop_count_unlimited);
+
+      assert!(!unlimited_animation.reached_loop_count(9999));
+      assert!(!unlimited_animation.reached_loop_count(9999));
+    }
+  }
+
+  #[test]
+  fn get_loop_count_logic() {
+    let loop_count_limited = AnimationLoopCount::Limited(2);
+    let limited_animation = TestingData::get_test_animation(['l', 'm', 'n'], loop_count_limited);
+
+    let loop_count_unlimited = AnimationLoopCount::Forever;
+    let unlimited_animation =
+      TestingData::get_test_animation(['l', 'm', 'n'], loop_count_unlimited);
+
+    assert_eq!(limited_animation.get_loop_count(), &loop_count_limited);
+    assert_eq!(unlimited_animation.get_loop_count(), &loop_count_unlimited);
+  }
+
+  #[cfg(test)]
+  mod get_resting_appearance_logic {
+    use super::*;
+
+    #[test]
+    fn animation_has_no_resting_appearance() {
+      let loop_count = AnimationLoopCount::Limited(2);
+      let animation = TestingData::get_test_animation(['l', 'm', 'n'], loop_count);
+
+      assert!(animation.get_resting_appearance().is_none());
+    }
+
+    #[test]
+    fn animation_has_a_resting_appearance() {
+      let loop_count = AnimationLoopCount::Limited(2);
+      let mut animation = TestingData::get_test_animation(['l', 'm', 'n'], loop_count);
+      let resting_appearance =
+        Sprite::new(TestingData::get_frame_appearance('l'), 'a', 'l', '-').unwrap();
+      let _ = animation.set_resting_appearance(resting_appearance.clone());
+
+      assert_eq!(
+        animation.get_resting_appearance(),
+        Some(&resting_appearance)
+      );
+    }
+  }
+
+  #[cfg(test)]
+  mod validity_check_logic {
+    use super::*;
+
+    #[test]
+    fn every_frame_is_valid() {
+      let loop_count = AnimationLoopCount::Limited(2);
+      let animation = TestingData::get_test_animation(['l', 'm', 'n'], loop_count);
+
+      assert!(animation.validity_check("").is_ok());
+    }
+
+    #[test]
+    fn specific_frame_is_invalid() {
+      let loop_count = AnimationLoopCount::Limited(2);
+      let animation_frames = vec![
+        (1, Sprite::new_unchecked("xxx\nxcx", 'c', 'x', '-', 4)),
+        (1, Sprite::new_unchecked("-xx\nxcx", 'c', 'x', '-', 4)),
+        (1, Sprite::new_unchecked("x-x\nxcx", 'c', 'x', '-', 4)),
+        (1, Sprite::new_unchecked("xx\nxcc", 'c', 'x', 'c', 4)),
+      ];
+      let animation = AnimationFrames::from((loop_count, animation_frames, None));
+      let animation_name = "test_animation".to_string();
+
+      let expected_result = Err(AnimationValidityErrorData {
+        animation_name: animation_name.clone(),
+        resting_appearance_errors: None,
+        invalid_frame_errors: vec![(
+          3,
+          vec![
+            ModelError::NonRectangularShape,
+            ModelError::MultipleAnchorsFound(vec![3, 4]),
+            ModelError::SpriteAnchorMatchesAirCharacter,
+          ],
+        )],
+      });
+
+      let result = animation.validity_check(&animation_name);
+
+      assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn every_frame_is_invalid() {
+      let loop_count = AnimationLoopCount::Limited(2);
+      let broken_sprite = Sprite::new_unchecked("xx\nxcc", 'c', 'x', 'c', 4);
+      let animation_frames = std::iter::repeat((1, broken_sprite.clone()))
+        .take(4)
+        .collect();
+      let mut animation = AnimationFrames::from((loop_count, animation_frames, None));
+      animation.set_resting_appearance(broken_sprite);
+      let animation_name = "test_animation".to_string();
+
+      let sprite_errors = vec![
+        ModelError::NonRectangularShape,
+        ModelError::MultipleAnchorsFound(vec![3, 4]),
+        ModelError::SpriteAnchorMatchesAirCharacter,
+      ];
+      let expected_result = Err(AnimationValidityErrorData {
+        animation_name: animation_name.clone(),
+        resting_appearance_errors: Some(sprite_errors.clone()),
+        invalid_frame_errors: vec![
+          (0, sprite_errors.clone()),
+          (1, sprite_errors.clone()),
+          (2, sprite_errors.clone()),
+          (3, sprite_errors),
+        ],
+      });
+
+      let result = animation.validity_check(&animation_name);
+
+      assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn resting_appearance_is_invalid() {
+      let loop_count = AnimationLoopCount::Limited(2);
+      let mut animation = TestingData::get_test_animation(['l', 'm', 'n'], loop_count);
+      let broken_sprite = Sprite::new_unchecked("xx\nxcc", 'c', 'x', 'c', 4);
+      animation.set_resting_appearance(broken_sprite);
+      let animation_name = "test_animation".to_string();
+
+      let sprite_errors = vec![
+        ModelError::NonRectangularShape,
+        ModelError::MultipleAnchorsFound(vec![3, 4]),
+        ModelError::SpriteAnchorMatchesAirCharacter,
+      ];
+      let expected_result = Err(AnimationValidityErrorData {
+        animation_name: animation_name.clone(),
+        resting_appearance_errors: Some(sprite_errors),
+        invalid_frame_errors: vec![],
+      });
+
+      let result = animation.validity_check(&animation_name);
+
+      assert_eq!(result, expected_result);
     }
   }
 }

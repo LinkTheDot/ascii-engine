@@ -236,6 +236,28 @@ impl Sprite {
   pub fn air_character(&self) -> char {
     self.air_character
   }
+
+  /// Creates a new Sprite with the data as is. Does not check for any errors that may make the Sprite invalid.
+  /// When passing in the index, it is exclusive to any newlines, meaning an appearance of "xxx\nxcx" would have
+  /// an anchor index of 4, because the newline is ignored.
+  ///
+  /// This is for creating Sprites for any validity tests that require an invalid Sprite.
+  #[cfg(test)]
+  pub fn new_unchecked(
+    shape: impl AsRef<str>,
+    anchor_character: char,
+    anchor_replacement_character: char,
+    air_character: char,
+    anchor_character_index: usize,
+  ) -> Self {
+    Self {
+      shape: shape.as_ref().to_string(),
+      anchor_character,
+      anchor_replacement_character,
+      air_character,
+      anchor_character_index,
+    }
+  }
 }
 
 #[cfg(test)]
@@ -362,13 +384,7 @@ mod tests {
 
   #[test]
   fn validity_check_all_errors() {
-    let junk_sprite = Sprite {
-      shape: "x-x\naa".to_string(),
-      anchor_character: 'a',
-      anchor_replacement_character: 'a',
-      air_character: 'a',
-      anchor_character_index: 100,
-    };
+    let junk_sprite = Sprite::new_unchecked("x-x\naa", 'a', 'a', 'a', 100);
 
     let expected_error_list = vec![
       ModelError::NonRectangularShape,

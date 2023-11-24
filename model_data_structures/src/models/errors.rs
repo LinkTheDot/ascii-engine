@@ -3,7 +3,7 @@ use crate::models::strata::Strata;
 use std::ffi::OsString;
 use thiserror::Error;
 
-#[derive(Error, Debug, PartialEq, Eq)]
+#[derive(Error, Debug, PartialEq, Eq, Clone)]
 /// This is the list of possible errors that could occurr while handling models.
 ///
 /// Includes a wrapper for [`ModelCreationError`](crate::models::errors::ModelCreationError).
@@ -70,7 +70,7 @@ pub enum ModelError {
 }
 
 /// This is the list of possible errors that could happen when parsing a model file.
-#[derive(Error, Debug, PartialEq, Eq)]
+#[derive(Error, Debug, PartialEq, Eq, Clone)]
 // This error won't be implemented for this as model files are going to be replaced in the near future.
 pub enum ModelCreationError {
   /// Invalid syntax was found with the line it was on being contained in the error.

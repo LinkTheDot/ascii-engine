@@ -14,7 +14,6 @@ use std::collections::HashMap;
 
 pub mod animation_connections;
 pub mod animation_frames;
-pub mod animation_frames_iterators;
 pub mod errors;
 pub mod model_animator;
 
