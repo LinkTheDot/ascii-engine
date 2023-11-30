@@ -386,17 +386,14 @@ mod tests {
   fn validity_check_all_errors() {
     let junk_sprite = Sprite::new_unchecked("x-x\naa", 'a', 'a', 'a', 100);
 
-    let expected_error_list = vec![
+    let expected_error_list = Err(ModelError::SpriteValidityChecks(vec![
       ModelError::NonRectangularShape,
       ModelError::MultipleAnchorsFound(vec![3, 4]),
       ModelError::SpriteAnchorMatchesAirCharacter,
-    ];
+    ]));
 
-    let ModelError::SpriteValidityChecks(error_list) = junk_sprite.validity_check().unwrap_err()
-    else {
-      panic!("Incorrect error has been returned.");
-    };
+    let result = junk_sprite.validity_check();
 
-    assert_eq!(error_list, expected_error_list);
+    assert_eq!(result, expected_error_list);
   }
 }

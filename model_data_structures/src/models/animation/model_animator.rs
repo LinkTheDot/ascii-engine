@@ -42,10 +42,7 @@ impl ModelAnimator {
       self.step_animation_queue(animation_list);
     }
 
-    let ticks_since_start_of_animation = self
-      .get_current_animation_start()?
-      .ticks_since_started()
-      .ok()?;
+    let ticks_since_start_of_animation = self.get_current_animation_start()?.ticks_since_started();
 
     let current_animation = animation_list.get(self.get_current_animation()?)?;
     let current_frame = current_animation.get_frame_based_on_ticks(ticks_since_start_of_animation);
@@ -123,10 +120,10 @@ impl ModelAnimator {
     let animation_start = self.get_current_animation_start()?;
     let current_animation = animation_list.get(self.get_current_animation()?)?;
     let duration_of_last_run_animation = current_animation.get_total_duration()?;
-    let ticks_since_started = animation_start.ticks_since_started().ok()?;
+    let ticks_since_started = animation_start.ticks_since_started();
 
     if ticks_since_started > duration_of_last_run_animation {
-      let remainder_time = animation_start.time_since_last_tick().ok()?;
+      let remainder_time = animation_start.time_since_last_tick();
 
       Some(
         Duration::from_millis(duration_of_last_run_animation * CONFIG.tick_duration as u64)
@@ -213,7 +210,7 @@ impl ModelAnimator {
     let mut remaining_duration = self
       .get_current_animation_start()
       .ok_or(anyhow!("No animation start."))?
-      .ticks_since_started()?;
+      .ticks_since_started();
 
     self
       .animation_queue
@@ -243,7 +240,7 @@ impl ModelAnimator {
     let remainder_time = self
       .get_current_animation_start()
       .ok_or(anyhow!("No animation start."))?
-      .time_since_last_tick()?;
+      .time_since_last_tick();
     let remaining_duration =
       Duration::from_millis(remaining_duration * CONFIG.tick_duration as u64) + remainder_time;
 
@@ -275,7 +272,7 @@ impl ModelAnimator {
     let current_animation_start = self
       .get_current_animation_start()
       .ok_or(anyhow!("No animation start."))?;
-    let ticks_since_animation_start = current_animation_start.ticks_since_started()?;
+    let ticks_since_animation_start = current_animation_start.ticks_since_started();
 
     Ok(ticks_since_animation_start >= animation_duration)
   }
@@ -637,6 +634,7 @@ mod tests {
     // This tests if get_current_model_appearance() is skipping animations in the queue if they've finished
     // since having been added to the queue.
     #[test]
+    #[ignore]
     fn skip_finished_animation_in_queue() {}
   }
 
@@ -689,7 +687,7 @@ mod tests {
         .as_ref()
         .unwrap()
         .ticks_since_started(),
-      Ok(1)
+      1
     );
 
     model_animator.step_animation_queue(&animation_list);
@@ -701,7 +699,7 @@ mod tests {
         .as_ref()
         .unwrap()
         .ticks_since_started(),
-      Ok(0)
+      0
     );
 
     model_animator.step_animation_queue(&animation_list);
@@ -710,7 +708,9 @@ mod tests {
     assert!(model_animator.current_animation_start.is_none());
   }
 
+  //
   // data for tests
+  //
 
   fn get_test_animation_list() -> HashMap<String, AnimationFrames> {
     let animations = [
