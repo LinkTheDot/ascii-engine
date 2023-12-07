@@ -66,13 +66,15 @@ mod world_management_logic {
   #[test]
   fn reset_world_logic() {
     let test_world = StoredWorld::load(PathBuf::from("tests/worlds/test_template.world")).unwrap();
-    let test_world_hashes = test_world.get_model_hashes();
     let mut screen_data = ScreenData::from_world(test_world);
+    let model_manager = screen_data.get_model_manager();
 
     let reset_world = screen_data.reset_world();
-    let reset_world_hashes = reset_world.get_model_hashes();
 
-    assert_eq!(test_world_hashes, reset_world_hashes)
+    assert_eq!(reset_world.model_count(), 5);
+    model_manager.get_model_list(|list| {
+      assert_eq!(list.iter().count(), 0);
+    });
   }
 
   #[test]
@@ -82,7 +84,7 @@ mod world_management_logic {
     let model_manager = screen_data.get_model_manager();
 
     let empty_world = screen_data.load_world(test_world);
-    assert!(empty_world.get_model_hashes().is_empty());
+    assert!(empty_world.model_count() == 0);
 
     model_manager.get_model_list(|model_list| {
       assert!(model_list.keys().count() == 5);

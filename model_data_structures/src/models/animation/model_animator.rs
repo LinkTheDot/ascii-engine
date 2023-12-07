@@ -161,6 +161,7 @@ impl ModelAnimator {
       self.last_run_animation = Some(last_run_animation);
     }
 
+    self.animation_queue.clear();
     self.current_animation_start = None;
   }
 
@@ -279,6 +280,10 @@ impl ModelAnimator {
 
   pub fn clear_all_data(&mut self) {
     std::mem::take(self);
+  }
+
+  pub fn get_queue(&self) -> &VecDeque<String> {
+    &self.animation_queue
   }
 }
 

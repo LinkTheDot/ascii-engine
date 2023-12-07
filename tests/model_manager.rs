@@ -268,7 +268,9 @@ mod animation_tests {
 
       let expected_result = ModelError::ModelDoesntExist;
 
-      let result = model_manager.queue_model_animation(&0, "").unwrap_err();
+      let result = model_manager
+        .queue_model_animation(&0, "", false)
+        .unwrap_err();
 
       assert_eq!(result, expected_result);
     }
@@ -537,7 +539,29 @@ mod animation_tests {
   }
 }
 
+#[test]
+fn model_tag_logic() {
+  let mut model_1 = TestingData::new_test_model(WORLD_POSITION);
+  let mut model_2 = TestingData::new_test_model(WORLD_POSITION);
+  let tags = vec!["Player".to_string(), "Test".to_string()];
+  model_1.add_tags(vec![tags[0].clone(), tags[1].clone()]);
+  model_2.add_tags(vec![tags[1].clone()]);
+  let (_, model_manager) = setup_model_manager(vec![model_1.clone(), model_2.clone()]);
+
+  let mut expected_matching_tag_models = vec![model_1.get_hash(), model_2.get_hash()];
+  expected_matching_tag_models.sort();
+
+  let mut single_tag_models = model_manager.get_models_with_tags(vec![&tags[1]]);
+  single_tag_models.sort();
+  let multiple_tag_models = model_manager.get_models_with_tags(vec![&tags[0], &tags[1]]);
+
+  assert_eq!(single_tag_models, expected_matching_tag_models);
+  assert_eq!(multiple_tag_models, vec![model_1.get_hash()]);
+}
+
+//
 // data for tests
+//
 
 fn setup_model_manager(models_to_add: Vec<ModelData>) -> (ScreenData, ModelManager) {
   let mut screen_data = ScreenData::new();

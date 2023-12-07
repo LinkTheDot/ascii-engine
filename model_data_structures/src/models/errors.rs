@@ -62,6 +62,10 @@ pub enum ModelError {
   #[error("A sprite was found to be invalid. Reason(s): {:?}", .0)]
   SpriteValidityChecks(Vec<Self>),
 
+  /// When checking all the fields on a StoredDisplayModel, one or more required fields were missing.
+  #[error("Failed to load a DisplayModel due to missing data.")]
+  MissingCrutialFieldsInStoredDisplayModel,
+
   /// When something went wrong but it wasn't enough to warrent it's own type.
   ///
   /// Contains a description of what went wrong.

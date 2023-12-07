@@ -10,7 +10,7 @@ pub use model_animator::*;
 use serde::Serializer;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 pub mod animation_connections;
 pub mod animation_frames;
@@ -19,15 +19,15 @@ pub mod model_animator;
 
 /// Stores the list of existing model animations, and the data for the model's
 /// current animation state.
-#[derive(Default, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct ModelAnimationData {
   animations: HashMap<String, AnimationFrames>,
-  #[serde(serialize_with = "remove_running_animations")]
+  #[serde(serialize_with = "serialize_without_animations")]
   model_animator: RefCell<ModelAnimator>,
 }
 
 /// Reset the ModelAnimator when serializing.
-fn remove_running_animations<S>(
+fn serialize_without_animations<S>(
   _: &RefCell<ModelAnimator>,
   serializer: S,
 ) -> Result<S::Ok, S::Error>
@@ -153,6 +153,19 @@ impl ModelAnimationData {
   pub fn get_animation_list(&self) -> &HashMap<String, AnimationFrames> {
     &self.animations
   }
+
+  /// Takes a closure that interacts with a reference to the current animation queue.
+  ///
+  /// Returns the value returned in the closure.
+  pub fn get_animation_queue<F, T>(&self, closure: F) -> T
+  where
+    F: FnOnce(&VecDeque<String>) -> T,
+  {
+    let model_animator = self.model_animator.borrow();
+    let queue = model_animator.get_queue();
+
+    closure(queue)
+  }
 }
 
 impl<I> From<I> for ModelAnimationData
@@ -169,17 +182,17 @@ where
   }
 }
 
-impl std::fmt::Debug for ModelAnimationData {
-  fn fmt(
-    &self,
-    formatter: &mut std::fmt::Formatter<'_>,
-  ) -> std::result::Result<(), std::fmt::Error> {
-    formatter
-      .debug_struct("ModelAnimationData")
-      .field("animations", &self.animations)
-      .finish()
-  }
-}
+// impl std::fmt::Debug for ModelAnimationData {
+//   fn fmt(
+//     &self,
+//     formatter: &mut std::fmt::Formatter<'_>,
+//   ) -> std::result::Result<(), std::fmt::Error> {
+//     formatter
+//       .debug_struct("ModelAnimationData")
+//       .field("animations", &self.animations)
+//       .finish()
+//   }
+// }
 
 // #[cfg(test)]
 // mod tests {

@@ -6,6 +6,7 @@ use crate::screen::printer::*;
 use crate::screen::stored_worlds::*;
 use crate::CONFIG;
 use event_sync::EventSync;
+use event_sync::Immutable;
 use model_data_structures::models::model_data::*;
 use screen_printer::printer::*;
 use std::sync::{Arc, Mutex, RwLock};
@@ -204,6 +205,13 @@ impl ScreenData {
     old_model_list.extract_model_list()
   }
 
+  /// Returns the current state of the world as a StoredWorld.
+  pub fn copy_current_world(&self) -> StoredWorld {
+    let existing_models = self.model_storage.read().unwrap();
+
+    existing_models.clone().extract_model_list()
+  }
+
   /// Returns a new ModelManager.
   ///
   /// The ModelManager will handle all actions requested to models in the world.
@@ -211,8 +219,9 @@ impl ScreenData {
     ModelManager::new(self.model_storage.clone())
   }
 
-  pub fn get_event_sync(&self) -> EventSync {
-    self.event_sync.clone()
+  /// Get an immutable copy of the internal EventSync.
+  pub fn get_event_sync(&self) -> EventSync<Immutable> {
+    self.event_sync.clone_immutable()
   }
 
   /// Spawns a thread that will print the screen a given amount of times per second.

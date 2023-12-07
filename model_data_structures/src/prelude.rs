@@ -6,6 +6,7 @@ pub use crate::{
     model_appearance::{sprites::*, *},
     model_data::*,
     model_movements::*,
+    strata::*,
   },
   screen::{errors::*, model_storage::*},
 };

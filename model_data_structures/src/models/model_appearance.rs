@@ -89,7 +89,7 @@ impl ModelAppearance {
       .add_new_animation_to_list(animation_name, new_animation)
   }
 
-  /// Removes the animation of the given name and returns its name and data if it existed.
+  /// Removes the animation of the given name and returns it if it existed.
   pub fn remove_animation_from_list(&mut self, animation_name: &str) -> Option<AnimationFrames> {
     self
       .get_mut_animation_data()
@@ -153,6 +153,46 @@ impl ModelAppearance {
     }
 
     Ok(())
+  }
+
+  /// Returns the name of the currently running animation.
+  ///
+  /// If the model has no animation data, None is returned.
+  pub fn current_animation_name(&self) -> Option<String> {
+    let animation_data = self.animation_data.as_ref()?;
+
+    animation_data.get_animation_queue(|queue| queue.get(0).cloned())
+  }
+
+  /// Returns the loop count and the duration of each loop in the current animation.
+  ///
+  /// If the model has no animation data, None is returned.
+  /// If there are no animations running, None is returned.
+  pub fn duration_of_current_animation(&self) -> Option<(AnimationLoopCount, u32)> {
+    let animation_data = self.animation_data.as_ref()?;
+    let animation_list = animation_data.get_animation_list();
+    let current_running_animation =
+      animation_data.get_animation_queue(|queue| queue.get(0).cloned())?;
+
+    let animation = animation_list.get(&current_running_animation)?;
+
+    let loop_count = animation.get_loop_count().to_owned();
+    let loop_duration = animation.get_cycle_duration();
+
+    Some((loop_count, loop_duration as u32))
+  }
+
+  /// Returns the index of the animation if it was running.
+  ///
+  /// If the model has no animation data, None is returned.
+  pub fn animation_is_currently_queued(&self, checked_name: &str) -> Option<usize> {
+    let animation_data = self.animation_data.as_ref()?;
+
+    animation_data.get_animation_queue(|queue| {
+      queue
+        .iter()
+        .position(|animation_name| animation_name == checked_name)
+    })
   }
 
   /// Returns a mutable reference to the contained [`ModelAnimationData`](crate::models::animation::ModelAnimationData)

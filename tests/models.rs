@@ -66,3 +66,14 @@ fn display_model_logic() {
   #[derive(DisplayModel)]
   struct _X;
 }
+
+#[test]
+fn tag_logic() {
+  let mut model = TestingData::new_test_model(WORLD_POSITION);
+  let tags = vec!["Player".to_string(), "Test".to_string()];
+  model.add_tags(tags);
+
+  assert!(model.contains_tag("Player"));
+  assert!(model.contains_tag("Test"));
+  assert!(model.contains_tags(&["Test", "Player"]));
+}

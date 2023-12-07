@@ -5,6 +5,7 @@ use model_data_structures::models::{
   errors::*, model_appearance::*, model_data::ModelData, model_movements::*,
 };
 use model_data_structures::prelude::AnimationFrames;
+use std::collections::HashSet;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -26,9 +27,9 @@ impl ModelManager {
   where
     F: FnOnce(&HashMap<u64, ModelData>) -> T,
   {
-    let read_guard = self.model_storage.read().unwrap();
+    let model_storage_read_guard = self.model_storage.read().unwrap();
 
-    closure(read_guard.get_model_list())
+    closure(model_storage_read_guard.get_model_list())
   }
 
   /// Returns a copy of the Model with the given hash.
@@ -136,6 +137,9 @@ impl ModelManager {
   /// The animation will be run once all other animations added before it have finished running in the queue.
   /// To force an animation to run over all others, use [`model_manager.overwrite_current_model_animation`](ModelManager::overwrite_current_model_animation).
   ///
+  /// Takes a boolean that, when true, will duplicate the animation to run in the queue.
+  /// If false is passed in, the animation won't be queued if it's already in the queue.
+  ///
   /// # Errors
   ///
   /// - There was no model with that hash
@@ -145,9 +149,18 @@ impl ModelManager {
     &mut self,
     model_hash: &u64,
     animation_name: &str,
+    duplicate_animation_in_queue: bool,
   ) -> Result<(), ModelError> {
     let model_appearance = self.get_model_appearance(model_hash)?;
     let mut model_appearance = model_appearance.lock().unwrap();
+
+    if !duplicate_animation_in_queue
+      && model_appearance
+        .animation_is_currently_queued(animation_name)
+        .is_some()
+    {
+      return Ok(());
+    }
 
     model_appearance
       .queue_model_animation(animation_name)
@@ -233,6 +246,29 @@ impl ModelManager {
         .ok_or(ModelError::ModelDoesntExist)?
         .get_appearance_data(),
     )
+  }
+
+  /// Returns the keys to every model that exists in the world with any of the given tag(s).
+  ///
+  /// Takes an option to get every model with exactly the given tags.
+  pub fn get_models_with_tags<S: AsRef<str>>(&self, tags: Vec<S>) -> Vec<u64> {
+    let model_storage = self.model_storage.read().unwrap();
+    let model_list = model_storage.get_model_list();
+
+    model_list
+      .iter()
+      .filter(|(_, model)| model.contains_tags(&tags))
+      .map(|(hash, _)| *hash)
+      .collect()
+  }
+
+  /// Returns the list of tags tied to the given model.
+  ///
+  /// None is returned if the model didn't exist.
+  pub fn get_tags_of_model(&self, model_hash: u64) -> Option<HashSet<String>> {
+    let model = self.get_model(&model_hash)?;
+
+    Some(model.get_tags())
   }
 }
 

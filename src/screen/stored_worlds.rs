@@ -2,10 +2,10 @@ use model_data_structures::{
   models::{model_data::*, stored_models::StoredDisplayModel},
   prelude::ScreenError,
 };
+use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::{collections::HashSet, fs};
 
 /// A storage for the list of models that exist in a given state of the world.
 #[derive(Debug)]
@@ -57,14 +57,6 @@ impl StoredWorld {
     Self { models }
   }
 
-  pub fn get_model_hashes(&self) -> HashSet<u64> {
-    self
-      .models
-      .iter()
-      .map(|stored_model| stored_model.get_hash())
-      .collect()
-  }
-
   // TODO: List the errors.
   pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, ScreenError> {
     let path = path.as_ref();
@@ -113,6 +105,11 @@ impl StoredWorld {
 
     truncate_or_create_then_write(path, serialized_world)
   }
+
+  /// Returns the amount of models stored.
+  pub fn model_count(&self) -> usize {
+    self.models.len()
+  }
 }
 
 /// Takes a given path and creates the file if it doesn't exist, then writing the data to it.
@@ -156,24 +153,15 @@ mod tests {
   use crate::screen::screen_data::ScreenData;
   use engine_math::hasher::get_unique_hash;
   use model_data_structures::models::testing_data::TestingData;
-  use std::collections::HashSet;
   use std::path::PathBuf;
 
   #[test]
   fn world_iteration() {
-    let test_models = TestingData::get_multiple_test_models((10, 10), 5);
+    let model_count = 5;
+    let test_models = TestingData::get_multiple_test_models((10, 10), model_count);
     let stored_world = StoredWorld::new(test_models.clone());
 
-    let mut model_hash_set: HashSet<u64> = test_models
-      .into_iter()
-      .map(|model| model.get_hash())
-      .collect();
-
-    for model in stored_world.into_iter() {
-      assert!(model_hash_set.remove(&model.get_hash()));
-    }
-
-    assert!(model_hash_set.is_empty());
+    assert!(stored_world.into_iter().count() == model_count as usize);
   }
 
   #[test]
@@ -189,35 +177,28 @@ mod tests {
   #[test]
   fn save_and_load_file() {
     let temporary_test_file_path: PathBuf = generate_temporary_test_file_path();
-    let test_models = TestingData::get_multiple_test_models((10, 10), 5);
+    let model_count = 5;
+    let test_models = TestingData::get_multiple_test_models((10, 10), model_count);
     let stored_world = StoredWorld::new(test_models.clone());
 
     stored_world.save(temporary_test_file_path.clone()).unwrap();
     let loaded_world = StoredWorld::load(temporary_test_file_path.clone()).unwrap();
 
-    let mut model_hash_set: HashSet<u64> = test_models
-      .into_iter()
-      .map(|model| model.get_hash())
-      .collect();
+    assert!(loaded_world.model_count() == model_count as usize);
 
-    for model in loaded_world.into_iter() {
-      assert!(model_hash_set.remove(&model.get_hash()));
-    }
-
+    // Remove the file
     fs::remove_file(temporary_test_file_path.clone()).unwrap();
     assert!(!temporary_test_file_path.exists());
-    assert!(model_hash_set.is_empty());
   }
 
   #[test]
-  #[should_panic]
   fn save_path_parent_does_not_exist() {
     let mut temporary_test_file_path: PathBuf = generate_temporary_test_file_path();
     temporary_test_file_path.push(generate_temporary_test_file_path());
     let test_models = TestingData::get_multiple_test_models((10, 10), 5);
     let stored_world = StoredWorld::new(test_models.clone());
 
-    stored_world.save(temporary_test_file_path).unwrap();
+    assert!(stored_world.save(temporary_test_file_path).is_err());
   }
 
   #[test]

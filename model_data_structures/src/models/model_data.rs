@@ -7,6 +7,7 @@ use crate::models::strata::Strata;
 use crate::prelude::ModelAppearance;
 use crate::CONFIG;
 use engine_math::{coordinates::*, hasher, rectangle::*};
+use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::path::Path;
@@ -27,6 +28,7 @@ pub struct InternalModelData {
   strata: Strata,
   appearance: Arc<Mutex<ModelAppearance>>,
   hitbox: Hitbox,
+  tags: HashSet<String>,
 }
 
 impl ModelData {
@@ -93,30 +95,41 @@ impl ModelData {
 
   // TODO: List the errors.
   pub fn from_stored(mut stored_model: StoredDisplayModel) -> Result<Self, ModelError> {
+    if !stored_model.repair_missing_fields() {
+      return Err(ModelError::MissingCrutialFieldsInStoredDisplayModel);
+    }
+
     if let Err(ModelError::AnimationError(AnimationError::AnimationValidityCheckFailed(
       error_list,
-    ))) = stored_model.appearance_data.full_validity_check()
+    ))) = stored_model
+      .appearance_data
+      .as_mut()
+      .unwrap()
+      .full_validity_check()
     {
       for animation_error_data in error_list {
         log::error!(
           "Failed to load animation for model {:?}. Reasons: {:?}",
-          stored_model.unique_hash,
+          stored_model.name,
           animation_error_data
         );
 
         let _ = stored_model
           .appearance_data
+          .as_mut()
+          .unwrap()
           .remove_animation_from_list(&animation_error_data.animation_name);
       }
     }
 
     let internal_model_data = InternalModelData {
-      unique_hash: stored_model.unique_hash,
-      assigned_name: stored_model.name,
-      position_in_frame: stored_model.position,
-      strata: stored_model.strata,
-      appearance: Arc::new(Mutex::new(stored_model.appearance_data)),
-      hitbox: stored_model.hitbox,
+      unique_hash: engine_math::hasher::get_unique_hash(),
+      assigned_name: stored_model.name.unwrap_or("".to_string()),
+      position_in_frame: stored_model.position.unwrap_or(0),
+      strata: stored_model.strata.unwrap_or(Strata(0)),
+      appearance: Arc::new(Mutex::new(stored_model.appearance_data.unwrap())),
+      hitbox: stored_model.hitbox.unwrap(),
+      tags: stored_model.tags.unwrap(),
     };
 
     Ok(Self {
@@ -279,6 +292,34 @@ impl ModelData {
   fn get_appearance_immutably(&self) -> Arc<Mutex<ModelAppearance>> {
     self.inner.lock().unwrap().appearance.clone()
   }
+
+  /// Returns true of the model contains the given tag.
+  pub fn contains_tag<S: AsRef<str>>(&self, tag: S) -> bool {
+    let inner = self.inner.lock().unwrap();
+
+    inner.tags.contains(tag.as_ref())
+  }
+
+  /// Returns true of the model contains the given tag.
+  pub fn contains_tags<S: AsRef<str>>(&self, tags: &[S]) -> bool {
+    let inner = self.inner.lock().unwrap();
+
+    tags
+      .iter()
+      .map(AsRef::as_ref)
+      .all(|tag| inner.tags.contains(tag))
+  }
+
+  pub fn add_tags(&mut self, tags: Vec<String>) {
+    tags.into_iter().for_each(|tag| {
+      self.inner.lock().unwrap().tags.insert(tag);
+    });
+  }
+
+  /// Returns a copy of the tags for this model.
+  pub fn get_tags(&self) -> HashSet<String> {
+    self.inner.lock().unwrap().tags.clone()
+  }
 }
 
 impl InternalModelData {
@@ -315,6 +356,7 @@ impl InternalModelData {
       appearance: model_appearance,
       position_in_frame,
       hitbox,
+      tags: HashSet::new(),
     })
   }
 }

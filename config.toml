@@ -1,6 +1,6 @@
 log_level = "debug"
 log_file_message_size = "long"
-empty_pixel = "`"
+empty_pixel = " "
 tick_duration = 24
 grid_width = 175
 grid_height = 40

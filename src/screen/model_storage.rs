@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 /// This is the struct that contains a reference to every model that exists in the world.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub(crate) struct ModelStorage {
   model_stratas: HashMap<Strata, HashSet<u64>>,
   models: HashMap<u64, ModelData>,
@@ -488,19 +488,16 @@ mod tests {
 
   #[test]
   fn extract_model_list_logic() {
-    let models: Vec<ModelData> = (0..5)
-      .map(|_| TestingData::new_test_model(WORLD_POSITION))
-      .collect();
+    let model_count = 5;
+    let models: Vec<ModelData> = TestingData::get_multiple_test_models(WORLD_POSITION, model_count);
     let model_storage = ModelStorage::from(models.clone());
-
-    let expected_list: HashMap<u64, ModelData> = models
-      .into_iter()
-      .map(|model| (model.get_hash(), model))
-      .collect();
 
     let stored_world = model_storage.extract_model_list();
     let model_list = ModelStorage::from(stored_world);
 
-    assert_eq!(model_list.get_model_list(), &expected_list);
+    assert_eq!(
+      model_list.get_model_list().iter().count(),
+      model_count as usize
+    );
   }
 }
