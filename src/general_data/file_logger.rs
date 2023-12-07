@@ -17,6 +17,8 @@ use log4rs::{
 /// long: "(Hour:Minute:Second)(TimeZone) | FilePath: Line | Level - Message".
 /// short: "FilePath: Line | Level - Message".
 /// shortest: Level - "Message"
+// TODO: List the errors.
+#[cfg(not(tarpaulin_include))]
 pub fn setup_file_logger() -> Result<log4rs::Handle, SetLoggerError> {
   let date = Utc::now();
   let log_file_path = format!("logs/{date}").replace(' ', "-");
@@ -59,4 +61,27 @@ fn get_logging_format() -> String {
   };
 
   logging_format.to_string()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn get_log_level_expected_default() {
+    let log_level = get_log_level();
+
+    let expected_default_log_level = LevelFilter::Debug;
+
+    assert_eq!(log_level, expected_default_log_level);
+  }
+
+  #[test]
+  fn get_logging_format_expected_default() {
+    let logging_format = get_logging_format();
+
+    let expected = "{d(%H:%M:%S %Z)(utc)} | {f}: {L} | {l} - {m}\n";
+
+    assert_eq!(logging_format, expected);
+  }
 }

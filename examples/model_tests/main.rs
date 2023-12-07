@@ -1,323 +1,137 @@
-use crate::collision_data::*;
-use crate::screen_config::*;
-use ascii_engine::general_data::coordinates::*;
-use ascii_engine::general_data::user_input::spawn_input_thread;
-// use ascii_engine::models::animation::*;
 use ascii_engine::prelude::*;
-use guard::guard;
-use log::{error, info, warn};
-use std::collections::VecDeque;
-use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::path::{Path, PathBuf};
 
 mod collision_data;
 mod screen_config;
 
-#[derive(Debug, DisplayModel)]
-pub struct Square {
-  model_data: ModelData,
-}
+#[derive(DisplayModel)]
+struct Player {}
 
-#[derive(Debug, DisplayModel)]
-pub struct Wall {
-  model_data: ModelData,
-}
-
-#[derive(Debug, DisplayModel)]
-pub struct TeleportPad {
-  model_data: ModelData,
-  connected_pad_hash: u64,
-}
-
-#[derive(Debug)]
-pub struct ConnectedTeleportPads<'a> {
-  pub teleport_pad_1: &'a TeleportPad,
-  pub teleport_pad_2: &'a TeleportPad,
-}
-
-impl Square {
-  fn from_file(path: &Path, world_position: (usize, usize)) -> Self {
-    Self {
-      model_data: ModelData::from_file(path, world_position).unwrap(),
-    }
+impl Player {
+  fn get_model_data() -> ModelData {
+    ModelData::from_file(Path::new("examples/models/square.model"), (10, 10)).unwrap()
   }
 
-  fn collision_checks(
-    initial_square: ModelData,
-    mut collision_list: VecDeque<ModelData>,
-    relative_movement: (isize, isize),
-    screen_config: &ScreenConfig,
-  ) -> CollisionChain {
-    let mut collision_chain = CollisionChain::new();
-
-    let square_movement = MovementType::RelativeMovement(relative_movement);
-    let initial_square_action = CollisionAction::new(initial_square.clone(), square_movement);
-    collision_chain.add_action(initial_square_action);
-    while !collision_list.is_empty() {
-      guard!( let Some(mut collided_model) = collision_list.pop_back() else { break; });
-
-      let model_name = collided_model.get_name().to_lowercase();
-
-      match model_name.trim() {
-        "square" => {
-          let new_collisions =
-            VecDeque::from(collided_model.relative_movement_collision_check(relative_movement));
-
-          let added_link = Square::collision_checks(
-            collided_model,
-            new_collisions,
-            relative_movement,
-            screen_config,
-          );
-
-          collision_chain.append(added_link);
-        }
-
-        "wall" => collision_chain.cancel_action_chain(),
-
-        "teleport pad" => {
-          let teleport_pad_position = collided_model.get_model_position();
-
-          let relative_distance_to_moved_position =
-            relative_movement.0 + (relative_movement.1 * (CONFIG.grid_width as isize + 1));
-          let moved_square_position = (initial_square.get_model_position() as isize
-            + relative_distance_to_moved_position) as usize;
-
-          if moved_square_position == teleport_pad_position {
-            let connected_teleport_pads = screen_config
-              .get_connected_teleport_pads(&collided_model.get_unique_hash())
-              .unwrap();
-
-            let connected_pad_position = connected_teleport_pads
-              .teleport_pad_2
-              .get_position()
-              .index_to_coordinates((CONFIG.grid_width + 1) as usize);
-
-            let potential_collisions =
-              initial_square.absolute_movement_collision_check(connected_pad_position);
-
-            if potential_collisions.len() == 1 {
-              let new_movement = MovementType::AbsoluteMovement(connected_pad_position);
-
-              let initial_square_hash = initial_square.get_unique_hash();
-              collision_chain.change_movement_of(&initial_square_hash, new_movement);
-            }
-          }
-        }
-        _ => (),
-      }
-    }
-
-    collision_chain
-  }
-}
-
-impl Wall {
-  fn from_file(path: &Path, world_position: (usize, usize)) -> Self {
-    Self {
-      model_data: ModelData::from_file(path, world_position).unwrap(),
-    }
-  }
-}
-
-impl TeleportPad {
-  fn new(
-    pad_1_world_position: (usize, usize),
-    pad_2_world_position: (usize, usize),
-  ) -> (Self, Self) {
-    let model_path = Path::new("examples/models/teleport_pad.model");
-    let pad_1_model_data = ModelData::from_file(model_path, pad_1_world_position).unwrap();
-    let pad_2_model_data = ModelData::from_file(model_path, pad_2_world_position).unwrap();
-
-    let pad_1_hash = pad_1_model_data.get_unique_hash();
-    let pad_2_hash = pad_2_model_data.get_unique_hash();
-
-    let teleport_pad_1 = Self {
-      model_data: pad_1_model_data,
-      connected_pad_hash: pad_2_hash,
-    };
-    let teleport_pad_2 = Self {
-      model_data: pad_2_model_data,
-      connected_pad_hash: pad_1_hash,
-    };
-
-    (teleport_pad_1, teleport_pad_2)
-  }
-
-  fn is_connected_to(&self, other: &Self) -> bool {
-    let other_hash = other.get_unique_hash();
-
-    self.connected_pad_hash == other_hash
-  }
-
-  fn get_connected_pad_hash(&self) -> u64 {
-    self.connected_pad_hash
-  }
-}
-
-#[tokio::main]
-async fn main() {
-  let mut screen = ScreenData::new();
-  screen.start_printer().unwrap();
-  // screen.start_animation_thread().await.unwrap();
-
-  let mut screen_config = ScreenConfig::new(screen);
-
-  spawn_printing_task(screen_config.screen.clone());
-
-  let player_square_hash = add_squares(&mut screen_config).await;
-  add_walls(&mut screen_config);
-  add_teleport_pads(&mut screen_config);
-
-  user_move(&mut screen_config, player_square_hash).await;
-
-  warn!("Program closed.");
-  std::process::exit(0);
-}
-
-fn spawn_printing_task(screen: Arc<Mutex<ScreenData>>) {
-  let _printing_handle = tokio::task::spawn(async move {
-    loop {
-      std::thread::sleep(std::time::Duration::from_millis(12));
-
-      screen.lock().unwrap().print_screen().log_if_err();
-    }
-  });
-}
-
-/// Gives a list of coordinates to place 50 square for testing placing a ton of models.
-fn get_50_square_coordinates() -> Vec<(usize, usize)> {
-  let initial_square = (95, 1);
-
-  (0..50)
-    .map(|iteration| {
-      let x = ((iteration as f32 / 5.0).floor() * 5.0) as usize + initial_square.0;
-      let y = ((iteration % 5) * 3) + initial_square.1;
-
-      (x, y)
-    })
-    .collect()
-}
-
-/// Returns the hash for the player's square.
-async fn add_squares(screen_config: &mut ScreenConfig) -> u64 {
-  let mut square_world_position_list = vec![(20, 10), (25, 10), (20, 20), (15, 5)];
-  square_world_position_list.append(&mut get_50_square_coordinates());
-
-  let square_list: Vec<Square> = square_world_position_list
+  fn get_animation_data() -> ModelAnimationData {
+    let animation_name = "test".to_string();
+    let animation_frames = vec![
+      Sprite::new("xxxxx\nxxaxx\nxxxxx", 'a', 'x', '-').unwrap(),
+      Sprite::new("/xxxx\nxxaxx\nxxxxx", 'a', 'x', '-').unwrap(),
+      Sprite::new("x/xxx\n/xaxx\nxxxxx", 'a', 'x', '-').unwrap(),
+      Sprite::new("xx/xx\nx/axx\n/xxxx", 'a', 'x', '-').unwrap(),
+      Sprite::new("xxx/x\nxxaxx\nx/xxx", 'a', '/', '-').unwrap(),
+      Sprite::new("xxxx/\nxxa/x\nxx/xx", 'a', 'x', '-').unwrap(),
+      Sprite::new("xxxxx\nxxax/\nxxx/x", 'a', 'x', '-').unwrap(),
+      Sprite::new("xxxxx\nxxaxx\nxxxx/", 'a', 'x', '-').unwrap(),
+    ]
     .into_iter()
-    .enumerate()
-    .map(|(iteration, world_position)| {
-      let square_path = if (iteration + 1) % 4 == 0 {
-        Path::new("examples/models/air_square.model")
-      } else {
-        Path::new("examples/models/square.model")
-      };
-
-      Square::from_file(square_path, world_position)
-    })
+    .map(|s| AnimationFrame::new(s, 2))
     .collect();
 
-  info!("{:#?}", square_list[0]);
-
-  let mut square_hash_list: Vec<u64> = square_list
-    .into_iter()
-    .flat_map(|square| screen_config.add_square(square))
-    .collect();
-
-  square_hash_list.remove(0)
-}
-
-fn add_walls(screen_config: &mut ScreenConfig) {
-  let wall_path = Path::new("examples/models/wall.model");
-
-  vec![
-    // Left side.
-    (30, 15),
-    (40, 15),
-    // Right side.
-    (80, 15),
-    (90, 15),
-  ]
-  .into_iter()
-  .map(|world_position| Wall::from_file(wall_path, world_position))
-  .for_each(|wall| screen_config.add_wall(wall).log_if_err());
-}
-
-fn add_teleport_pads(screen_config: &mut ScreenConfig) {
-  let (pad_1, pad_2) = TeleportPad::new((35, 15), (85, 15));
-
-  screen_config.add_teleport_pads(pad_1, pad_2).unwrap();
-}
-
-async fn user_move(screen_config: &mut ScreenConfig, player_hash: u64) {
-  let (user_input, input_kill_sender) =
-    spawn_input_thread(&screen_config.screen.lock().unwrap()).unwrap();
-  let mut previous_frame_index = screen_config
-    .get_square(&player_hash)
-    .unwrap()
-    .get_top_left_position();
-  let player_model_data = screen_config
-    .get_square(&player_hash)
-    .unwrap()
-    .get_model_data();
-
-  let event_sync = screen_config.screen.lock().unwrap().get_event_sync();
-
-  for input in user_input {
-    event_sync.wait_for_tick();
-
-    info!("THE INPUT WAS {input}");
-
-    let relative_movement = match input.to_lowercase().trim() {
-      "w" => (0, -1),
-      "a" => (-1, 0),
-      "s" => (0, 1),
-      "d" => (1, 0),
-      "q" => {
-        input_kill_sender.send(()).unwrap();
-
-        break;
-      }
-      _ => continue,
-    };
-
-    // relative_movement/absolute_movement
-    let possible_collisions =
-      VecDeque::from(player_model_data.relative_movement_collision_check(relative_movement));
-
-    Square::collision_checks(
-      player_model_data.clone(),
-      possible_collisions,
-      relative_movement,
-      screen_config,
-    )
-    .run_action_list();
-
-    let new_frame_index = player_model_data.top_left();
-
-    info!(
-      "previous_position: {}, new_position: {}",
-      previous_frame_index, new_frame_index
-    );
-
-    previous_frame_index = new_frame_index;
+    let animation = AnimationFrames::new(animation_frames, AnimationLoopCount::Forever, None);
+    ModelAnimationData::new(vec![(animation_name, animation)])
   }
 }
 
-trait ResultTraits {
+fn main() {
+  // // create_large_test_world();
+  // let path = PathBuf::from("examples/worlds/test_world.wrld");
+  // // let path = PathBuf::from("examples/worlds/large_test_world.wrld");
+  // let stored_world = StoredWorld::load(&path).unwrap();
+  // let screen_data = ScreenData::from_world(stored_world);
+  //
+  // let stored_world = StoredWorld::load(path).unwrap();
+  // log::info!("{:#?}", stored_world);
+  //
+  // let (_printing_thread_handle, printing_thread_kill_sender) =
+  //   screen_data.spawn_printing_thread(60, None);
+  //
+  // let mut model_manager = screen_data.get_model_manager();
+  //
+  // loop {
+  //   let input = get_user_input();
+  //   let movement: (isize, isize) = match input.trim() {
+  //     "w" => (0, -1),
+  //     "s" => (0, 1),
+  //     "a" => (-1, 0),
+  //     "d" => (1, 0),
+  //     "q" => break,
+  //     "z" => {
+  //       model_manager
+  //         .queue_model_animation(&Player::HASH, "test")
+  //         .log_if_err();
+  //       continue;
+  //     }
+  //     "x" => {
+  //       model_manager
+  //         .remove_current_model_animation(&Player::HASH)
+  //         .log_if_err();
+  //       continue;
+  //     }
+  //     _ => continue,
+  //   };
+  //
+  //   let movement = ModelMovement::Relative(movement);
+  //
+  //   // Don't care about the collisions for now.
+  //   let _ = model_manager
+  //     .move_model(&Player::HASH, movement)
+  //     .log_if_err();
+  // }
+  //
+  // let _ = printing_thread_kill_sender.send(());
+}
+
+#[allow(dead_code)]
+fn create_large_test_world() {
+  let model_count = 100;
+  let mut model_list: Vec<ModelData> = Vec::with_capacity(model_count);
+  let animation_data = Player::get_animation_data();
+
+  let mut player_model = Player::get_model_data();
+  let _ = player_model
+    .get_appearance_data()
+    .lock()
+    .unwrap()
+    .add_animation_data(animation_data.clone());
+  println!("player_hash: {}", player_model.get_hash());
+
+  model_list.push(player_model);
+
+  for _ in 0..(model_count - 1) {
+    let mut model = Player::get_model_data();
+    let _ = model
+      .get_appearance_data()
+      .lock()
+      .unwrap()
+      .add_animation_data(animation_data.clone());
+
+    model_list.push(model)
+  }
+
+  let world = StoredWorld::new(model_list);
+  world
+    .save(PathBuf::from("examples/worlds/large_test_world.wrld"))
+    .unwrap();
+}
+
+trait ResultTraits<T> {
   /// Logs the result if it's an error.
   /// The message will be under 'Error' when logged.
-  fn log_if_err(&self);
+  fn log_if_err(self) -> Option<T>;
 }
 
-impl<T, E> ResultTraits for Result<T, E>
+impl<T, E> ResultTraits<T> for Result<T, E>
 where
   E: std::fmt::Debug,
 {
-  fn log_if_err(&self) {
+  fn log_if_err(self) -> Option<T> {
     if let Err(error) = self {
-      error!("{error:?}")
+      log::error!("{error:?}");
+
+      return None;
     }
+
+    self.ok()
   }
 }
