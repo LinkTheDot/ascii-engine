@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use ascii_engine::prelude::*;
 
 struct MessagePrompt;

@@ -10,7 +10,6 @@ use event_sync::Immutable;
 use model_data_structures::models::model_data::*;
 use screen_printer::printer::*;
 use std::sync::{Arc, Mutex, RwLock};
-use std::thread::JoinHandle;
 
 /// ScreenData is where all the internal information required to create frames is held.
 ///
@@ -144,6 +143,7 @@ impl ScreenData {
   /// # Errors
   ///
   /// - Returns an error if a model is overlapping on the edge of the grid.
+  #[cfg(not(tarpaulin_include))]
   pub fn print_screen(&mut self) -> Result<(), ScreenError> {
     self.printer.print_screen()
   }
@@ -151,6 +151,7 @@ impl ScreenData {
   /// Prints whitespace over the screen.
   ///
   /// This can be used to reset the grid if things get desynced from possible bugs.
+  #[cfg(not(tarpaulin_include))]
   pub fn clear_screen(&mut self) {
     self.printer.clear_screen();
   }
@@ -222,78 +223,6 @@ impl ScreenData {
   /// Get an immutable copy of the internal EventSync.
   pub fn get_event_sync(&self) -> EventSync<Immutable> {
     self.event_sync.clone_immutable()
-  }
-
-  /// Spawns a thread that will print the screen a given amount of times per second.
-  ///
-  /// The max printing rate is 60, and high rates of printing to the terminal can cause
-  /// artifacting.
-  ///
-  /// Takes an optional amount of times the thread can error consecutively until it closes.
-  /// If none is passed in, the thread will never close when the printer errors.
-  ///
-  /// Returns the JoinHandle and kill_sender to the thread.
-  pub fn spawn_printing_thread(
-    &self,
-    printing_rate: u32,
-    consecutive_errors_to_exit: Option<u32>,
-  ) -> (JoinHandle<()>, oneshot::Sender<()>) {
-    let mut printer = self.printer.clone();
-    let printing_rate = printing_rate.max(1).min(60);
-    let (kill_sender, kill_receiver) = oneshot::channel();
-
-    let thread_handle = std::thread::spawn(move || {
-      let printing_event_sync = EventSync::new(1000 / printing_rate);
-
-      let mut consecutive_errors = 0;
-      let errors_until_exit = consecutive_errors_to_exit.unwrap_or(0); // 0 will never let this check pass.
-
-      // let mut previous_frame_durations: VecDeque<u128> = VecDeque::new();
-      // let previous_frame_duration_count = 10;
-
-      while kill_receiver.try_recv().is_err() && consecutive_errors < errors_until_exit
-        || errors_until_exit == 0
-      {
-        // let frame_duration_average = (previous_frame_durations.iter().sum::<u128>()
-        //   / (previous_frame_durations.len() as u128)
-        //     .min(previous_frame_duration_count)
-        //     .max(1))
-        // .max(1);
-        // log::debug!("Duration: {:?}", 1000000 / frame_duration_average);
-        //
-        // let now = Instant::now();
-        //
-        if let Err(error) = printing_event_sync.wait_for_tick() {
-          log::error!(
-            "An error prevented the screen from getting printed: {:?}",
-            error
-          );
-
-          consecutive_errors += 1;
-        } else if let Err(error) = printer.print_screen() {
-          log::error!(
-            "An error prevented the screen from getting printed: {:?}",
-            error
-          );
-
-          consecutive_errors += 1;
-        } else {
-          consecutive_errors = 0;
-        }
-        //
-        // previous_frame_durations.push_front(now.elapsed().as_micros());
-        // if previous_frame_durations.len() > previous_frame_duration_count as usize {
-        //   previous_frame_durations.pop_back();
-        // }
-      }
-
-      log::warn!(
-        "CLOSING PRINTING THREAD DUE TO {} CONSECUTIVE ERRORS",
-        errors_until_exit
-      );
-    });
-
-    (thread_handle, kill_sender)
   }
 }
 

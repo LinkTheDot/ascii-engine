@@ -1,3 +1,5 @@
+#![cfg(not(tarpaulin_include))]
+
 use log::error;
 use log::info;
 use oneshot::Sender;

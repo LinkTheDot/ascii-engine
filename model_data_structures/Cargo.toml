@@ -14,7 +14,7 @@ toml = "0.8.*"
 config = "0.13.*"
 lazy_static = "1.4.*"
 anyhow = "1.*"
-event_sync = "0.4.0"
+event_sync = "0.4.2"
 thiserror = "1.0.50"
 
 engine_math = { path = "../engine_math" }

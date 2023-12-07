@@ -104,7 +104,7 @@ impl ModelAppearance {
   }
 
   /// Removes the currently running animation from the queue.
-  pub fn stop_current_model_animation(&mut self) {
+  pub fn remove_current_model_animation(&mut self) {
     self
       .get_mut_animation_data()
       .remove_current_model_animation_from_queue()

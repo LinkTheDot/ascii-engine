@@ -90,4 +90,28 @@ mod world_management_logic {
       assert!(model_list.keys().count() == 5);
     });
   }
+
+  #[test]
+  fn copy_current_world_logic() {
+    let test_world = StoredWorld::load(PathBuf::from("tests/worlds/test_template.world")).unwrap();
+    let screen_data = ScreenData::from_world(test_world);
+    let model_manager = screen_data.get_model_manager();
+
+    let copied_world = screen_data.copy_current_world();
+
+    assert!(copied_world.model_count() == 5);
+
+    model_manager.get_model_list(|model_list| {
+      assert!(model_list.keys().count() == 5);
+    });
+  }
+}
+
+#[test]
+fn get_event_sync_logic() {
+  let screen = ScreenData::new();
+  let event_sync_one = screen.get_event_sync();
+  let event_sync_two = screen.get_event_sync();
+
+  assert_eq!(event_sync_one, event_sync_two);
 }

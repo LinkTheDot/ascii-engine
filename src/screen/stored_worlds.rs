@@ -5,7 +5,7 @@ use model_data_structures::{
 use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// A storage for the list of models that exist in a given state of the world.
 #[derive(Debug)]
@@ -67,9 +67,12 @@ impl StoredWorld {
 
     let encoded_file_contents: Vec<u8> = match fs::read(path) {
       Ok(file_contents) => file_contents,
+      #[cfg(not(tarpaulin_inclue))]
       Err(error) => return Err(ScreenError::Other(error.to_string())),
     };
 
+    // Tarpaulin is bugged and doesn't include the overlapped match statement.
+    #[cfg(not(tarpaulin_inclue))]
     let deserialized_stored_model_list =
       match bincode::deserialize::<Vec<StoredDisplayModel>>(&encoded_file_contents) {
         Ok(data) => data,
@@ -79,9 +82,8 @@ impl StoredWorld {
     // Convert the StoredModels into model data.
     let models: Vec<ModelData> = deserialized_stored_model_list
       .into_iter()
-      .map(ModelData::from_stored)
       .filter_map(|model| {
-        if let Ok(model) = model {
+        if let Ok(model) = ModelData::from_stored(model) {
           Some(model)
         } else {
           log::error!("Failed to load a model from the world");
@@ -97,7 +99,7 @@ impl StoredWorld {
   /// Writes the data for the world in a file at the given path.
   /// Overwrites any file that was in that location.
   // TODO: List the errors.
-  pub fn save(&self, path: PathBuf) -> Result<(), ScreenError> {
+  pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), ScreenError> {
     let serialized_world = match bincode::serialize(&self.models) {
       Ok(serialized_world) => serialized_world,
       Err(error) => return Err(ScreenError::Other(error.to_string())),
@@ -120,7 +122,11 @@ impl StoredWorld {
 /// - When the parent directory didn't exist.
 /// - When the file couldn't be opened.
 /// - When the file couldn't be written to.
-pub fn truncate_or_create_then_write(path: PathBuf, data: Vec<u8>) -> Result<(), ScreenError> {
+pub fn truncate_or_create_then_write<P: AsRef<Path>>(
+  path: P,
+  data: Vec<u8>,
+) -> Result<(), ScreenError> {
+  let path = path.as_ref();
   let path_parent = path.parent().unwrap();
 
   if !path_parent.exists() && path_parent != std::path::Path::new("") {
@@ -238,6 +244,7 @@ mod tests {
   // data for tests
 
   #[cfg(test)]
+  #[cfg(not(tarpaulin_include))]
   pub fn get_test_world() -> StoredWorld {
     let test_world_path = PathBuf::from("tests/worlds/test_template.world");
 

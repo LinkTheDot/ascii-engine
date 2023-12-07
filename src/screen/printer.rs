@@ -22,6 +22,7 @@ impl ScreenPrinter {
   }
 
   // TODO: list the errors
+  #[cfg(not(tarpaulin_include))]
   pub fn print_screen(&mut self) -> Result<(), ScreenError> {
     let frame = self.display();
 
@@ -32,6 +33,7 @@ impl ScreenPrinter {
     Ok(())
   }
 
+  #[cfg(not(tarpaulin_include))]
   pub fn clear_screen(&mut self) {
     self.printer.lock().unwrap().clear_grid().unwrap();
   }

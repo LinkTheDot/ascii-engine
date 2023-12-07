@@ -231,7 +231,7 @@ impl ModelManager {
     let model_appearance = self.get_model_appearance(model_hash)?;
     let mut model_appearance = model_appearance.lock().unwrap();
 
-    model_appearance.stop_current_model_animation();
+    model_appearance.remove_current_model_animation();
 
     Ok(())
   }
