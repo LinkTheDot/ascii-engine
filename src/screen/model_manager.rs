@@ -17,6 +17,7 @@ pub struct ModelManager {
   /// Holds a collision, and the timestamp for when that collision occurred.
   ///
   /// Order: push_back -> pop_front
+  // TODO: This needs to be connected to every other model manager
   collision_events: VecDeque<(Instant, ModelCollisions)>,
 }
 

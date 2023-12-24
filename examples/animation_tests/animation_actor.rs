@@ -2,6 +2,8 @@
 
 use ascii_engine::prelude::*;
 
+use crate::result_traits::ResultTraits;
+
 pub struct AnimationActor;
 
 impl AnimationActor {
@@ -42,7 +44,7 @@ impl AnimationActor {
     )
     .unwrap();
 
-    // Self::apply_animations(&mut model);
+    Self::apply_animations(&mut model);
     Self::apply_tags(&mut model, animation_names);
 
     model
@@ -65,10 +67,84 @@ impl AnimationActor {
   }
 
   fn apply_animations(model: &mut ModelData) {
-    todo!()
+    let animations = vec![Self::get_interacted_animation()];
+    let model_appearance = model.get_appearance_data();
+    let mut model_appearance = model_appearance.lock().unwrap();
+
+    animations.into_iter().for_each(|(name, frames)| {
+      model_appearance.add_animation_to_model(name, frames);
+    });
   }
 
-  fn get_base_animation() -> (String, AnimationFrames) {
-    todo!()
+  fn get_interacted_animation() -> (String, AnimationFrames) {
+    let frame_duration = 5; // ticks
+
+    let animation_frames: Vec<(String, char, u32)> = vec![
+      (
+        "/=============\\\n|*************|\n|*-----------*|\n|*-----c-----*|\n|*-----------*|\n|*************|\n\\=============/".to_string(), 
+        '-',
+        frame_duration
+      ),
+      (
+        "/-------------\\\n|=============|\n|*-----------*|\n|*-----c-----*|\n|*-----------*|\n|*************|\n\\=============/".to_string(), 
+        '-',
+        frame_duration
+      ),
+      (
+        "/-------------\\\n|-------------|\n|=============|\n|*-----c-----*|\n|*-----------*|\n|*************|\n\\=============/".to_string(), 
+        '-',
+        frame_duration
+      ),
+      (
+        "/-------------\\\n|-------------|\n|=============|\n|*-----c-----*|\n|*-----------*|\n|*************|\n\\=============/".to_string(), 
+        '-',
+        frame_duration
+      ),
+      (
+        "/-------------\\\n|-------------|\n|-------------|\n|======c======|\n|*-----------*|\n|*************|\n\\=============/".to_string(),
+        '=',
+        frame_duration
+      ),
+      (
+        "/-------------\\\n|-------------|\n|-------------|\n|------c------|\n|=============|\n|*************|\n\\=============/".to_string(),
+        '-',
+        frame_duration
+      ),
+      (
+        "/-------------\\\n|-------------|\n|-------------|\n|------c------|\n|-------------|\n|=============|\n\\=============/".to_string(),
+        '-',
+        frame_duration
+      ),
+      (
+        "/-------------\\\n|-------------|\n|-------------|\n|------c------|\n|-------------|\n|-------------|\n\\=============/".to_string(),
+        '-',
+        10
+      ),
+    ];
+
+    let mut animation_frames: Vec<AnimationFrame> = animation_frames
+      .into_iter()
+      .map(|(frame, replacement_center, frame_duration)| {
+        let appearance = Sprite::new(frame, 'c', replacement_center, '-').unwrap();
+
+        AnimationFrame::new(appearance, frame_duration)
+      })
+      .collect();
+
+    let mut reversed_animation_frames: Vec<AnimationFrame> =
+      animation_frames.clone().into_iter().skip(1).rev().collect();
+
+    animation_frames.append(&mut reversed_animation_frames);
+
+    let loop_count = AnimationLoopCount::Limited(1);
+    let animation_frames = AnimationFrames::new(animation_frames, loop_count, None);
+
+    (Self::ANIMATION_NAME_BASE.into(), animation_frames)
+  }
+
+  pub fn activate_animation(model_hash: &u64, model_manager: &mut ModelManager) {
+    model_manager
+      .queue_model_animation(model_hash, Self::ANIMATION_NAME_BASE, false)
+      .log_if_err();
   }
 }
