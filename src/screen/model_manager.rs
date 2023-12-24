@@ -8,16 +8,24 @@ use model_data_structures::prelude::AnimationFrames;
 use std::collections::HashSet;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
+use std::time::Instant;
 
-// Describe the use of the model_manager
+// TODO: Describe the use of the model_manager
 #[derive(Debug)]
 pub struct ModelManager {
   model_storage: Arc<RwLock<ModelStorage>>,
+  /// Holds a collision, and the timestamp for when that collision occurred.
+  ///
+  /// Order: push_back -> pop_front
+  collision_events: VecDeque<(Instant, ModelCollisions)>,
 }
 
 impl ModelManager {
   pub(crate) fn new(model_storage: Arc<RwLock<ModelStorage>>) -> Self {
-    Self { model_storage }
+    Self {
+      model_storage,
+      collision_events: VecDeque::new(),
+    }
   }
 
   /// Takes a closure that uses the internal list of models.
@@ -67,11 +75,15 @@ impl ModelManager {
     let collision_list = self.check_collisions_against_all_models(model, None);
 
     if !collision_list.is_empty() {
-      Ok(Some(ModelCollisions {
+      let collision = ModelCollisions {
         collider: *model_hash,
         caused_movement: movement,
         collision_list,
-      }))
+      };
+
+      self.add_collision_to_list(collision.clone());
+
+      Ok(Some(collision))
     } else {
       Ok(None)
     }
@@ -269,6 +281,42 @@ impl ModelManager {
     let model = self.get_model(&model_hash)?;
 
     Some(model.get_tags())
+  }
+
+  /// Drains the collisions that've occurred since the last time this method was called.
+  pub fn take_collision_events(&mut self) -> VecDeque<(Instant, ModelCollisions)> {
+    std::mem::take(&mut self.collision_events)
+  }
+
+  /// Takes a copy of the current collisions that've occurred since the last time the list was drained.
+  pub fn clone_collision_events(&self) -> VecDeque<(Instant, ModelCollisions)> {
+    self.collision_events.clone()
+  }
+
+  /// Checks the list of collisions to see if the passed in model has collided with anything.
+  ///
+  /// Returns the list of collisions and their timestamps if they existed, None otherwise.
+  /// This method does *not* drain any collisions from the list, rather it clones every collision event
+  /// and its respective timestamp.
+  pub fn model_has_collided(&self, model: &u64) -> Option<VecDeque<(Instant, ModelCollisions)>> {
+    let collision_list: VecDeque<(Instant, ModelCollisions)> = self
+      .collision_events
+      .iter()
+      .filter_map(|(timestamp, collision)| {
+        if &collision.collider == model || collision.collision_list.contains(model) {
+          Some((*timestamp, collision.clone()))
+        } else {
+          None
+        }
+      })
+      .collect();
+
+    (!collision_list.is_empty()).then_some(collision_list)
+  }
+
+  /// Adds a collision to the back to the list and creates an Instant of the current time.
+  fn add_collision_to_list(&mut self, collision: ModelCollisions) {
+    self.collision_events.push_back((Instant::now(), collision))
   }
 }
 
