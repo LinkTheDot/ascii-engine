@@ -641,6 +641,43 @@ mod collision_event_logic {
 
     assert!(second_timestamp.duration_since(first_timestamp) >= expected_time_gap);
   }
+
+  #[test]
+  fn event_list_is_shared_between_managers() {
+    let model_mover = TestingData::new_test_model(WORLD_POSITION);
+    let model_collided = TestingData::new_test_model(WORLD_POSITION);
+    let (screen, mut model_manager) =
+      setup_model_manager(vec![model_mover.clone(), model_collided.clone()]);
+    let mut second_model_manager = screen.get_model_manager();
+    let movement = ModelMovement::Relative((1, 0));
+
+    let expected_collision = ModelCollisions {
+      collider: model_mover.get_hash(),
+      caused_movement: movement,
+      collision_list: VecDeque::from(vec![model_collided.get_hash()]),
+    };
+    let expected_collision_list =
+      VecDeque::from(vec![expected_collision.clone(), expected_collision.clone()]);
+
+    let _ = model_manager.move_model(&model_mover.get_hash(), movement);
+    let _ = model_manager.move_model(&model_mover.get_hash(), movement);
+
+    let collision_list: VecDeque<ModelCollisions> = model_manager
+      .clone_collision_events()
+      .into_iter()
+      .map(|(_, collisions)| collisions)
+      .collect();
+    let second_collision_list: VecDeque<ModelCollisions> = second_model_manager
+      .take_collision_events()
+      .into_iter()
+      .map(|(_, collisions)| collisions)
+      .collect();
+
+    assert_eq!(collision_list, expected_collision_list);
+    assert_eq!(second_collision_list, expected_collision_list);
+    assert!(model_manager.take_collision_events().is_empty());
+    assert!(second_model_manager.take_collision_events().is_empty());
+  }
 }
 
 //

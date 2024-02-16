@@ -115,7 +115,6 @@ impl Player {
     let mut animation_frames: Vec<(String, char)> = animation_frame_appearances_left;
     animation_frames.push(animation_frame_appearance_middle);
     animation_frames.append(&mut animation_frame_appearances_right);
-    log::info!("{:#?}", animation_frames);
 
     let loop_count = AnimationLoopCount::Forever;
     let animation_frames: Vec<AnimationFrame> = animation_frames

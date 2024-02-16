@@ -18,15 +18,29 @@ pub struct ModelManager {
   ///
   /// Order: push_back -> pop_front
   // TODO: This needs to be connected to every other model manager
-  collision_events: VecDeque<(Instant, ModelCollisions)>,
+  collision_events: Arc<RwLock<VecDeque<(Instant, ModelCollisions)>>>,
 }
 
 impl ModelManager {
-  pub(crate) fn new(model_storage: Arc<RwLock<ModelStorage>>) -> Self {
+  pub(crate) fn new(
+    model_storage: Arc<RwLock<ModelStorage>>,
+    collision_events: Arc<RwLock<VecDeque<(Instant, ModelCollisions)>>>,
+  ) -> Self {
     Self {
       model_storage,
-      collision_events: VecDeque::new(),
+      collision_events,
     }
+  }
+
+  /// # Errors
+  ///
+  /// - An error is returned when attempting to add a model that already exists.
+  pub fn add_models_to_world(&mut self, list_of_models: Vec<ModelData>) -> Result<(), ModelError> {
+    let mut model_storage = self.model_storage.write().unwrap();
+
+    list_of_models
+      .into_iter()
+      .try_for_each(|model| model_storage.insert(model))
   }
 
   /// Takes a closure that uses the internal list of models.
@@ -286,12 +300,12 @@ impl ModelManager {
 
   /// Drains the collisions that've occurred since the last time this method was called.
   pub fn take_collision_events(&mut self) -> VecDeque<(Instant, ModelCollisions)> {
-    std::mem::take(&mut self.collision_events)
+    std::mem::take(&mut self.collision_events.write().unwrap())
   }
 
   /// Takes a copy of the current collisions that've occurred since the last time the list was drained.
   pub fn clone_collision_events(&self) -> VecDeque<(Instant, ModelCollisions)> {
-    self.collision_events.clone()
+    self.collision_events.read().unwrap().clone()
   }
 
   /// Checks the list of collisions to see if the passed in model has collided with anything.
@@ -302,6 +316,8 @@ impl ModelManager {
   pub fn model_has_collided(&self, model: &u64) -> Option<VecDeque<(Instant, ModelCollisions)>> {
     let collision_list: VecDeque<(Instant, ModelCollisions)> = self
       .collision_events
+      .read()
+      .unwrap()
       .iter()
       .filter_map(|(timestamp, collision)| {
         if &collision.collider == model || collision.collision_list.contains(model) {
@@ -317,7 +333,11 @@ impl ModelManager {
 
   /// Adds a collision to the back to the list and creates an Instant of the current time.
   fn add_collision_to_list(&mut self, collision: ModelCollisions) {
-    self.collision_events.push_back((Instant::now(), collision))
+    self
+      .collision_events
+      .write()
+      .unwrap()
+      .push_back((Instant::now(), collision))
   }
 }
 

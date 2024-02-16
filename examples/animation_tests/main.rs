@@ -1,3 +1,4 @@
+use crate::message_prompt::MessagePrompt;
 use animation_actor::*;
 use ascii_engine::prelude::*;
 use result_traits::*;
@@ -14,6 +15,8 @@ fn main() {
   let event_sync = screen.get_event_sync();
   let (user_input, input_kill_sender) = spawn_input_thread();
 
+  let mut messages: Vec<MessagePrompt> = MessagePrompt::create_all(&mut model_manager);
+
   loop {
     if let Ok(user_input) = user_input.try_recv() {
       match user_input.trim() {
@@ -26,7 +29,7 @@ fn main() {
       }
     }
 
-    check_collision_events(&mut model_manager);
+    check_collision_events(&mut model_manager, &mut messages);
 
     screen.print_screen().log_if_err();
 
@@ -36,23 +39,13 @@ fn main() {
   let _ = input_kill_sender.send(());
 }
 
-fn check_collision_events(model_manager: &mut ModelManager) {
+fn check_collision_events(model_manager: &mut ModelManager, messages: &mut [MessagePrompt]) {
   let collision_events = model_manager.take_collision_events();
 
   collision_events
     .into_iter()
     .for_each(|(_, collision_event)| {
-      check_animation_actors(&collision_event, model_manager);
+      AnimationActor::act_on_collision(&collision_event, model_manager);
+      MessagePrompt::act_on_collision(&collision_event, model_manager, messages);
     });
-}
-
-fn check_animation_actors(collision_event: &ModelCollisions, model_manager: &mut ModelManager) {
-  let animation_actors = model_manager.get_models_with_tags(vec![AnimationActor::NAME]);
-
-  if let Some(animation_actor) = animation_actors
-    .iter()
-    .find(|actor_hash| collision_event.collision_list.contains(actor_hash))
-  {
-    AnimationActor::activate_animation(animation_actor, model_manager);
-  }
 }

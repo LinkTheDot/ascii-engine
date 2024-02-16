@@ -8,8 +8,11 @@ use crate::CONFIG;
 use event_sync::EventSync;
 use event_sync::Immutable;
 use model_data_structures::models::model_data::*;
+use model_data_structures::models::model_movements::ModelCollisions;
 use screen_printer::printer::*;
+use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, RwLock};
+use std::time::Instant;
 
 /// ScreenData is where all the internal information required to create frames is held.
 ///
@@ -42,6 +45,7 @@ pub struct ScreenData {
   printer: ScreenPrinter,
   event_sync: EventSync,
   model_storage: Arc<RwLock<ModelStorage>>,
+  collision_events: Arc<RwLock<VecDeque<(Instant, ModelCollisions)>>>,
 
   /// Hides the terminal cursor as long as this lives
   _cursor_hider: termion::cursor::HideCursor<std::io::Stdout>,
@@ -104,6 +108,7 @@ impl ScreenData {
       printer,
       event_sync: EventSync::new(CONFIG.tick_duration),
       model_storage,
+      collision_events: Default::default(),
       _cursor_hider: cursor_hider,
     }
   }
@@ -217,12 +222,17 @@ impl ScreenData {
   ///
   /// The ModelManager will handle all actions requested to models in the world.
   pub fn get_model_manager(&self) -> ModelManager {
-    ModelManager::new(self.model_storage.clone())
+    ModelManager::new(self.model_storage.clone(), self.collision_events.clone())
   }
 
   /// Get an immutable copy of the internal EventSync.
   pub fn get_event_sync(&self) -> EventSync<Immutable> {
     self.event_sync.clone_immutable()
+  }
+
+  /// Starts the file logger before creating an instance of [`ScreenData`](ScreenData).
+  pub fn start_logger() {
+    let _ = file_logger::setup_file_logger();
   }
 }
 

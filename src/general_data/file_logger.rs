@@ -1,6 +1,6 @@
 use crate::CONFIG;
 use chrono::Utc;
-use log::{LevelFilter, SetLoggerError};
+use log::LevelFilter;
 use log4rs::{
   append::file::FileAppender,
   config::{Appender, Config, Root},
@@ -19,8 +19,8 @@ use log4rs::{
 /// shortest: Level - "Message"
 // TODO: List the errors.
 #[cfg(not(tarpaulin_include))]
-pub fn setup_file_logger() -> Result<log4rs::Handle, SetLoggerError> {
-  let date = Utc::now();
+pub fn setup_file_logger() -> Result<log4rs::Handle, Box<dyn std::error::Error>> {
+  let date = Utc::now().to_string().replace(':', " ");
   let log_file_path = format!("logs/{date}").replace(' ', "-");
 
   let logging_format = get_logging_format();
@@ -28,15 +28,13 @@ pub fn setup_file_logger() -> Result<log4rs::Handle, SetLoggerError> {
 
   let logfile = FileAppender::builder()
     .encoder(Box::new(PatternEncoder::new(&logging_format)))
-    .build(log_file_path)
-    .unwrap();
+    .build(log_file_path)?;
 
   let config = Config::builder()
     .appender(Appender::builder().build("logfile", Box::new(logfile)))
-    .build(Root::builder().appender("logfile").build(log_level))
-    .unwrap();
+    .build(Root::builder().appender("logfile").build(log_level))?;
 
-  log4rs::init_config(config)
+  log4rs::init_config(config).map_err(Into::into)
 }
 
 fn get_log_level() -> LevelFilter {

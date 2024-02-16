@@ -1,5 +1,5 @@
 use crate::errors::*;
-use engine_math::{prelude::UsizeMethods, rectangle::Rectangle};
+use engine_math::{prelude::usizeMethods, rectangle::Rectangle};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
@@ -33,7 +33,7 @@ impl Default for Sprite {
 /// The anchor_character_index needs recalculating after every change of the shape and anchor_character.
 impl Sprite {
   /// Returns a default of self.
-  // TODO: List the errors.
+  // TODO: List the errors. (There's a lot).
   pub fn new(
     shape: impl AsRef<str>,
     anchor_character: char,
@@ -66,6 +66,12 @@ impl Sprite {
     new_anchor_replacement_character: Option<char>,
   ) -> Result<(), ModelError> {
     if !Rectangle::string_is_valid_rectangle(&new_shape) {
+      log::debug!(
+        "shape: {:?}\nanchor_character: {:?}\nanchor_replacement: {:?}",
+        new_shape,
+        new_anchor_character,
+        new_anchor_replacement_character
+      );
       return Err(ModelError::NonRectangularShape);
     }
 

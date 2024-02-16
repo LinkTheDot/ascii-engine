@@ -57,7 +57,12 @@ impl StoredWorld {
     Self { models }
   }
 
-  // TODO: List the errors.
+  /// Logs an error for every model that failed to get loaded into the world.
+  ///
+  /// # Errors
+  ///
+  /// - Failed to read the given path from the file system.
+  /// - Failed to deserialize the contents of the file to the expected values from binary.
   pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, ScreenError> {
     let path = path.as_ref();
 
@@ -67,6 +72,7 @@ impl StoredWorld {
 
     let encoded_file_contents: Vec<u8> = match fs::read(path) {
       Ok(file_contents) => file_contents,
+
       #[cfg(not(tarpaulin_inclue))]
       Err(error) => return Err(ScreenError::Other(error.to_string())),
     };

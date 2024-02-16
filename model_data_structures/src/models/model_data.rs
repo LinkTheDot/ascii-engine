@@ -99,13 +99,15 @@ impl ModelData {
       return Err(ModelError::MissingCrutialFieldsInStoredDisplayModel);
     }
 
-    if let Err(ModelError::AnimationError(AnimationError::AnimationValidityCheckFailed(
-      error_list,
-    ))) = stored_model
+    let result = stored_model
       .appearance_data
       .as_mut()
       .unwrap()
-      .full_validity_check()
+      .full_validity_check();
+
+    if let Err(ModelError::AnimationError(AnimationError::AnimationValidityCheckFailed(
+      error_list,
+    ))) = result
     {
       for animation_error_data in error_list {
         log::error!(

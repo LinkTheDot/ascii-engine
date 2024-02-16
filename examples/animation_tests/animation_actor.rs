@@ -147,4 +147,15 @@ impl AnimationActor {
       .queue_model_animation(model_hash, Self::ANIMATION_NAME_BASE, false)
       .log_if_err();
   }
+
+  pub fn act_on_collision(collision_event: &ModelCollisions, model_manager: &mut ModelManager) {
+    let animation_actors = model_manager.get_models_with_tags(vec![AnimationActor::NAME]);
+
+    if let Some(animation_actor) = animation_actors
+      .iter()
+      .find(|actor_hash| collision_event.contains_model(actor_hash))
+    {
+      AnimationActor::activate_animation(animation_actor, model_manager);
+    }
+  }
 }

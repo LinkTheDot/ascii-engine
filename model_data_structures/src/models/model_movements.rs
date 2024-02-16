@@ -12,3 +12,9 @@ pub enum ModelMovement {
   Absolute((isize, isize)),
   Relative((isize, isize)),
 }
+
+impl ModelCollisions {
+  pub fn contains_model(&self, model: &u64) -> bool {
+    &self.collider == model || self.collision_list.contains(model)
+  }
+}
