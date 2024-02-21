@@ -15,7 +15,7 @@ fn main() {
   let event_sync = screen.get_event_sync();
   let (user_input, input_kill_sender) = spawn_input_thread();
 
-  let mut messages: Vec<MessagePrompt> = MessagePrompt::create_all(&mut model_manager);
+  let mut messages: Vec<MessagePrompt> = vec![]; //MessagePrompt::create_all(&mut model_manager);
 
   loop {
     if let Ok(user_input) = user_input.try_recv() {

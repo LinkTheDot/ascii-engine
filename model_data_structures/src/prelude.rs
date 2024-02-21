@@ -1,6 +1,6 @@
 pub use crate::{
   models::{
-    animation::{animation_frames::*, *},
+    animation::*,
     errors::*,
     hitboxes::*,
     model_appearance::{sprites::*, *},
