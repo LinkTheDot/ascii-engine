@@ -26,12 +26,12 @@ pub trait CoordinateMethods {
 }
 
 #[allow(non_camel_case_types)]
-pub trait UsizeMethods {
+pub trait usizeMethods {
   /// Converts the given index to a set of coordinates of the passed in grid width.
   fn index_to_coordinates(&self, width: usize) -> (usize, usize);
 }
 
-impl UsizeMethods for usize {
+impl usizeMethods for usize {
   fn index_to_coordinates(&self, width: usize) -> (usize, usize) {
     (self % width, self / width)
   }

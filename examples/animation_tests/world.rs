@@ -8,6 +8,7 @@ use std::path::PathBuf;
 pub const WORLD_PATH: &str = "examples/animation_tests/world.wrld";
 
 pub fn initialize() -> (ScreenData, Player) {
+  // Create screen before everything to start logging.
   let mut screen = ScreenData::new();
 
   let world = if let Ok(world) = StoredWorld::load(Path::new(WORLD_PATH)) {

@@ -97,19 +97,21 @@ impl ScreenPrinter {
     drop(model_appearance);
 
     for (index, character) in model_characters.enumerate() {
-      if character != air_character {
-        let current_row_count = index / sprite_width;
-
-        // (top_left_index + (row_adder + column_adder)) - column_correction
-        let character_index = (model_frame_position
-          + (((CONFIG.grid_width as usize + 1) * current_row_count) + index))
-          - (current_row_count * sprite_width);
-
-        current_frame.replace_range(
-          character_index..(character_index + 1),
-          &character.to_string(),
-        );
+      if character == air_character || !character.is_ascii() {
+        continue;
       }
+
+      let current_row_count = index / sprite_width;
+
+      // (top_left_index + (row_adder + column_adder)) - column_correction
+      let character_index = (model_frame_position
+        + (((CONFIG.grid_width as usize + 1) * current_row_count) + index))
+        - (current_row_count * sprite_width);
+
+      current_frame.replace_range(
+        character_index..(character_index + 1),
+        &character.to_string(),
+      );
     }
   }
 }

@@ -1,5 +1,5 @@
 use crate::errors::*;
-use engine_math::{prelude::UsizeMethods, rectangle::*};
+use engine_math::{prelude::usizeMethods, rectangle::*};
 use serde::{Deserialize, Serialize};
 
 /// The hitbox will be how objects know the space they take up in the world.

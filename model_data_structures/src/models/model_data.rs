@@ -99,13 +99,15 @@ impl ModelData {
       return Err(ModelError::MissingCrutialFieldsInStoredDisplayModel);
     }
 
-    if let Err(ModelError::AnimationError(AnimationError::AnimationValidityCheckFailed(
-      error_list,
-    ))) = stored_model
+    let result = stored_model
       .appearance_data
       .as_mut()
       .unwrap()
-      .full_validity_check()
+      .full_validity_check();
+
+    if let Err(ModelError::AnimationError(AnimationError::AnimationValidityCheckFailed(
+      error_list,
+    ))) = result
     {
       for animation_error_data in error_list {
         log::error!(
@@ -185,9 +187,9 @@ impl ModelData {
   /// - When the new strata passed in was in an impossible range
   // This method is fun.
   // Because models are stored by strata for easier frame building, and
-  // this method doesn't communicate with the model storage. Due to that
-  // the list will need to be checked every time for strata changes anyways,
-  // essentially defeating the entire purpose of this system.
+  // models don't communicate with the model storage. Due to that the list
+  // will need to be checked every time for strata changes anyways,
+  // essentially defeating the entire purpose of this system when changed.
   //
   // It won't matter once strata is removed though, so this stays as it is.
   pub fn change_strata(&mut self, new_strata: Strata) -> Result<(), ModelError> {
@@ -200,11 +202,10 @@ impl ModelData {
     Ok(())
   }
 
-  /// Returns a copy to the current [`Sprite`](crate::models::model_appearance::sprites::Sprite) on this model.
+  /// Returns a copy of the current [`Sprite`](crate::models::model_appearance::sprites::Sprite) on this model.
   ///
   /// Preferably you get a copy of the appearance through [`get_appearance_data`](ModelData::get_appearance_data), and obtain
   /// a reference to the Sprite instead.
-  // Maybe make sprites internally contain Arcs to their data?
   pub fn get_sprite(&self) -> Sprite {
     self
       .get_appearance_immutably()
@@ -214,17 +215,19 @@ impl ModelData {
       .clone()
   }
 
+  /// Returns the current dimensions of the hitbox.
   pub fn get_hitbox_dimensions(&self) -> Rectangle {
     *self.inner.lock().unwrap().hitbox.get_hitbox_dimensions()
   }
 
+  /// Returns a copy of the current hitbox.
   pub fn get_hitbox(&self) -> Hitbox {
     self.inner.lock().unwrap().hitbox.clone()
   }
 
-  /// Replaces the currently stored hitbox with the new one.
-  pub fn change_hitbox(&mut self, new_hitbox: Hitbox) {
-    let _ = std::mem::replace(&mut self.inner.lock().unwrap().hitbox, new_hitbox);
+  /// Replaces the currently stored hitbox with a new one, returing the previously stored hitbox.
+  pub fn change_hitbox(&mut self, new_hitbox: Hitbox) -> Hitbox {
+    std::mem::replace(&mut self.inner.lock().unwrap().hitbox, new_hitbox)
   }
 
   /// Returns a reference to the [`model's appearance]`(crate::model_data::model_appearance::ModelAppearance).

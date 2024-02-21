@@ -488,6 +488,198 @@ mod model_tag_logic {
   }
 }
 
+#[cfg(test)]
+mod collision_event_logic {
+  use std::collections::VecDeque;
+
+  #[allow(unused)]
+  use super::*;
+
+  #[test]
+  fn take_collision_events_does_remove_events() {
+    let model_mover = TestingData::new_test_model(WORLD_POSITION);
+    let model_collided = TestingData::new_test_model(WORLD_POSITION);
+    let (_, mut model_manager) =
+      setup_model_manager(vec![model_mover.clone(), model_collided.clone()]);
+    let movement = ModelMovement::Relative((1, 0));
+
+    let expected_collision = ModelCollisions {
+      collider: model_mover.get_hash(),
+      caused_movement: movement,
+      collision_list: VecDeque::from(vec![model_collided.get_hash()]),
+    };
+
+    let _ = model_manager.move_model(&model_mover.get_hash(), movement);
+    let collision_list: VecDeque<ModelCollisions> = model_manager
+      .take_collision_events()
+      .into_iter()
+      .map(|(_, collisions)| collisions)
+      .collect();
+    let empty_list = model_manager.take_collision_events();
+
+    assert_eq!(collision_list, VecDeque::from(vec![expected_collision]));
+    assert!(empty_list.is_empty());
+  }
+
+  #[test]
+  fn copy_collision_events_doesnt_remove_events() {
+    let model_mover = TestingData::new_test_model(WORLD_POSITION);
+    let model_collided = TestingData::new_test_model(WORLD_POSITION);
+    let (_, mut model_manager) =
+      setup_model_manager(vec![model_mover.clone(), model_collided.clone()]);
+    let movement = ModelMovement::Relative((1, 0));
+
+    let expected_collision = ModelCollisions {
+      collider: model_mover.get_hash(),
+      caused_movement: movement,
+      collision_list: VecDeque::from(vec![model_collided.get_hash()]),
+    };
+
+    let _ = model_manager.move_model(&model_mover.get_hash(), movement);
+    let collision_list: VecDeque<ModelCollisions> = model_manager
+      .clone_collision_events()
+      .into_iter()
+      .map(|(_, collisions)| collisions)
+      .collect();
+    let collision_list_second: VecDeque<ModelCollisions> = model_manager
+      .clone_collision_events()
+      .into_iter()
+      .map(|(_, collisions)| collisions)
+      .collect();
+
+    assert_eq!(
+      collision_list,
+      VecDeque::from(vec![expected_collision.clone()])
+    );
+    assert_eq!(
+      collision_list_second,
+      VecDeque::from(vec![expected_collision])
+    );
+  }
+
+  #[test]
+  fn collisions_are_being_tracked_properly() {
+    let model_mover = TestingData::new_test_model(WORLD_POSITION);
+    let model_collided = TestingData::new_test_model(WORLD_POSITION);
+    let (_, mut model_manager) =
+      setup_model_manager(vec![model_mover.clone(), model_collided.clone()]);
+    let movement = ModelMovement::Relative((1, 0));
+
+    let expected_collision = ModelCollisions {
+      collider: model_mover.get_hash(),
+      caused_movement: movement,
+      collision_list: VecDeque::from(vec![model_collided.get_hash()]),
+    };
+    let expected_collision_list =
+      VecDeque::from(vec![expected_collision.clone(), expected_collision.clone()]);
+
+    let _ = model_manager.move_model(&model_mover.get_hash(), movement);
+    let _ = model_manager.move_model(&model_mover.get_hash(), movement);
+
+    let collision_list: VecDeque<ModelCollisions> = model_manager
+      .take_collision_events()
+      .into_iter()
+      .map(|(_, collisions)| collisions)
+      .collect();
+
+    assert_eq!(collision_list, expected_collision_list);
+  }
+
+  #[test]
+  fn model_has_collided_logic() {
+    let model_mover = TestingData::new_test_model(WORLD_POSITION);
+    let model_collided = TestingData::new_test_model(WORLD_POSITION);
+    let (_, mut model_manager) =
+      setup_model_manager(vec![model_mover.clone(), model_collided.clone()]);
+    let movement = ModelMovement::Relative((1, 0));
+
+    let expected_collision = ModelCollisions {
+      collider: model_mover.get_hash(),
+      caused_movement: movement,
+      collision_list: VecDeque::from(vec![model_collided.get_hash()]),
+    };
+    let expected_collision_list =
+      VecDeque::from(vec![expected_collision.clone(), expected_collision.clone()]);
+
+    let _ = model_manager.move_model(&model_mover.get_hash(), movement);
+    let _ = model_manager.move_model(&model_mover.get_hash(), movement);
+
+    let collidee_collision_list: VecDeque<ModelCollisions> = model_manager
+      .model_has_collided(&model_collided.get_hash())
+      .unwrap()
+      .into_iter()
+      .map(|(_, collisions)| collisions)
+      .collect();
+    let collider_collision_list: VecDeque<ModelCollisions> = model_manager
+      .model_has_collided(&model_mover.get_hash())
+      .unwrap()
+      .into_iter()
+      .map(|(_, collisions)| collisions)
+      .collect();
+
+    assert_eq!(collidee_collision_list, expected_collision_list);
+    assert_eq!(collider_collision_list, expected_collision_list);
+  }
+
+  #[test]
+  fn timestamps_are_accurate() {
+    let model_mover = TestingData::new_test_model(WORLD_POSITION);
+    let model_collided = TestingData::new_test_model(WORLD_POSITION);
+    let (_, mut model_manager) =
+      setup_model_manager(vec![model_mover.clone(), model_collided.clone()]);
+    let movement = ModelMovement::Relative((1, 0));
+
+    let expected_time_gap = std::time::Duration::from_millis(20);
+
+    let _ = model_manager.move_model(&model_mover.get_hash(), movement);
+    std::thread::sleep(expected_time_gap);
+    let _ = model_manager.move_model(&model_mover.get_hash(), movement);
+
+    let mut collisions = model_manager.take_collision_events();
+    let first_timestamp = collisions.pop_front().unwrap().0;
+    let second_timestamp = collisions.pop_front().unwrap().0;
+
+    assert!(second_timestamp.duration_since(first_timestamp) >= expected_time_gap);
+  }
+
+  #[test]
+  fn event_list_is_shared_between_managers() {
+    let model_mover = TestingData::new_test_model(WORLD_POSITION);
+    let model_collided = TestingData::new_test_model(WORLD_POSITION);
+    let (screen, mut model_manager) =
+      setup_model_manager(vec![model_mover.clone(), model_collided.clone()]);
+    let mut second_model_manager = screen.get_model_manager();
+    let movement = ModelMovement::Relative((1, 0));
+
+    let expected_collision = ModelCollisions {
+      collider: model_mover.get_hash(),
+      caused_movement: movement,
+      collision_list: VecDeque::from(vec![model_collided.get_hash()]),
+    };
+    let expected_collision_list =
+      VecDeque::from(vec![expected_collision.clone(), expected_collision.clone()]);
+
+    let _ = model_manager.move_model(&model_mover.get_hash(), movement);
+    let _ = model_manager.move_model(&model_mover.get_hash(), movement);
+
+    let collision_list: VecDeque<ModelCollisions> = model_manager
+      .clone_collision_events()
+      .into_iter()
+      .map(|(_, collisions)| collisions)
+      .collect();
+    let second_collision_list: VecDeque<ModelCollisions> = second_model_manager
+      .take_collision_events()
+      .into_iter()
+      .map(|(_, collisions)| collisions)
+      .collect();
+
+    assert_eq!(collision_list, expected_collision_list);
+    assert_eq!(second_collision_list, expected_collision_list);
+    assert!(model_manager.take_collision_events().is_empty());
+    assert!(second_model_manager.take_collision_events().is_empty());
+  }
+}
+
 //
 // data for tests
 //
